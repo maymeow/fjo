@@ -97,3 +97,146 @@ func TestGetRepositoryAndUser(t *testing.T) {
 		t.Errorf("missing user: %v", err)
 	}
 }
+
+type mutation struct {
+	method, path, body string
+}
+
+func mutationServer(t *testing.T) (*Client, *[]mutation) {
+	t.Helper()
+	var got []mutation
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		got = append(got, mutation{r.Method, r.URL.EscapedPath(), string(b)})
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/user/repos":
+			if strings.Contains(string(b), `"name":"exists"`) {
+				w.WriteHeader(http.StatusConflict)
+				_, _ = io.WriteString(w, `{"message":"repository already exists"}`)
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+			_, _ = io.WriteString(w, `{"full_name":"alice/demo","html_url":"https://forge/alice/demo"}`)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/orgs/org/repos":
+			w.WriteHeader(http.StatusCreated)
+			_, _ = io.WriteString(w, `{"full_name":"org/demo"}`)
+		case r.Method == http.MethodPatch && r.URL.Path == "/api/v1/repos/alice/demo":
+			_, _ = io.WriteString(w, `{"full_name":"alice/demo","description":"new"}`)
+		case r.Method == http.MethodDelete && r.URL.Path == "/api/v1/repos/alice/demo":
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/repos/up/project/forks":
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = io.WriteString(w, `{"full_name":"alice/project"}`)
+		case r.Method == http.MethodPost && strings.HasPrefix(r.URL.EscapedPath(), "/api/v1/repos/alice/project/sync_fork"):
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, `{"message":"not found"}`)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	c, err := New(Options{BaseURL: srv.URL + "/api/v1", MaxRetries: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c, &got
+}
+
+func TestCreateRepository(t *testing.T) {
+	c, got := mutationServer(t)
+	ctx := context.Background()
+
+	private := true
+	r, err := c.CreateRepository(ctx, "", CreateRepoOptions{
+		Name: "demo", Description: "test", Private: &private, AutoInit: true,
+		DefaultBranch: "main", Gitignores: "Go", License: "MIT",
+	})
+	if err != nil || r.FullName != "alice/demo" {
+		t.Fatalf("CreateRepository = %+v, %v", r, err)
+	}
+	m := (*got)[0]
+	if m.method != http.MethodPost || m.path != "/api/v1/user/repos" {
+		t.Errorf("request = %+v", m)
+	}
+	for _, want := range []string{`"name":"demo"`, `"private":true`, `"auto_init":true`, `"default_branch":"main"`, `"gitignores":"Go"`, `"license":"MIT"`} {
+		if !strings.Contains(m.body, want) {
+			t.Errorf("body %s missing %s", m.body, want)
+		}
+	}
+
+	if _, err := c.CreateRepository(ctx, "org", CreateRepoOptions{Name: "demo"}); err != nil {
+		t.Fatalf("org create: %v", err)
+	}
+	if m := (*got)[1]; m.path != "/api/v1/orgs/org/repos" {
+		t.Errorf("org path = %q", m.path)
+	}
+
+	if _, err := c.CreateRepository(ctx, "", CreateRepoOptions{Name: "exists"}); fjoerr.KindOf(err) != fjoerr.KindConflict {
+		t.Errorf("conflict kind = %q, err = %v", fjoerr.KindOf(err), err)
+	}
+}
+
+func TestEditRepository(t *testing.T) {
+	c, got := mutationServer(t)
+	desc, website, branch := "new", "https://example.com", "develop"
+	private, archived := false, true
+
+	r, err := c.EditRepository(context.Background(), "alice", "demo", EditRepoOptions{
+		Description: &desc, Website: &website, Private: &private,
+		Archived: &archived, DefaultBranch: &branch,
+	})
+	if err != nil || r.Description != "new" {
+		t.Fatalf("EditRepository = %+v, %v", r, err)
+	}
+	m := (*got)[0]
+	if m.method != http.MethodPatch || m.path != "/api/v1/repos/alice/demo" {
+		t.Errorf("request = %+v", m)
+	}
+	for _, want := range []string{`"description":"new"`, `"website":"https://example.com"`, `"private":false`, `"archived":true`, `"default_branch":"develop"`} {
+		if !strings.Contains(m.body, want) {
+			t.Errorf("body %s missing %s", m.body, want)
+		}
+	}
+
+	if _, err := c.EditRepository(context.Background(), "alice", "demo", EditRepoOptions{}); err != nil {
+		t.Fatalf("empty edit: %v", err)
+	}
+	if got := (*got)[1].body; got != "{}" {
+		t.Errorf("empty edit body = %q", got)
+	}
+}
+
+func TestDeleteForkAndSyncRepository(t *testing.T) {
+	c, got := mutationServer(t)
+	ctx := context.Background()
+
+	if err := c.DeleteRepository(ctx, "alice", "demo"); err != nil {
+		t.Fatalf("DeleteRepository: %v", err)
+	}
+	if m := (*got)[0]; m.method != http.MethodDelete || m.path != "/api/v1/repos/alice/demo" {
+		t.Errorf("delete request = %+v", m)
+	}
+
+	fork, err := c.ForkRepository(ctx, "up", "project", ForkRepoOptions{Name: "project", Organization: "org"})
+	if err != nil || fork.FullName != "alice/project" {
+		t.Fatalf("ForkRepository = %+v, %v", fork, err)
+	}
+	m := (*got)[1]
+	if m.path != "/api/v1/repos/up/project/forks" || !strings.Contains(m.body, `"organization":"org"`) {
+		t.Errorf("fork request = %+v", m)
+	}
+
+	if err := c.SyncFork(ctx, "alice", "project", ""); err != nil {
+		t.Fatalf("SyncFork default: %v", err)
+	}
+	if m := (*got)[2]; m.path != "/api/v1/repos/alice/project/sync_fork" {
+		t.Errorf("sync path = %q", m.path)
+	}
+	if err := c.SyncFork(ctx, "alice", "project", "feature/x"); err != nil {
+		t.Fatalf("SyncFork branch: %v", err)
+	}
+	if m := (*got)[3]; m.path != "/api/v1/repos/alice/project/sync_fork/feature%2Fx" {
+		t.Errorf("sync branch path = %q", m.path)
+	}
+}

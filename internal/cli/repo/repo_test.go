@@ -30,6 +30,8 @@ type harness struct {
 	t         *testing.T
 	srv       *httptest.Server
 	reqs      []*url.URL
+	methods   []string
+	bodies    []string
 	gitDir    string
 	opened    string
 	noBrowser bool
@@ -41,6 +43,10 @@ func newHarness(t *testing.T, handler http.HandlerFunc) *harness {
 	h.srv = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u := *r.URL
 		h.reqs = append(h.reqs, &u)
+		h.methods = append(h.methods, r.Method)
+		body, _ := io.ReadAll(r.Body)
+		h.bodies = append(h.bodies, string(body))
+		r.Body = io.NopCloser(strings.NewReader(string(body)))
 		if r.Header.Get("Authorization") != "token secret-token-value" {
 			t.Errorf("%s without token", r.URL.Path)
 		}

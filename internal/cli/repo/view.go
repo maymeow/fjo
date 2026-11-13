@@ -17,6 +17,7 @@ import (
 )
 
 type viewOptions struct {
+	repo   string
 	web    bool
 	branch string
 }
@@ -39,11 +40,12 @@ Without an argument the repository of the current directory is shown.`,
 	}
 	cmd.Flags().BoolVarP(&o.web, "web", "w", false, "Open the repository in the browser")
 	cmd.Flags().StringVarP(&o.branch, "branch", "b", "", "Show the given branch (with --web)")
+	addRepoFlag(cmd, &o.repo)
 	return cmd
 }
 
 func runView(ctx context.Context, f *app.Factory, o viewOptions, args []string) error {
-	ref, err := repoArg(ctx, f, args)
+	ref, err := repoArgWithFlag(ctx, f, o.repo, args)
 	if err != nil {
 		return err
 	}

@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"sort"
@@ -58,11 +59,49 @@ func (e *Error) Error() string {
 
 // Run executes git with args and returns stdout.
 func (c *Client) Run(ctx context.Context, args ...string) (string, error) {
+	cmd, err := c.command(ctx, args...)
+	if err != nil {
+		return "", err
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return "", c.classify(ctx, args, err, &stderr)
+	}
+	return stdout.String(), nil
+}
+
+// RunWithIO executes git with args, streaming stdout and stderr to the given
+// writers (used by clone/fetch where progress belongs on the terminal).
+func (c *Client) RunWithIO(ctx context.Context, stdout, stderr io.Writer, args ...string) error {
+	cmd, err := c.command(ctx, args...)
+	if err != nil {
+		return err
+	}
+	if stdout == nil {
+		stdout = io.Discard
+	}
+	var errBuf bytes.Buffer
+	cmd.Stdout = stdout
+	if stderr != nil {
+		cmd.Stderr = io.MultiWriter(stderr, &errBuf)
+	} else {
+		cmd.Stderr = &errBuf
+	}
+	if err := cmd.Run(); err != nil {
+		return c.classify(ctx, args, err, &errBuf)
+	}
+	return nil
+}
+
+func (c *Client) command(ctx context.Context, args ...string) (*exec.Cmd, error) {
 	path := c.Path
 	if path == "" {
 		p, err := exec.LookPath("git")
 		if err != nil {
-			return "", ErrNotInstalled
+			return nil, ErrNotInstalled
 		}
 		path = p
 	}
@@ -72,24 +111,25 @@ func (c *Client) Run(ctx context.Context, args ...string) (string, error) {
 		"GIT_TERMINAL_PROMPT=0", // never block on a credential prompt
 		"LC_ALL=C",              // stable, parseable messages
 	)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	err := cmd.Run()
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return "", ctxErr
-		}
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
-			msg := strings.TrimSpace(stderr.String())
-			if strings.Contains(msg, "not a git repository") {
-				return "", ErrNotRepository
-			}
-			return "", &Error{Args: args, ExitCode: ee.ExitCode(), Stderr: msg}
-		}
-		return "", fmt.Errorf("run git: %w", err)
+	return cmd, nil
+}
+
+func (c *Client) classify(ctx context.Context, args []string, err error, stderr *bytes.Buffer) error {
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
 	}
-	return stdout.String(), nil
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) {
+		return fmt.Errorf("run git: %w", err)
+	}
+	msg := ""
+	if stderr != nil {
+		msg = strings.TrimSpace(stderr.String())
+	}
+	if strings.Contains(msg, "not a git repository") {
+		return ErrNotRepository
+	}
+	return &Error{Args: args, ExitCode: ee.ExitCode(), Stderr: msg}
 }
 
 // TopLevel returns the root of the current work tree.

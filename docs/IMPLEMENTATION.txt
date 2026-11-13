@@ -915,12 +915,13 @@ Also support remotes with nested application paths and configured SSH aliases.
 
 Do not assume that `origin` is always the correct remote.
 
-Implemented (Phase 2a): step 2 is `remote.<name>.fjo-resolved` written by
-`fjo repo set-default` (B-14); `FJO_REPO` is checked after `--repo`. Steps 4–5:
-only remotes on known hosts (configured hosts and `FJO_HOST`) count; remotes
-that resolve to the same repository are merged; several different
-repositories are a usage error with a hint, never a guess. Step 8 is left to
-mutating commands (Phase 2b+).
+Implemented (Phase 2a/2b): resolution order is `-R/--repo`, `FJO_REPO`, the
+`remote.<name>.fjo-resolved` marker written by `fjo repo set-default` (B-14),
+then the git remotes. Only remotes on known hosts (configured hosts and
+`FJO_HOST`) count; remotes that resolve to the same repository are merged;
+several different repositories are a usage error with a hint, never a guess.
+Step 8 (Phase 2b): mutating commands let the API enforce permissions;
+`repo clone` and `repo fork` preflight with `GET /repos/{owner}/{repo}`.
 
 ### 8.3 Git operations
 
@@ -1545,8 +1546,9 @@ Acceptance criteria:
 
 ### Phase 2 — Git and repositories
 
-**Target: v0.0.3** — split into 2a (detection, list, view, set-default) and
-2b (create, clone, fork and the remaining `repo` subcommands).
+**Target: v0.0.3** — complete (2026-11-13); split into 2a (detection, list,
+view, set-default) and 2b (create, clone, fork and the remaining `repo`
+subcommands).
 
 Tasks:
 
@@ -1556,11 +1558,12 @@ Tasks:
 - [x] Implement `repo list`.
 - [x] Implement `repo view`.
 - [x] Implement `repo set-default`. (B-14)
-- [ ] Implement `repo create`. (2b)
-- [ ] Implement `repo clone`. (2b)
-- [ ] Add repository selection flags. (FJO_REPO and positional args done; `-R/--repo` lands with the first command group that needs it)
+- [x] Implement `repo create`. (2b)
+- [x] Implement `repo clone`. (2b)
+- [x] Implement `repo fork`, `edit`, `rename`, `delete`, `archive`, `unarchive` and `sync`. (2b)
+- [x] Add repository selection flags. (`-R/--repo` on single-repository commands; FJO_REPO and positional args)
 - [x] Implement browser launcher. (internal/browser, Phase 1; used by `repo view --web`)
-- [x] Add Git integration tests. (real git in temp repos; Forgejo 15/17 integration for list/view/detection)
+- [x] Add Git integration tests. (real git in temp repos; Forgejo 15/17 integration for list/view/detection and mutations)
 
 Acceptance criteria:
 

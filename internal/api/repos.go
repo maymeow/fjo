@@ -12,10 +12,49 @@ import (
 )
 
 var (
-	epGetUser    = endpoint("GET", "/users/{username}")
-	epGetRepo    = endpoint("GET", "/repos/{owner}/{repo}")
-	epSearchRepo = endpoint("GET", "/repos/search")
+	epGetUser        = endpoint("GET", "/users/{username}")
+	epGetRepo        = endpoint("GET", "/repos/{owner}/{repo}")
+	epSearchRepo     = endpoint("GET", "/repos/search")
+	epCreateUserRepo = endpoint("POST", "/user/repos")
+	epCreateOrgRepo  = endpoint("POST", "/orgs/{org}/repos")
+	epEditRepo       = endpoint("PATCH", "/repos/{owner}/{repo}")
+	epDeleteRepo     = endpoint("DELETE", "/repos/{owner}/{repo}")
+	epForkRepo       = endpoint("POST", "/repos/{owner}/{repo}/forks")
+	epSyncFork       = endpoint("POST", "/repos/{owner}/{repo}/sync_fork")
+	epSyncForkBranch = endpoint("POST", "/repos/{owner}/{repo}/sync_fork/{branch}")
 )
+
+// CreateRepoOptions is the body of POST /user/repos and /orgs/{org}/repos
+// (CreateRepoOption in the Forgejo API). Private is a pointer so --public can
+// explicitly request false instead of falling back to the server default.
+type CreateRepoOptions struct {
+	Name          string `json:"name"`
+	Description   string `json:"description,omitempty"`
+	Private       *bool  `json:"private,omitempty"`
+	AutoInit      bool   `json:"auto_init,omitempty"`
+	DefaultBranch string `json:"default_branch,omitempty"`
+	Gitignores    string `json:"gitignores,omitempty"`
+	License       string `json:"license,omitempty"`
+	Readme        string `json:"readme,omitempty"`
+}
+
+// EditRepoOptions is the body of PATCH /repos/{owner}/{repo}
+// (EditRepoOption). Pointer fields distinguish "unset" from "set to zero".
+type EditRepoOptions struct {
+	Name          *string `json:"name,omitempty"`
+	Description   *string `json:"description,omitempty"`
+	Website       *string `json:"website,omitempty"`
+	Private       *bool   `json:"private,omitempty"`
+	Archived      *bool   `json:"archived,omitempty"`
+	DefaultBranch *string `json:"default_branch,omitempty"`
+}
+
+// ForkRepoOptions is the body of POST /repos/{owner}/{repo}/forks
+// (CreateForkOption).
+type ForkRepoOptions struct {
+	Name         string `json:"name,omitempty"`
+	Organization string `json:"organization,omitempty"`
+}
 
 // Repository is the subset of Forgejo's Repository model fjo uses.
 type Repository struct {
@@ -65,6 +104,56 @@ func (c *Client) GetRepository(ctx context.Context, owner, name string) (*Reposi
 		return nil, err
 	}
 	return &r, nil
+}
+
+// CreateRepository creates a repository for the authenticated user (owner
+// empty) or an organization (non-empty owner).
+func (c *Client) CreateRepository(ctx context.Context, owner string, opt CreateRepoOptions) (*Repository, error) {
+	path := epCreateUserRepo.Expand()
+	if owner != "" {
+		path = epCreateOrgRepo.Expand(owner)
+	}
+	var r Repository
+	if _, err := c.JSON(ctx, http.MethodPost, path, opt, &r); err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+// EditRepository updates repository properties. Only fields set in opt change.
+func (c *Client) EditRepository(ctx context.Context, owner, name string, opt EditRepoOptions) (*Repository, error) {
+	var r Repository
+	if _, err := c.JSON(ctx, http.MethodPatch, epEditRepo.Expand(owner, name), opt, &r); err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+// DeleteRepository deletes a repository.
+func (c *Client) DeleteRepository(ctx context.Context, owner, name string) error {
+	_, err := c.JSON(ctx, http.MethodDelete, epDeleteRepo.Expand(owner, name), nil, nil)
+	return err
+}
+
+// ForkRepository forks a repository into the authenticated user's account or
+// the given organization.
+func (c *Client) ForkRepository(ctx context.Context, owner, name string, opt ForkRepoOptions) (*Repository, error) {
+	var r Repository
+	if _, err := c.JSON(ctx, http.MethodPost, epForkRepo.Expand(owner, name), opt, &r); err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+// SyncFork syncs a fork's default branch (branch empty) or one branch with its
+// upstream base branch.
+func (c *Client) SyncFork(ctx context.Context, owner, name, branch string) error {
+	path := epSyncFork.Expand(owner, name)
+	if branch != "" {
+		path = epSyncForkBranch.Expand(owner, name, branch)
+	}
+	_, err := c.JSON(ctx, http.MethodPost, path, nil, nil)
+	return err
 }
 
 // RepoSearch filters GET /repos/search. Nil booleans mean "any".

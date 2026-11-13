@@ -7,6 +7,7 @@ package integration_test
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -265,6 +266,127 @@ func TestEnvTokenAgainstForgejo(t *testing.T) {
 	// FJO_TOKEN is never persisted.
 	if strings.Contains(readFile(t, filepath.Join(r.dir, config.FileName)), inst.token) {
 		t.Error("FJO_TOKEN was written to config.yaml")
+	}
+}
+
+func TestRepoMutationsAgainstForgejo(t *testing.T) {
+	inst := configured(t)
+	ctx := t.Context()
+	client, err := api.New(api.Options{BaseURL: apiURL(inst.url), Token: inst.token})
+	if err != nil {
+		t.Fatal(err)
+	}
+	me, err := client.CurrentUser(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, env := envRunner(t, inst)
+
+	suffix := fmt.Sprint(time.Now().UnixNano())
+	name := "fjo-mut-" + suffix
+	org := "fjo-mut-org-" + suffix
+	if _, err := client.JSON(ctx, http.MethodPost, "orgs", map[string]any{"username": org}, nil); err != nil {
+		t.Fatalf("create org: %v", err)
+	}
+	t.Cleanup(func() {
+		bg := context.Background()
+		_, _ = client.JSON(bg, http.MethodDelete, "repos/"+org+"/fork", nil, nil)
+		_, _ = client.JSON(bg, http.MethodDelete, "repos/"+me.Login+"/"+name+"-renamed", nil, nil)
+		_, _ = client.JSON(bg, http.MethodDelete, "repos/"+me.Login+"/"+name, nil, nil)
+		_, _ = client.JSON(bg, http.MethodDelete, "orgs/"+org, nil, nil)
+	})
+
+	res := r.run(env, "", "repo", "create", name, "--private",
+		"--description", "created by fjo", "--initialize", "--gitignore", "Go")
+	if res.code != fjoerr.ExitOK {
+		t.Fatalf("create: exit %d, stderr %q", res.code, res.stderr)
+	}
+	full := me.Login + "/" + name
+	created, err := client.GetRepository(ctx, me.Login, name)
+	if err != nil {
+		t.Fatalf("get created: %v", err)
+	}
+	if !created.Private || created.Description != "created by fjo" || created.Empty {
+		t.Errorf("created repository = %+v", created)
+	}
+
+	res = r.run(env, "", "repo", "edit", full,
+		"--description", "edited by fjo", "--homepage", "https://example.com")
+	if res.code != fjoerr.ExitOK {
+		t.Fatalf("edit: exit %d, stderr %q", res.code, res.stderr)
+	}
+	edited, err := client.GetRepository(ctx, me.Login, name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if edited.Description != "edited by fjo" || edited.Website != "https://example.com" {
+		t.Errorf("edited repository = %+v", edited)
+	}
+
+	newName := name + "-renamed"
+	res = r.run(env, "", "repo", "rename", full, newName, "--yes")
+	if res.code != fjoerr.ExitOK {
+		t.Fatalf("rename: exit %d, stderr %q", res.code, res.stderr)
+	}
+	full = me.Login + "/" + newName
+	renamed, err := client.GetRepository(ctx, me.Login, newName)
+	if err != nil {
+		t.Fatalf("renamed repository: %v", err)
+	}
+	if renamed.Name != newName {
+		t.Errorf("renamed repository = %+v", renamed)
+	}
+
+	res = r.run(env, "", "repo", "archive", full, "--yes")
+	if res.code != fjoerr.ExitOK {
+		t.Fatalf("archive: exit %d, stderr %q", res.code, res.stderr)
+	}
+	archived, err := client.GetRepository(ctx, me.Login, newName)
+	if err != nil || !archived.Archived {
+		t.Errorf("archived = %+v, %v", archived, err)
+	}
+	res = r.run(env, "", "repo", "unarchive", full)
+	if res.code != fjoerr.ExitOK {
+		t.Fatalf("unarchive: exit %d, stderr %q", res.code, res.stderr)
+	}
+	unarchived, err := client.GetRepository(ctx, me.Login, newName)
+	if err != nil || unarchived.Archived {
+		t.Errorf("unarchived = %+v, %v", unarchived, err)
+	}
+
+	res = r.run(env, "", "repo", "fork", full, "--org", org, "--name", "fork")
+	if res.code != fjoerr.ExitOK {
+		t.Fatalf("fork: exit %d, stderr %q", res.code, res.stderr)
+	}
+	if _, err := client.GetRepository(ctx, org, "fork"); err != nil {
+		t.Fatalf("fork not found: %v", err)
+	}
+
+	// The fork starts identical to its base; add a commit upstream so the
+	// server has something to sync.
+	if _, err := client.JSON(ctx, http.MethodPost, "repos/"+full+"/contents/sync-"+suffix+".txt", map[string]any{
+		"content": base64.StdEncoding.EncodeToString([]byte("sync " + suffix)),
+		"message": "integration: give the fork something to sync",
+		"branch":  created.DefaultBranch,
+	}, nil); err != nil {
+		t.Fatalf("create upstream commit: %v", err)
+	}
+
+	res = r.run(env, "", "repo", "sync", org+"/fork")
+	if res.code != fjoerr.ExitOK {
+		t.Errorf("sync: exit %d, stderr %q", res.code, res.stderr)
+	}
+
+	res = r.run(env, "", "repo", "delete", org+"/fork", "--yes")
+	if res.code != fjoerr.ExitOK {
+		t.Fatalf("delete fork: exit %d, stderr %q", res.code, res.stderr)
+	}
+	res = r.run(env, "", "repo", "delete", full, "--yes")
+	if res.code != fjoerr.ExitOK {
+		t.Fatalf("delete: exit %d, stderr %q", res.code, res.stderr)
+	}
+	if _, err := client.GetRepository(ctx, me.Login, newName); fjoerr.KindOf(err) != fjoerr.KindNotFound {
+		t.Errorf("deleted repository still resolves: %v", err)
 	}
 }
 

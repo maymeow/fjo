@@ -12,13 +12,13 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 
 ## Current status
 
-- Phase:            Phase 2 - Git and repositories (IN PROGRESS, 2a done)
-- Next target:      v0.0.3 (2b: repo create, clone, fork, edit, delete, ...)
+- Phase:            Phase 2 - Git and repositories (COMPLETE, v0.0.3)
+- Next target:      v0.1.0 (Phase 3 - issues and pull requests)
 - Last updated:     2026-11-13
 - Repo:             https://github.com/kukolos/fjo (private), branch main
 - Phase 0 open:     self-hosted runners + first CI run; race tests (B-35)
-- Phase 2 open:     repo create/clone/fork/edit/rename/delete/archive/
-                    unarchive/sync; -R/--repo helper; B-37, B-38
+- Phase 2 open:     none; follow-ups B-37 (40-hex SHA redaction),
+                    B-38 (~/.ssh/config aliases)
 - Blockers:         none for code; B-33 (license), B-34 (module path vs.
                     repo at github.com/kukolos/fjo) before a public release
 
@@ -53,6 +53,62 @@ Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
 
 ---
+
+## 2026-11-13 — Phase 2b: create, clone, fork, edit, rename, delete, archive, sync
+Phase: Phase 2 / v0.0.3 (part 2b)
+Spec:  §5.3, §8.3, §16 Phase 2
+
+Added:
+- internal/api/repos.go: CreateRepoOptions/CreateRepository (user or
+  organization), EditRepoOptions/EditRepository, DeleteRepository,
+  ForkRepoOptions/ForkRepository, SyncFork (default branch or one branch).
+  All endpoints are in the registry and verified against the pinned Forgejo
+  15/17 swagger specs.
+- internal/git: RunWithIO streams git stdout/stderr (clone progress) while
+  still capturing stderr for classified errors; Run/command/classify
+  refactored without changing existing behavior.
+- `fjo repo create <name>`: --private/--public, --description, --owner,
+  --initialize, --gitignore, --license, --default-branch, --clone and
+  --hostname; OWNER/NAME argument; conflict/organization errors.
+- `fjo repo clone <repository> [<directory>] [-- <gitflags>...]`: fetches the
+  repository first, chooses ssh/https from the host/default git_protocol and
+  streams git clone output.
+- `fjo repo fork [<repository>]`: --org, --name, --clone; --clone adds the
+  source as the `upstream` remote.
+- `fjo repo edit`: --description, --homepage, --visibility public|private,
+  --default-branch; only changed fields are PATCHed.
+- `fjo repo rename`, `delete`, `archive`, `unarchive`, `sync` (--branch) with
+  confirmation and --yes for destructive/rename operations.
+- `-R/--repo` on view, fork, edit, rename, delete, archive, unarchive and
+  sync; precedence is --repo > FJO_REPO > set-default > unique known remote.
+- Tests: internal/api/repos_test.go (request paths/bodies, conflict mapping),
+  internal/cli/repo/mutations_test.go (all commands, clone against a real local
+  bare repository, upstream remote, confirmations, -R, usage errors) and
+  TestRepoMutationsAgainstForgejo (create, edit, rename, archive/unarchive,
+  fork, sync after an upstream commit, delete).
+- docs/commands.md sections and flags for the new commands; compatibility.md
+  rows/differences; IMPLEMENTATION §16 Phase 2 marked complete.
+
+Deviations from spec:
+- `repo create` has no --source/--push/--template; --initialize maps to
+  Forgejo auto_init (the --add-readme equivalent). `repo edit` supports only
+  description, homepage, visibility and default branch; Forgejo has no
+  internal visibility in CreateRepoOption/EditRepoOption.
+- `repo sync` has no --force (not exposed by the Forgejo API). `repo clone`
+  leaves private HTTPS authentication to Git (no gh-style auth setup-git yet).
+- B-38 (~/.ssh/config aliases) remains open; configured ssh_hosts are
+  supported for remote matching.
+
+Tests:
+- Linux/amd64: go test ./... pass; gofmt, go vet, staticcheck clean.
+- scripts/test-forgejo.sh: pass against Forgejo 15.0.11 and 17.0.1 (5 tests
+  each, including repo mutations).
+- Coverage: cli/repo 80.7 %, api 87.3 %, git 82.2 %, app 85.9 %.
+- NOT run: go test -race (no gcc, B-35); Windows/macOS and CI runners.
+
+Notes / next steps:
+- Phase 2 complete; next is Phase 3 (issues and pull requests). Follow-ups:
+  B-37 (40-hex commit SHA redaction) and B-38 (resolve ~/.ssh/config aliases).
 
 ## 2026-11-13 — Phase 2a: git remotes, repository detection, repo list/view/set-default
 Phase: Phase 2 / v0.0.3 (part 2a)

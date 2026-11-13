@@ -104,9 +104,11 @@ Work with repositories (IMPLEMENTATION §5.3). Commands that accept
 `[<repository>]` (`[HOST/]OWNER/REPO` or a clone URL) use the repository of the
 current directory when it is omitted:
 
-1. `FJO_REPO`
-2. the default chosen with `fjo repo set-default`
-3. the git remote that points to a known Forgejo host (configured hosts and
+1. `-R/--repo` on commands that accept it (view, fork, edit, rename, delete,
+   archive, unarchive, sync)
+2. `FJO_REPO`
+3. the default chosen with `fjo repo set-default`
+4. the git remote that points to a known Forgejo host (configured hosts and
    `FJO_HOST`). Remotes on other hosts are ignored; `origin` is not special.
    Several remotes pointing to *different* repositories are an error (exit 10)
    with a hint to use `set-default`.
@@ -120,6 +122,7 @@ reported, not guessed).
 
 | Flag | Description |
 |---|---|
+| `-R, --repo REPO` | Select the repository: `[HOST/]OWNER/REPO` |
 | `-w, --web` | Open the repository in the browser (prints the URL when no browser is available) |
 | `-b, --branch BRANCH` | Open a branch (with `--web`) |
 
@@ -144,6 +147,88 @@ user), most recently updated first.
 
 Non-TTY output is tab-separated: `full_name`, description (one line), info
 (`private`, `fork`, `archived`, `mirror`), updated time (RFC 3339).
+
+### fjo repo create <name>
+
+Create a repository for the authenticated user or an organization. `<name>`
+may be `OWNER/NAME`; without `--private` or `--public` the server default
+visibility is used.
+
+| Flag | Description |
+|---|---|
+| `--hostname HOST` | Forgejo host (default: `FJO_HOST`, `defaults.host`) |
+| `--owner ORG` | Organization that will own the repository |
+| `--description TEXT` | Repository description |
+| `--private` / `--public` | Visibility (mutually exclusive) |
+| `--initialize` | Create an initial commit |
+| `--gitignore NAME` | Gitignore template (requires `--initialize`) |
+| `--license NAME` | License template (requires `--initialize`) |
+| `--default-branch NAME` | Default branch (requires `--initialize`) |
+| `--clone` | Clone the new repository after creating it |
+
+The repository URL is printed on stdout. A failed creation changes nothing; a
+failed clone reports the created repository and how to clone it manually.
+
+### fjo repo clone <repository> [<directory>] [-- <gitflags>...]
+
+Clone a repository using the installed `git`. The URL is chosen from the
+host's `git_protocol` (`ssh` or `https`; see `fjo auth login --git-protocol`).
+Arguments after `--` are passed to `git clone` unchanged. The default
+directory is the repository name.
+
+### fjo repo fork [<repository>]
+
+Fork a repository into the authenticated user's account or an organization.
+
+| Flag | Description |
+|---|---|
+| `-R, --repo REPO` | Select the source repository |
+| `--org ORG` | Fork into this organization (default: your account) |
+| `--name NAME` | Name of the fork (default: the source name) |
+| `--clone` | Clone the fork and add the source as the `upstream` remote |
+
+### fjo repo edit [<repository>]
+
+Edit repository properties. Only flags that are passed are changed.
+
+| Flag | Description |
+|---|---|
+| `-R, --repo REPO` | Select the repository |
+| `--description TEXT` | Set the description (empty clears it) |
+| `--homepage URL` | Set the homepage URL |
+| `--visibility public\|private` | Change visibility |
+| `--default-branch NAME` | Change the default branch |
+
+Forgejo's API has no `internal` visibility value, so only public and private
+are accepted.
+
+### fjo repo rename <new-name> / rename <repository> <new-name>
+
+Rename a repository. With one argument the repository is resolved normally
+(`-R`, `FJO_REPO`, the default, or the only remote); the two-argument form
+selects it explicitly. This is a destructive operation and asks for
+confirmation; `--yes` skips the prompt (required without a terminal).
+
+### fjo repo delete [<repository>]
+
+Delete a repository and everything in it. Requires confirmation; `--yes` skips
+the prompt and is required without a terminal. Accepts `-R/--repo`.
+
+### fjo repo archive [<repository>] / unarchive [<repository>]
+
+Archive a repository (read-only) or make it writable again. `archive` asks for
+confirmation and supports `--yes`; `unarchive` does not need confirmation.
+Both accept `-R/--repo`.
+
+### fjo repo sync [<repository>]
+
+Sync a fork with its upstream repository. Without `--branch` only the default
+branch is synced.
+
+| Flag | Description |
+|---|---|
+| `-R, --repo REPO` | Select the fork |
+| `-b, --branch BRANCH` | Sync this branch instead of the default branch |
 
 ### fjo repo set-default [<repository>]
 

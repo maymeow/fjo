@@ -69,7 +69,7 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | `gh api` | `fjo api` | done (incl. `{owner}`/`{repo}`/`{branch}`); differs: `--paginate`, no GraphQL/`--jq` yet (see below) |
 | `gh config get/set/list` | same | idea (BACKLOG B-26) |
 | `gh repo list/view/set-default` | same | done (Phase 2a); no `--json` until Phase 3 |
-| `gh repo create/clone/fork/edit/rename/delete/archive/unarchive/sync` | same | planned (Phase 2b) |
+| `gh repo create/clone/fork/edit/rename/delete/archive/unarchive/sync` | same | done (Phase 2b); differences below |
 | `gh browse` | same | idea (BACKLOG B-21) |
 | `gh issue ...` | same | planned (Phase 3) |
 | `gh pr ...` | same | planned (Phase 3); draft = `WIP:` title prefix (differs) |
@@ -97,4 +97,10 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | `repo set-default` | Stored as `remote.<name>.fjo-resolved` in `.git/config` (gh: `gh-resolved`) | Same mechanism, own key so gh and fjo do not interfere |
 | `repo list` | Lists repositories **owned** by the user/org (Forgejo `/repos/search?uid=&exclusive=true`), newest update first; `--visibility internal`, `--language`, `--topic` not supported | Forgejo search API filters |
 | `repo view` | No README rendering; non-TTY output is `key:\tvalue` lines | README rendering comes with the markdown renderer (Phase 3) |
+| `repo create` | Without `--private`/`--public` the server default visibility is used; `--initialize` is the `--add-readme` equivalent (Forgejo's `auto_init`); no `--source`/`--push`/`--template` yet | Forgejo `CreateRepoOption` fields only |
+| `repo clone` | Uses the host's configured `git_protocol`; private HTTPS clones need Git credentials configured outside fjo; no `gh auth setup-git` yet | fjo does not manage Git credential helpers |
+| `repo fork` | `--clone` adds the source as `upstream`; no `--remote` mode | Forgejo fork API |
+| `repo edit` | Only description, homepage, visibility (public/private) and default branch; no topics/template/feature toggles | Forgejo `EditRepoOption` subset |
+| `repo rename/delete/archive` | Require `--yes` without a terminal; exact confirmation text differs from gh | Prevent accidental destructive actions (§5.3) |
+| `repo sync` | No `--force`; Forgejo syncs the default branch or one named branch | No force option in the Forgejo API |
 | `api` absolute URLs | Only URLs inside the configured instance are accepted | Credentials must not leave the instance (§7.4) |
