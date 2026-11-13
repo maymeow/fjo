@@ -1,0 +1,71 @@
+# CI for fjo on the project's own Forgejo instance (IMPLEMENTATION §13.5).
+#
+# Requires self-hosted Forgejo runners registered with these labels:
+#   fjo-linux-amd64, fjo-windows-amd64, fjo-macos-arm64
+# Each runner needs Go (version from go.mod) and git; the Windows runner
+# needs a C compiler (MinGW-w64 gcc) for `go test -race`.
+# See docs/development.md for runner setup.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Never run untrusted fork code on self-hosted runners without maintainer approval
+# (configure "approve workflows from forks" in repository settings).
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [fjo-linux-amd64, fjo-windows-amd64, fjo-macos-arm64]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: https://code.forgejo.org/actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Format
+        shell: bash
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Test (race)
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+        run: go test -race ./...
+
+      - name: Build
+        run: go build -trimpath -o bin/ ./cmd/fjo
+
+  lint:
+    runs-on: fjo-linux-amd64
+    timeout-minutes: 15
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: https://code.forgejo.org/actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...
+
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...

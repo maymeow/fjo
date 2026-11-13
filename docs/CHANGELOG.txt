@@ -1,0 +1,166 @@
+# FJO — Development Changelog
+
+Internal development log. Records what was actually done during implementation,
+so anyone (human or agent) can see where the project stands.
+
+This is NOT the user-facing CHANGELOG.md required by IMPLEMENTATION.txt §4/§14.
+The user-facing changelog is derived from this log at release time.
+
+New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
+
+---
+
+## Current status
+
+- Phase:            Phase 0 — Project foundation (code done, initial commit on main)
+- Next target:      v0.0.1
+- Last updated:     2026-11-13
+- Open for Phase 0: self-hosted runners + first CI run; pinned swagger specs;
+                    race tests (no gcc locally, B-35)
+- Blockers:         none for code; B-33 (license) and B-34 (module path)
+                    before the first public push
+
+Update this block whenever an entry below changes the status.
+
+---
+
+## Entry format
+
+Newest entries on top. One entry per working session / merged change set.
+
+    ## YYYY-MM-DD — <short title>
+    Phase: <phase number / target version>
+    Spec:  <IMPLEMENTATION.txt sections affected, e.g. §7.2, §16 Phase 1>
+
+    Added:
+    - ...
+    Changed:
+    - ...
+    Fixed:
+    - ...
+    Removed:
+    - ...
+    Deviations from spec:
+    - <what differs from IMPLEMENTATION.txt and why; link BACKLOG item if a decision is pending>
+    Tests:
+    - <what was run: go test ./..., race, vet, staticcheck, integration targets, platforms>
+    Notes / next steps:
+    - ...
+
+Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
+when a task is done and verified.
+
+---
+
+## 2026-11-13 — Phase 0 foundation implemented
+Phase: Phase 0 / v0.0.1
+Spec:  §4, §5.1, §6, §6.1, §6.2, §7.4, §10.4, §13, §14, §15, §16 Phase 0
+
+Added:
+- Go module github.com/maymeow/fjo (Go 1.27.4 toolchain; deps: cobra,
+  go.yaml.in/yaml/v3, x/term, x/net/idna). git repo initialized (branch main).
+- cmd/fjo/main.go; internal/cli root command with global flags --color,
+  --verbose, --debug; `fjo version` and `fjo --version` (§15 format);
+  cobra built-in `help` and `completion`.
+- internal/app Factory (gh cmdutil.Factory pattern), lazy cached config.
+- internal/fjoerr typed errors (Kind) + gh-aligned exit codes (B-11).
+  Unknown commands / bad flags / bad args -> exit 10; Ctrl+C -> 130.
+- internal/config: schema v1, host ID normalization (§6.2, incl. port,
+  subpath, IDN, IPv6), strict YAML parsing (unknown keys rejected),
+  validation, precedence resolver (flag > env > config > default),
+  atomic save (temp + rename, 0600/0700). Config dir: FJO_CONFIG_DIR >
+  XDG_CONFIG_HOME/fjo > OS config dir.
+- internal/iostreams: TTY detection, color policy (NO_COLOR, FJO_NO_COLOR,
+  CLICOLOR_FORCE, TERM=dumb), FJO_PROMPT_DISABLED.
+- internal/logging: slog logger with redaction of Authorization headers,
+  token/password params, URL credentials, 40-hex tokens and registered
+  secrets (FJO_TOKEN registered at startup). Error messages are redacted too.
+- Makefile, scripts/build.ps1 (Windows), .gitignore,
+  .forgejo/workflows/ci.yaml (3-OS matrix on self-hosted runners, pinned
+  staticcheck v0.8.2 / govulncheck v1.9.0).
+- Docs skeleton: README, INSTALL, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT
+  (placeholder), CHANGELOG.md, docs/architecture, authentication, commands,
+  compatibility (exit codes, env vars, gh parity table), development
+  (runner setup).
+
+Changed:
+- IMPLEMENTATION §10.4 exit-code table replaced with the gh-aligned table.
+- §16 Phase 0 tasks ticked (except runners and pinned swagger).
+
+Deviations from spec:
+- No LICENSE file yet (B-33). No .goreleaser.yaml yet (release phase).
+- --host, --repo, --json, --jq, --template, --no-pager not added yet: they
+  have no meaning before Phase 1-3 (§5.1 "only where meaningful").
+- Config commands that do not need config (`version`, help) work even when
+  config.yaml is invalid; other commands will fail with exit 1 + hint.
+
+Tests:
+- go vet, gofmt, staticcheck v0.8.2: clean. govulncheck v1.9.0: no vulnerabilities.
+- go test ./...: all pass on windows/amd64. Coverage: cli 90.8 %,
+  logging 95.7 %, fjoerr 89.7 %, app 85.7 %, config 81.1 %, iostreams 80 %,
+  version 72.7 %, build 70.6 %.
+- Manual smoke test of bin/fjo.exe: --help, version, -v, unknown command
+  (exit 10), broken config + version (exit 0).
+- Cross-compile OK: linux/amd64, linux/arm64, darwin/amd64, darwin/arm64,
+  windows/arm64; `GOOS=linux go vet` clean.
+- NOT run: go test -race (no gcc on this machine, B-35); tests on Linux/macOS
+  and the CI workflow itself (no runners yet).
+
+Notes / next steps:
+- Committed as the initial commit on main (local only, not pushed).
+- Set up runners, run CI once, pin Forgejo 15/17 swagger -> Phase 0 complete.
+- Then Phase 1 (API client + auth).
+
+## 2026-11-13 — Phase 0 blocking decisions resolved (spec v1.1)
+Phase: pre-Phase 0
+Spec:  §1.4 (new), §2, §4, §5.1, §5.2, §6, §6.1, §6.2 (new), §7.5, §9.1,
+       §10.2, §13.5, §16 Phase 0
+
+Changed:
+- IMPLEMENTATION.txt bumped to v1.1.
+- B-20: new §1.4 gh compatibility policy (gh alternative, Forgejo semantics win).
+- B-1: Viper removed; YAML + own precedence logic (§2).
+- B-2: `--json <fields>` with gh semantics; examples updated (§5.1, §10.2).
+- B-7: own thin API client, models validated against pinned swagger (§2, §4, §9.1).
+- B-3: canonical host ID = normalized origin + base path; ssh_hosts mapping (§6.2).
+- B-4: account = host ID + server username; `accounts:` aliases removed from
+  config; `auth switch/logout --user` (§5.2, §6, §7.5).
+- B-6: own Forgejo instance + self-hosted runners for Linux/Windows/macOS (§13.5).
+- Phase 0 tasks added: runners, pinned swagger, gh-aligned exit-code table,
+  gh parity table in docs/compatibility.md.
+
+Deviations from spec:
+- B-20 was answered "no preference"; the recommended option was taken based
+  on the user's stated goal ("alternative to gh, but for Forgejo").
+
+Notes / next steps:
+- B-11 (exit codes) follows from B-20; final table is a Phase 0 task.
+- Start Phase 0.
+
+## 2026-11-13 — Spec review recorded in backlog
+Phase: pre-Phase 0
+Spec:  whole IMPLEMENTATION.txt (review of v1.0)
+
+Added:
+- docs/BACKLOG.txt: B-1..B-19 open decisions, B-20 gh-compatibility policy
+  (umbrella), B-21..B-26 missing gh-equivalent commands, B-27..B-32 tech debt.
+Changed:
+- Product direction clarified by user: fjo = alternative to gh, but for Forgejo
+  (gh-like UX, Forgejo-native semantics). gh-aligned options are now the default
+  recommendation in B-2 and B-11.
+
+Notes / next steps:
+- Resolve "before Phase 0" items (B-1, B-2, B-3, B-4, B-6, B-7, B-20), then
+  update IMPLEMENTATION.txt and start Phase 0.
+
+## 2026-11-13 — Project documentation set up
+Phase: pre-Phase 0
+Spec:  —
+
+Added:
+- docs/IMPLEMENTATION.txt — technical specification & implementation plan (v1.0, status Proposed).
+- docs/CHANGELOG.txt — this development log.
+- docs/BACKLOG.txt — ideas, scope changes and open decisions not covered by the spec.
+
+Notes / next steps:
+- Review findings on IMPLEMENTATION.txt to be resolved before starting Phase 0.

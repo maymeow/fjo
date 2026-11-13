@@ -1,0 +1,1779 @@
+# FJO — Forgejo Command Line Interface
+
+**Document:** Technical Specification & Implementation Plan  
+**Project:** FJO  
+**Working binary name:** `fjo`  
+**Language:** Go  
+**Architecture:** Modular monolith / layered CLI  
+**License:** MIT (proposed)  
+**Target:** Windows, Linux, macOS  
+**Status:** Proposed  
+**Document version:** 1.1
+**Reference date:** 2026-11-13
+
+Revision 1.1 (2026-11-13): resolved review decisions B-1, B-2, B-3, B-4, B-6, B-7, B-20
+from docs/BACKLOG.txt. Other review findings remain open in the backlog.
+
+---
+
+## 1. Project overview
+
+### 1.1 Objective
+
+Build a production-quality, open-source command-line interface for Forgejo.
+
+The application should deliver a user experience comparable to GitHub CLI (`gh`) while supporting Forgejo-specific features and multiple self-hosted instances.
+
+The project must be suitable for:
+
+- Individual developers
+- Self-hosted Forgejo users
+- Open-source contributors
+- System administrators
+- CI/CD pipelines
+- Coding agents and automated workflows
+
+It must not require a GitHub account, hosted backend, cloud account or external telemetry service.
+
+### 1.2 Product principles
+
+1. **CLI-first:** Everything essential must work from the terminal.
+2. **Git-aware:** Detect the repository and host from local Git configuration.
+3. **Multi-instance:** Support any number of Forgejo servers.
+4. **Secure by default:** Protect credentials and avoid dangerous implicit operations.
+5. **Automation-friendly:** Stable JSON, predictable exit codes and non-interactive execution.
+6. **Cross-platform:** Consistent behavior across Windows, macOS and Linux.
+7. **Forgejo-native:** Implement actual Forgejo API semantics rather than blindly translating GitHub API requests.
+8. **Backward-compatible:** Avoid breaking command syntax and output contracts between minor releases.
+9. **Extensible:** Allow external commands without modifying the core binary.
+10. **No telemetry:** Never collect usage or device information.
+
+### 1.3 Non-goals
+
+The application will not:
+
+- Replace the Git executable.
+- Implement its own Git transport or storage.
+- Run or host Forgejo servers.
+- Reimplement the Forgejo web interface.
+- Provide an interactive full-screen TUI in the initial release.
+- Emulate endpoints that Forgejo does not expose unless a safe documented fallback exists.
+- Require Gitea compatibility for the initial release.
+- Store user credentials in unencrypted configuration files.
+
+Gitea support may be introduced later as an explicitly tested compatibility mode.
+
+### 1.4 GitHub CLI compatibility policy
+
+`fjo` is an alternative to GitHub CLI (`gh`) for Forgejo. Users, scripts and coding agents familiar with `gh` should be able to switch with minimal relearning.
+
+Rules:
+
+1. Use the same command and subcommand names as `gh` wherever Forgejo provides the feature.
+2. Use the same flag names and short flags as `gh` (`-R/--repo`, `--web`, `--limit`, `--state`, `--label`, `--base`, `--head`, `--fill`, `--draft`, `--yes`, ...).
+3. Use the same `--json <fields>`, `--jq` and `--template` behavior as `gh`, and the same JSON field names where the meaning is equivalent (`number`, `title`, `state`, `author.login`, `url`, `headRefName`, ...).
+4. Use the same exit-code meanings as `gh`; additional codes are added only above the codes used by `gh` (table finalized in Phase 0, see BACKLOG B-11).
+5. Mirror the `gh` environment-variable model with the `FJO_` prefix (`GH_TOKEN` -> `FJO_TOKEN`, `GH_HOST` -> `FJO_HOST`, `GH_REPO` -> `FJO_REPO`, `GH_PAGER` -> `FJO_PAGER`, `GH_PROMPT_DISABLED` -> `FJO_PROMPT_DISABLED`) and honor `NO_COLOR`, `CLICOLOR_FORCE`, `PAGER`, `EDITOR` and `VISUAL`.
+6. Forgejo semantics win where they differ from GitHub (for example draft pull requests are a `WIP:` title prefix). Never fake GitHub behavior that Forgejo does not have.
+7. Every intentional difference from `gh` is listed in `docs/compatibility.md` with its reason, together with a parity table (`gh` command -> done / planned / not applicable on Forgejo / different semantics).
+
+---
+
+## 2. Technology stack
+
+| Component | Selection |
+|---|---|
+| Programming language | Go |
+| CLI framework | `spf13/cobra` |
+| Configuration | YAML library with application-owned loading, precedence, validation and persistence (no Viper: its `.` key delimiter and key lowercasing break hostname keys) |
+| HTTP client | Standard `net/http` |
+| API client | Own thin typed client with hand-written models for the used API subset, validated against pinned Forgejo swagger specs |
+| Interactive prompts | `charmbracelet/huh` |
+| Terminal styling | `charmbracelet/lipgloss` |
+| Terminal capabilities | `mattn/go-isatty` or equivalent |
+| JSON | Standard `encoding/json` |
+| JSON querying | `itchyny/gojq` |
+| Git integration | Git executable through `os/exec` |
+| Credential storage | OS keyring adapter |
+| Testing | `testing`, `httptest`, `testify` as needed |
+| Release automation | GoReleaser |
+| Static analysis | `go vet`, `staticcheck`, `govulncheck` |
+| Supply-chain metadata | SBOM, checksums and signed release artifacts |
+
+Pin versions using `go.mod` and reproducible release workflows. Do not use unpinned dependency branches.
+
+### 2.1 Dependency guidelines
+
+Prefer the Go standard library for core functionality.
+
+Additional dependencies must have a documented justification.
+
+Avoid using dependencies for functionality that can be implemented cleanly with a small amount of standard Go code.
+
+Treat API client libraries as replaceable infrastructure.
+
+---
+
+## 3. High-level architecture
+
+The CLI will be implemented as a modular monolith with clearly separated responsibilities.
+
+```text
+CLI Commands
+    |
+    v
+Application Services
+    |
+    +-- Repository Resolver
+    +-- Authentication Service
+    +-- Configuration Service
+    +-- Capability Detection
+    |
+    v
+Forgejo API Adapter
+    |
+    +-- HTTP Transport
+    +-- Authentication Headers
+    +-- Pagination
+    +-- API Error Handling
+    +-- Version Compatibility
+    |
+    v
+Forgejo REST API
+```
+
+Independent services:
+
+```text
+Git Adapter
+Credential Store
+Output Formatter
+Interactive Prompts
+Browser Launcher
+Extension Manager
+```
+
+### 3.1 Layer responsibilities
+
+**CLI layer**
+
+- Parse commands and flags.
+- Validate command-line input.
+- Request user input when appropriate.
+- Map service results to output formatters.
+- Return meaningful exit codes.
+
+**Application layer**
+
+- Coordinate business operations.
+- Resolve the current repository.
+- Select the correct Forgejo instance.
+- Manage authentication and capabilities.
+- Prevent unsafe or ambiguous operations.
+
+**API layer**
+
+- Perform HTTP communication.
+- Serialize and deserialize data.
+- Handle API pagination.
+- Interpret HTTP errors.
+- Manage timeouts and retries.
+- Normalize responses into application models.
+
+**Infrastructure layer**
+
+- Read Git configuration.
+- Access the OS credential store.
+- Read/write application configuration.
+- Open URLs using the system browser.
+- Execute Git operations.
+
+A CLI command must not perform raw HTTP requests directly. All HTTP communication goes through the API client.
+
+---
+
+## 4. Repository structure
+
+Use the following directory layout:
+
+```text
+fjo/
+├── cmd/
+│   └── fjo/
+│       └── main.go
+├── internal/
+│   ├── app/
+│   │   ├── app.go
+│   │   ├── context.go
+│   │   └── services/
+│   │       ├── auth.go
+│   │       ├── repository.go
+│   │       ├── issue.go
+│   │       ├── pullrequest.go
+│   │       ├── release.go
+│   │       └── actions.go
+│   ├── cli/
+│   │   ├── root.go
+│   │   ├── auth/
+│   │   ├── repo/
+│   │   ├── issue/
+│   │   ├── pr/
+│   │   ├── release/
+│   │   ├── run/
+│   │   ├── workflow/
+│   │   ├── api/
+│   │   ├── config/
+│   │   ├── extension/
+│   │   └── completion/
+│   ├── forgejo/
+│   │   ├── client.go
+│   │   ├── transport.go
+│   │   ├── errors.go
+│   │   ├── pagination.go
+│   │   ├── capabilities.go
+│   │   ├── auth.go
+│   │   ├── repositories.go
+│   │   ├── issues.go
+│   │   ├── pulls.go
+│   │   ├── releases.go
+│   │   └── actions.go
+│   ├── git/
+│   │   ├── client.go
+│   │   ├── remote.go
+│   │   └── branch.go
+│   ├── config/
+│   │   ├── config.go
+│   │   ├── loader.go
+│   │   └── validator.go
+│   ├── credentials/
+│   │   ├── store.go
+│   │   ├── keyring.go
+│   │   └── environment.go
+│   ├── output/
+│   │   ├── formatter.go
+│   │   ├── table.go
+│   │   ├── json.go
+│   │   └── template.go
+│   ├── browser/
+│   └── extensions/
+├── pkg/
+│   └── api/
+│       └── types.go
+├── test/
+│   ├── integration/
+│   ├── e2e/
+│   └── fixtures/
+│       └── swagger/        # pinned swagger.v1.json per supported Forgejo version
+├── docs/
+│   ├── architecture.md
+│   ├── commands.md
+│   ├── authentication.md
+│   ├── compatibility.md
+│   └── development.md
+├── scripts/
+├── .forgejo/
+│   └── workflows/
+├── .goreleaser.yaml
+├── go.mod
+├── go.sum
+├── Makefile
+├── README.md
+├── CONTRIBUTING.md
+├── SECURITY.md
+├── CHANGELOG.md
+└── LICENSE
+```
+
+Keep the `internal` packages private until stable public Go APIs are intentionally introduced.
+
+The `pkg/api` directory is optional and should remain minimal. Do not expose internal structures simply for organizational convenience.
+
+---
+
+## 5. Command-line interface specification
+
+### 5.1 Root command
+
+```bash
+fjo [command] [subcommand] [flags]
+```
+
+Example:
+
+```bash
+fjo auth login
+fjo repo list
+fjo issue list
+fjo pr create
+fjo run list
+```
+
+Global flags:
+
+| Flag | Purpose |
+|---|---|
+| `--host` | Select Forgejo host |
+| `-R, --repo` | Select repository |
+| `--json <fields>` | Output JSON with the listed fields (comma-separated, `gh` semantics); without fields it fails and prints the available fields |
+| `--jq` | Filter JSON output (requires `--json`) |
+| `--template` | Format JSON output using Go templates (requires `--json`) |
+| `--color` | `auto`, `always`, `never` |
+| `--no-pager` | Disable terminal pager |
+| `--verbose` | Enable verbose diagnostics |
+| `--debug` | Enable sanitized debugging |
+| `--help` | Display help |
+| `--version` | Display CLI version |
+
+Only expose global flags where their semantics are meaningful. Commands that do not support repository selection should not pretend to use `--repo`.
+
+### 5.2 Authentication commands
+
+```text
+fjo auth
+├── login
+├── logout
+├── status
+├── token
+├── switch
+└── refresh
+```
+
+Examples:
+
+```bash
+fjo auth login --host git.example.com
+fjo auth login --host codeberg.org
+fjo auth status
+fjo auth status --host git.example.com
+fjo auth logout --host git.example.com --user developer
+fjo auth switch --host git.example.com --user deploy-bot
+```
+
+`auth login` must support:
+
+- Interactive token entry
+- Token input via standard input
+- Browser-assisted navigation to the token settings page
+- Safe token validation
+- Multiple hosts
+- Multiple users per host (identity = host ID + server username, see §6.2 and §7.5)
+
+Example:
+
+```bash
+fjo auth login \
+  --host git.example.com \
+  --with-token < token.txt
+```
+
+The token must never be passed as a required command-line argument.
+
+`auth token` is intended for explicit scripting compatibility; it must be documented as sensitive and must never be included in diagnostic logs.
+
+### 5.3 Repository commands
+
+```text
+fjo repo
+├── list
+├── view
+├── create
+├── clone
+├── fork
+├── edit
+├── rename
+├── delete
+├── archive
+├── unarchive
+├── sync
+└── set-default
+```
+
+Examples:
+
+```bash
+fjo repo list
+fjo repo list --owner my-org
+fjo repo view
+fjo repo view my-org/my-project
+fjo repo create demo --private
+fjo repo clone my-org/my-project
+fjo repo fork upstream/project
+fjo repo archive my-org/old-project
+```
+
+Repository creation options:
+
+```text
+--private
+--public
+--description
+--owner
+--initialize
+--gitignore
+--license
+--default-branch
+--clone
+```
+
+Requirements:
+
+- Resolve the repository from Git remotes.
+- Support explicit `owner/repo`.
+- Support SSH and HTTPS clone URLs.
+- Respect configured SSH aliases for Git operations.
+- Support pagination for repository lists.
+- Require explicit confirmation for destructive operations.
+- Prefer stable repository identifiers over display names internally.
+
+### 5.4 Issue commands
+
+```text
+fjo issue
+├── list
+├── view
+├── create
+├── edit
+├── close
+├── reopen
+├── comment
+├── assign
+├── pin
+├── unpin
+└── delete
+```
+
+Examples:
+
+```bash
+fjo issue list
+fjo issue list --state open
+fjo issue view 42
+fjo issue create --title "Bug" --body-file issue.md
+fjo issue close 42
+fjo issue comment 42 --body "Fixed in next release"
+```
+
+Filtering:
+
+```text
+--state
+--author
+--assignee
+--label
+--milestone
+--limit
+--page
+--search
+```
+
+Implement only filtering combinations supported by the target API. Unsupported filters must return an explicit error rather than silently ignoring the option.
+
+### 5.5 Pull request commands
+
+```text
+fjo pr
+├── list
+├── view
+├── create
+├── edit
+├── checkout
+├── diff
+├── checks
+├── review
+├── comment
+├── merge
+├── close
+├── reopen
+└── ready
+```
+
+Examples:
+
+```bash
+fjo pr list
+fjo pr create
+fjo pr create --title "Feature" --body-file pr.md
+fjo pr view 15
+fjo pr diff 15
+fjo pr checkout 15
+fjo pr checks 15
+fjo pr review 15 --approve
+fjo pr merge 15 --squash
+```
+
+Merge strategies:
+
+- Merge commit
+- Squash merge
+- Rebase merge
+
+The allowed merge methods must be obtained from server capabilities or validated against API responses.
+
+`pr checkout` must use Git operations and must not overwrite local changes.
+
+`pr create` should detect the current branch and infer the intended target branch when unambiguous.
+
+`pr review` must check API support before exposing review operations.
+
+### 5.6 Release commands
+
+```text
+fjo release
+├── list
+├── view
+├── create
+├── edit
+├── delete
+├── download
+└── upload
+```
+
+Examples:
+
+```bash
+fjo release list
+fjo release create v1.0.0 --notes-file CHANGELOG.md
+fjo release upload v1.0.0 ./dist/app.zip
+fjo release download v1.0.0
+```
+
+Requirements:
+
+- Support draft and prerelease states when available.
+- Upload multiple release assets.
+- Stream large files instead of loading them entirely into memory.
+- Avoid overwriting existing files without confirmation.
+- Respect release asset size restrictions.
+- Handle interrupted downloads safely.
+
+### 5.7 Forgejo Actions commands
+
+```text
+fjo run
+├── list
+├── view
+├── watch
+├── logs
+├── rerun
+├── cancel
+├── download
+└── delete
+
+fjo workflow
+├── list
+├── view
+├── run
+├── enable
+└── disable
+```
+
+Examples:
+
+```bash
+fjo run list
+fjo run view 123
+fjo run watch 123
+fjo run logs 123
+fjo run rerun 123
+fjo workflow list
+```
+
+Requirements:
+
+- Feature-detect supported endpoints.
+- Distinguish workflows, runs, jobs and artifacts.
+- Handle server-side pagination.
+- Stream logs without excessive memory use.
+- Support cancellation of long-running log requests.
+- Report unsupported features clearly.
+
+Do not assume complete GitHub Actions API compatibility.
+
+### 5.8 Organization and user management
+
+Planned command groups:
+
+```text
+fjo org
+├── list
+├── view
+├── create
+├── edit
+├── teams
+└── members
+
+fjo user
+├── view
+├── search
+└── keys
+
+fjo ssh-key
+├── list
+├── add
+└── delete
+```
+
+Repository-level management:
+
+```text
+fjo repo webhook
+fjo repo deploy-key
+fjo repo secret
+fjo repo variable
+fjo repo collaborator
+fjo repo branch
+fjo repo tag
+```
+
+All sensitive or destructive operations must follow explicit confirmation and permission-handling policies.
+
+### 5.9 Direct API access
+
+```bash
+fjo api /user
+fjo api /repos/owner/repo
+fjo api /repos/owner/repo/issues
+```
+
+Syntax:
+
+```text
+fjo api <endpoint>
+    --method GET|POST|PUT|PATCH|DELETE
+    --field KEY=VALUE
+    --raw-field KEY=VALUE
+    --input FILE
+    --header NAME:VALUE
+    --paginate
+```
+
+Requirements:
+
+- Automatically include authentication.
+- Support JSON request bodies.
+- Support raw body files and standard input.
+- Print response JSON by default when the API returns JSON.
+- Preserve meaningful HTTP error information.
+- Protect credentials from accidental disclosure.
+- Follow pagination only inside the configured host boundary.
+- Never follow cross-origin redirects with credentials attached.
+
+The direct API command acts as the fallback for endpoints not yet supported by dedicated commands.
+
+---
+
+## 6. Configuration management
+
+Configuration locations:
+
+```text
+Linux:
+~/.config/fjo/config.yaml
+
+macOS:
+~/Library/Application Support/fjo/config.yaml
+
+Windows:
+%AppData%\fjo\config.yaml
+```
+
+Use platform configuration directory APIs rather than hardcoding filesystem assumptions.
+
+Example configuration:
+
+```yaml
+version: 1
+
+defaults:
+  host: git.example.com
+  git_protocol: ssh
+  editor: code --wait
+  pager: auto
+
+hosts:
+  git.example.com:
+    api_url: https://git.example.com/api/v1
+    git_protocol: ssh
+    active_user: developer
+    users:
+      - developer
+      - deploy-bot
+    ssh_hosts:
+      - git.example.com
+      - forgejo-work        # alias from ~/.ssh/config
+
+  codeberg.org:
+    api_url: https://codeberg.org/api/v1
+    git_protocol: ssh
+    active_user: contributor
+    users:
+      - contributor
+
+  example.com/forgejo:      # instance installed under a subpath
+    api_url: https://example.com/forgejo/api/v1
+    git_protocol: https
+    active_user: developer
+    users:
+      - developer
+
+  git.internal:3000:        # non-default port, plain HTTP on a trusted dev host
+    api_url: http://git.internal:3000/api/v1
+    insecure_http: true
+    active_user: admin
+    users:
+      - admin
+
+output:
+  color: auto
+```
+
+Hostname keys contain dots and colons; the configuration loader must treat them as opaque map keys (see §2: no Viper).
+
+**Never store access tokens inside this file.**
+
+### 6.1 Configuration precedence
+
+Highest to lowest priority:
+
+1. Explicit command-line flags
+2. Environment variables
+3. Repository-local nonsecret settings
+4. User configuration
+5. Built-in defaults
+
+Environment variables:
+
+```text
+FJO_HOST
+FJO_REPO
+FJO_TOKEN
+FJO_CONFIG_DIR
+FJO_EDITOR
+FJO_PAGER
+FJO_NO_COLOR
+FJO_DEBUG
+FJO_PROMPT_DISABLED
+```
+
+Standard variables honored as in `gh` (§1.4): `NO_COLOR`, `CLICOLOR_FORCE`, `PAGER`, `EDITOR`, `VISUAL`.
+
+`FJO_TOKEN` overrides stored credentials for the selected host, but must not be written to persistent storage.
+
+Repository-local configuration must never contain credentials or automatically execute commands.
+
+### 6.2 Host identity
+
+Every Forgejo instance is identified by a canonical **host ID**, used as the key in the configuration file and in the credential store.
+
+Host ID = normalized origin + base path:
+
+- Lowercase hostname.
+- Default port omitted (443 for HTTPS, 80 for plain HTTP); non-default ports kept (`git.example.com:3000`).
+- Scheme omitted; HTTPS is implied. Plain HTTP is allowed only when the host entry has `insecure_http: true` (see §7.4).
+- Base path kept for subpath installations, without trailing slash (`example.com/forgejo`).
+- Internationalized domain names normalized to their ASCII (punycode) form.
+
+`--host` and `FJO_HOST` accept a host ID or a URL; URLs are normalized to a host ID.
+
+SSH remotes resolve to a host ID through the `ssh_hosts` list of each host entry. An SSH host that matches no entry, or matches more than one, is reported as unresolved instead of guessed.
+
+---
+
+## 7. Authentication and credential security
+
+### 7.1 Supported authentication
+
+Initial release:
+
+- Personal Access Token (PAT)
+- Interactive token entry
+- Standard-input token entry
+- Environment variable token
+- OS keyring integration
+
+Later release:
+
+- OAuth2 Authorization Code with PKCE, if safely configured and supported by the server
+
+### 7.2 Credential storage
+
+Use the operating system's native credential storage where available:
+
+- Windows Credential Manager
+- macOS Keychain
+- Linux Secret Service
+
+Do not silently fall back to plaintext credentials.
+
+When secure storage is unavailable, provide clear instructions for environment-based authentication or an explicitly configured secure credential provider.
+
+### 7.3 Token permissions
+
+Use scoped tokens wherever the server supports them.
+
+The CLI must not request administrative access for ordinary repository actions.
+
+A minimal login verification request should identify the account using the Forgejo API.
+
+### 7.4 HTTP security
+
+Requirements:
+
+- TLS certificate verification enabled by default.
+- No general-purpose `--insecure` option in the initial release.
+- Support custom CA certificates for internal/self-hosted servers.
+- Explicit opt-in for insecure HTTP on trusted development hosts.
+- No token transmission to a different origin during redirects.
+- Sanitize sensitive headers and URLs in logs.
+- Prevent accidental token exposure through error messages.
+- Configure sensible request timeouts.
+- Retry only safe requests or requests with proven idempotency.
+
+### 7.5 Multi-account behavior
+
+Account identity follows the `gh` model:
+
+```text
+host ID (§6.2) + server username
+```
+
+- The username is taken from the server (`GET /user`) during login, never typed by the user as an identifier.
+- Each (host ID, username) pair has its own credential-store entry.
+- Each host has at most one active user (`active_user` in config).
+- There are no user-defined account aliases.
+
+Credentials must be isolated per host and user.
+
+Examples:
+
+```bash
+fjo auth login --host git.example.com
+fjo auth login --host codeberg.org
+fjo auth switch --host git.example.com --user deploy-bot
+fjo auth logout --host git.example.com --user developer
+```
+
+`auth switch` without `--user` switches to the only other user, or prompts when there are more; without a terminal it fails if the choice is ambiguous.
+
+When the correct identity cannot be determined, fail with a helpful message rather than performing a write using an arbitrary account.
+
+---
+
+## 8. Git repository detection
+
+### 8.1 Supported remote formats
+
+```text
+https://git.example.com/owner/repo.git
+ssh://git@git.example.com/owner/repo.git
+git@git.example.com:owner/repo.git
+ssh://git@git.example.com:2222/owner/repo.git
+```
+
+Also support remotes with nested application paths and configured SSH aliases.
+
+### 8.2 Repository resolution algorithm
+
+1. If `--repo` is supplied, use it.
+2. Otherwise inspect the repository-local default.
+3. Read configured Git remotes.
+4. Prefer a configured Forgejo remote if unambiguous.
+5. Match remote URLs against known Forgejo instances.
+6. Resolve the repository owner and name.
+7. Select the appropriate authenticated account.
+8. Verify access before performing API mutations.
+
+Do not assume that `origin` is always the correct remote.
+
+### 8.3 Git operations
+
+Use the installed Git executable for:
+
+- Cloning
+- Fetching
+- Checking out branches
+- Reading current branches
+- Reading remote URLs
+- Pushing branches when explicitly requested
+
+Use argument arrays, never shell command concatenation.
+
+For checkout and branch modification, detect local uncommitted changes and avoid destructive behavior.
+
+---
+
+## 9. API client implementation
+
+### 9.1 Client interface
+
+The client is an own thin implementation. Models are hand-written for the API subset `fjo` uses. The pinned swagger specs in `test/fixtures/swagger/` are the reference contract. A test verifies that every endpoint the client calls exists in each supported pinned spec. No third-party Forgejo SDK and no full code generation.
+
+Suggested Go API:
+
+```go
+type Client interface {
+    Do(
+        ctx context.Context,
+        req *http.Request,
+    ) (*http.Response, error)
+}
+```
+
+Domain clients:
+
+```go
+type RepositoriesAPI interface {
+    Get(ctx context.Context, owner, repo string) (*Repository, error)
+    List(ctx context.Context, opts ListRepositoriesOptions) ([]Repository, error)
+    Create(ctx context.Context, opts CreateRepositoryOptions) (*Repository, error)
+}
+
+type IssuesAPI interface {
+    List(ctx context.Context, owner, repo string, opts ListIssuesOptions) ([]Issue, error)
+    Get(ctx context.Context, owner, repo string, index int64) (*Issue, error)
+    Create(ctx context.Context, owner, repo string, opts CreateIssueOptions) (*Issue, error)
+}
+```
+
+The concrete HTTP adapter must implement these interfaces.
+
+### 9.2 HTTP client behavior
+
+- Per-request context propagation
+- Timeouts and cancellation
+- Configurable user agent
+- Sanitized diagnostic logging
+- Token authentication
+- Query encoding
+- JSON serialization
+- JSON decoding
+- Pagination support
+- Typed API errors
+- Download/upload streaming
+
+### 9.3 Error model
+
+```go
+type APIError struct {
+    StatusCode int
+    Message    string
+    URL        string
+    RequestID  string
+}
+```
+
+Do not expose credentials in serialized error structures.
+
+Distinguish:
+
+- Authentication failure
+- Authorization failure
+- Resource not found
+- Conflict
+- Rate limit
+- Unsupported feature
+- Network failure
+- TLS failure
+- Timeout
+- Invalid server response
+
+### 9.4 Pagination
+
+The API layer must support:
+
+- `page` / `limit`
+- `Link` response headers
+- Total-count metadata
+- Configurable maximum page traversal
+- Early cancellation
+- Streamed or incremental aggregation
+
+Never repeatedly request the same pagination URL.
+
+### 9.5 Version compatibility
+
+Design for:
+
+- Forgejo 15 LTS
+- Forgejo 17 stable
+
+At initial release these are the required test targets. Additional versions may be supported where verified.
+
+Implement a capability registry instead of scattering version checks throughout commands.
+
+Example:
+
+```go
+type Capabilities struct {
+    ActionsRuns       bool
+    ActionsLogs       bool
+    ActionsRerun      bool
+    ReleaseAssets     bool
+    PullRequestReview bool
+}
+```
+
+Capabilities must be derived from documented version behavior, safe probing or a combination of both.
+
+Do not infer that an endpoint exists merely because the server reports a high version number.
+
+---
+
+## 10. Output and automation contract
+
+### 10.1 Human-readable output
+
+Default to clear terminal tables.
+
+Example:
+
+```text
+NUMBER  TITLE                  STATE   AUTHOR
+42      Fix login issue        OPEN    alice
+41      Update documentation   OPEN    bob
+39      Improve API client     CLOSED  alice
+```
+
+Requirements:
+
+- Compact terminal output
+- Respect terminal width
+- Unicode-aware formatting
+- Color only when supported
+- No unnecessary interactive prompts
+- Helpful empty-state messages
+
+### 10.2 JSON output
+
+Example:
+
+```bash
+fjo issue list --json number,title,state,author,url
+```
+
+Response:
+
+```json
+[
+  {
+    "number": 42,
+    "title": "Fix login issue",
+    "state": "open",
+    "author": {
+      "login": "alice"
+    },
+    "url": "https://git.example.com/team/project/issues/42"
+  }
+]
+```
+
+The example defines the CLI's normalized response format, not the raw Forgejo API format.
+
+For backward compatibility:
+
+- Maintain a documented JSON schema.
+- Use stable field names.
+- Preserve number versus string types.
+- Avoid changing nullability casually.
+- Add new fields without deleting existing ones.
+- Version incompatible schema changes.
+
+Support field selection:
+
+```bash
+fjo issue list --json number,title,state
+```
+
+Support filtering:
+
+```bash
+fjo issue list --json title | jq '.[] | .title'
+```
+
+And internal querying:
+
+```bash
+fjo issue list --json title --jq '.[].title'
+```
+
+`fjo issue list --json` without fields exits with a usage error and prints the available field names, as `gh` does.
+
+### 10.3 Error output
+
+Errors go to standard error.
+
+Support a machine-readable error mode:
+
+```bash
+fjo issue view 999 --json-errors
+```
+
+Example:
+
+```json
+{
+  "error": {
+    "code": "not_found",
+    "message": "Issue not found",
+    "status": 404
+  }
+}
+```
+
+### 10.4 Exit codes
+
+Codes 0–8 have the same meaning as in `gh`; fjo-specific codes are above `gh`'s range (§1.4). Implemented in `internal/fjoerr`.
+
+| Code | Meaning | `gh` |
+|---|---|---|
+| 0 | Success | same |
+| 1 | General failure | same |
+| 2 | User cancelled | same |
+| 4 | Authentication required or failed | same |
+| 8 | Checks pending (reserved for `pr checks`) | same |
+| 10 | Invalid usage or input | `gh` uses 1 |
+| 11 | Authorization denied | `gh` uses 1 |
+| 12 | Resource not found | `gh` uses 1 |
+| 13 | Conflict or rejected operation | `gh` uses 1 |
+| 14 | Network or service unavailable | `gh` uses 1 |
+| 15 | Unsupported server capability | — |
+| 16 | Operation timed out | `gh` uses 1 |
+| 130 | Interrupted | — |
+
+Never mix normal result data with progress messages on stdout when machine-readable output is requested.
+
+---
+
+## 11. Interactive behavior
+
+Examples of interactive commands:
+
+```bash
+fjo auth login
+fjo repo create
+fjo issue create
+fjo pr create
+```
+
+Interactive mode may provide:
+
+- Prompts
+- Selection menus
+- Confirmation dialogs
+- Editor integration
+- Field validation
+
+### 11.1 Non-interactive mode
+
+Detect whether standard input and output are terminals.
+
+When running without a terminal:
+
+- Do not display interactive forms.
+- Require all necessary arguments.
+- Fail with actionable validation errors.
+- Never hang waiting for user input.
+- Require explicit confirmation flags for destructive operations.
+
+Example:
+
+```bash
+fjo repo delete team/demo --yes
+```
+
+The `--yes` flag must not bypass authorization or server-side protections.
+
+---
+
+## 12. Extensions
+
+Extension support is planned for version 0.5.
+
+Example:
+
+```bash
+fjo extension install owner/fjo-deploy
+fjo extension list
+fjo extension remove deploy
+fjo deploy production
+```
+
+Extension executables:
+
+```text
+fjo-deploy
+fjo-monitor
+fjo-backup
+```
+
+The CLI resolves unknown commands to installed extensions after validating the extension name.
+
+Requirements:
+
+- Explicit extension installation
+- Document executable trust boundaries
+- Avoid automatic execution during discovery
+- Do not transmit credentials to extensions by default
+- Permit selected credentials only through explicit opt-in
+- Support offline installation from a local file
+- Validate checksums/signatures where available
+- Prevent extensions from silently overriding built-in commands
+
+Extensions are third-party executable code and must be treated as such.
+
+---
+
+## 13. Testing strategy
+
+### 13.1 Unit tests
+
+Required for:
+
+- Command parsing
+- Repository URL parsing
+- Configuration precedence
+- Credential selection
+- JSON formatting
+- Pagination
+- Error mapping
+- Capability detection
+
+### 13.2 HTTP integration tests
+
+Use `httptest.Server` to validate:
+
+- Authentication
+- HTTP headers
+- Successful responses
+- API errors
+- Pagination
+- Timeouts
+- Redirect security
+- Retry behavior
+
+Do not depend on a live public server for ordinary unit tests.
+
+### 13.3 Git integration tests
+
+Use temporary Git repositories.
+
+Test:
+
+- HTTPS remote detection
+- SSH remote detection
+- Custom SSH port
+- Multiple remotes
+- Ambiguous remotes
+- Repository outside a Git working tree
+- Worktrees
+- Dirty working trees
+
+### 13.4 Real Forgejo integration
+
+Run integration tests against disposable Forgejo instances:
+
+- Forgejo 15 LTS
+- Forgejo 17 stable
+
+Use local containers and test accounts.
+
+Test read, write and permission-restricted operations separately.
+
+Never run destructive integration tests against production repositories.
+
+### 13.5 Cross-platform CI
+
+Minimum test matrix:
+
+```text
+Ubuntu / amd64
+Windows / amd64
+macOS / arm64
+```
+
+Additional release targets:
+
+```text
+linux/arm64
+linux/arm/v7
+darwin/amd64
+windows/arm64
+```
+
+Only publish a target as officially supported after successful testing or explicit release qualification.
+
+CI infrastructure:
+
+- The project repository is hosted on the project's own Forgejo instance.
+- CI runs on Forgejo Actions with self-hosted runners for Linux (amd64), Windows (amd64) and macOS (arm64).
+- Integration tests against disposable Forgejo 15 / 17 containers (§13.4) run on the Linux runner.
+- Runner setup, labels and maintenance are documented in `docs/development.md`.
+- Runners must not have access to production credentials. Workflows from forks must not run on self-hosted runners without maintainer approval.
+
+### 13.6 Quality requirements
+
+Initial coverage target:
+
+- Core business logic: at least 85%
+- API and security-critical modules: at least 90%
+
+Coverage is a quality indicator, not a substitute for scenario-based tests.
+
+All releases must pass:
+
+```bash
+go test ./...
+go test -race ./...
+go vet ./...
+staticcheck ./...
+govulncheck ./...
+```
+
+Run race-enabled tests on supported platforms where tooling permits.
+
+---
+
+## 14. Documentation
+
+Mandatory files:
+
+```text
+README.md
+INSTALL.md
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md
+CHANGELOG.md
+LICENSE
+docs/architecture.md
+docs/authentication.md
+docs/compatibility.md
+docs/commands.md
+docs/development.md
+```
+
+Provide installation examples for:
+
+- Windows
+- Linux
+- macOS
+- Manual binary download
+- Building from source
+
+Documentation must include:
+
+- Getting started
+- Authentication
+- Multi-instance configuration
+- Repository detection
+- Command reference
+- JSON examples
+- CI usage
+- Troubleshooting
+- Security considerations
+
+Generate command documentation automatically from Cobra wherever possible.
+
+---
+
+## 15. Distribution and releases
+
+Use GoReleaser.
+
+Build release artifacts for:
+
+```text
+Windows: amd64, arm64
+Linux: amd64, arm64, armv7
+macOS: amd64, arm64
+```
+
+Archive formats:
+
+- `.zip` for Windows
+- `.tar.gz` for Linux/macOS
+
+Each release should include:
+
+- Executable
+- SHA-256 checksum manifest
+- SBOM
+- Release notes
+- Provenance/signature metadata
+- Installation documentation
+
+### Package managers
+
+Planned targets:
+
+- Homebrew
+- Scoop
+- Winget
+- AUR
+- Optional Debian/RPM packages
+
+Package distribution should be introduced incrementally after reproducible artifact creation is stable.
+
+### Versioning
+
+Use Semantic Versioning.
+
+Example:
+
+```text
+v0.1.0
+v0.2.0
+v0.5.0
+v1.0.0
+```
+
+Development builds should identify their commit hash.
+
+```bash
+fjo version
+```
+
+Example:
+
+```text
+fjo version 0.1.0
+commit: abc1234
+go: go1.x
+platform: linux/amd64
+```
+
+---
+
+## 16. Implementation roadmap
+
+### Phase 0 — Project foundation
+
+**Target: v0.0.1**
+
+Tasks:
+
+- [x] Initialize Go module.
+- [x] Implement Cobra root command.
+- [x] Create dependency injection structure.
+- [x] Add version command.
+- [x] Add configuration loader.
+- [x] Add structured errors.
+- [x] Add logging with secret redaction.
+- [x] Configure linters and tests.
+- [x] Create build scripts.
+- [ ] Set up self-hosted Forgejo Actions runners (Linux, Windows, macOS).
+- [x] Add CI pipeline. (workflow written; first run pending until runners exist)
+- [ ] Pin swagger specs of Forgejo 15 LTS and 17 in `test/fixtures/swagger/`.
+- [x] Finalize exit-code table aligned with `gh` (§1.4, BACKLOG B-11).
+- [x] Create project documentation skeleton, including the `gh` parity table in `docs/compatibility.md`.
+
+Acceptance criteria:
+
+- Project builds on Windows, Linux and macOS.
+- `fjo --help` works.
+- `fjo version` works.
+- Tests run in CI.
+- No API credentials are required for basic commands.
+
+### Phase 1 — API and authentication
+
+**Target: v0.0.2**
+
+Tasks:
+
+- [ ] Implement Forgejo HTTP client.
+- [ ] Implement API base URL handling.
+- [ ] Add authentication header handling.
+- [ ] Add OS credential storage.
+- [ ] Add token validation.
+- [ ] Implement `auth login`.
+- [ ] Implement `auth logout`.
+- [ ] Implement `auth status`.
+- [ ] Add host/account configuration.
+- [ ] Implement `api`.
+- [ ] Add typed API errors.
+- [ ] Add pagination.
+- [ ] Add HTTP transport tests.
+
+Acceptance criteria:
+
+- Login works with Forgejo 15 and 17.
+- Multiple hosts can be configured.
+- Tokens do not appear in config files.
+- API errors are readable.
+- `fjo api /user` returns the authenticated user.
+- HTTP redirects cannot leak authentication credentials.
+
+### Phase 2 — Git and repositories
+
+**Target: v0.0.3**
+
+Tasks:
+
+- [ ] Implement Git remote parser.
+- [ ] Implement repository detection.
+- [ ] Support SSH/HTTPS remotes.
+- [ ] Implement `repo list`.
+- [ ] Implement `repo view`.
+- [ ] Implement `repo create`.
+- [ ] Implement `repo clone`.
+- [ ] Add repository selection flags.
+- [ ] Implement browser launcher.
+- [ ] Add Git integration tests.
+
+Acceptance criteria:
+
+- CLI works inside and outside a repository.
+- Current repository is resolved correctly.
+- Explicit repository selection overrides detection.
+- Multiple remotes do not cause silent incorrect selection.
+- Private repository creation succeeds with suitable permissions.
+
+### Phase 3 — Issues and pull requests
+
+**Target: v0.1.0**
+
+Tasks:
+
+- [ ] Implement issue listing.
+- [ ] Implement issue viewing.
+- [ ] Implement issue creation.
+- [ ] Implement issue closing and reopening.
+- [ ] Implement PR listing.
+- [ ] Implement PR viewing.
+- [ ] Implement PR creation.
+- [ ] Implement PR diff.
+- [ ] Implement PR checkout.
+- [ ] Implement PR merge.
+- [ ] Add human-readable tables.
+- [ ] Add JSON output.
+- [ ] Add non-interactive tests.
+
+Acceptance criteria:
+
+- Core issue workflow works end-to-end.
+- Core PR workflow works end-to-end.
+- Interactive and non-interactive usage is tested.
+- All main commands support appropriate machine-readable output.
+- Basic commands behave consistently with documented `gh` conventions.
+
+### Phase 4 — Release management
+
+**Target: v0.2.0**
+
+Tasks:
+
+- [ ] Implement release listing.
+- [ ] Implement release viewing.
+- [ ] Implement release creation.
+- [ ] Implement release asset upload.
+- [ ] Implement release download.
+- [ ] Implement release editing/deleting.
+- [ ] Add streaming transfer support.
+- [ ] Add download integrity checks where metadata allows.
+
+Acceptance criteria:
+
+- Releases can be managed without using the browser.
+- Large assets do not require complete memory buffering.
+- Interrupted file operations fail safely.
+
+### Phase 5 — Actions
+
+**Target: v0.3.0**
+
+Tasks:
+
+- [ ] Implement capability detection.
+- [ ] Implement run listing.
+- [ ] Implement run viewing.
+- [ ] Implement log retrieval.
+- [ ] Implement run watching.
+- [ ] Implement rerun.
+- [ ] Implement supported artifact downloads.
+- [ ] Add version-specific tests.
+
+Acceptance criteria:
+
+- Supported Actions functions work on tested Forgejo versions.
+- Unsupported operations fail clearly.
+- Actions log retrieval does not consume unbounded memory.
+- Commands do not assume GitHub API equivalence.
+
+### Phase 6 — Administration and advanced features
+
+**Target: v0.4.0**
+
+Tasks:
+
+- [ ] Implement organization commands.
+- [ ] Implement collaborators and teams.
+- [ ] Implement SSH key management.
+- [ ] Implement webhooks.
+- [ ] Implement secrets and variables where supported.
+- [ ] Add protected/destructive command confirmations.
+- [ ] Add permission failure tests.
+
+Acceptance criteria:
+
+- Administration commands respect server permissions.
+- Sensitive values are redacted.
+- Destructive actions require intentional user interaction or explicit confirmation flags.
+
+### Phase 7 — Extensions and developer tooling
+
+**Target: v0.5.0**
+
+Tasks:
+
+- [ ] Implement extension resolution.
+- [ ] Implement extension installation.
+- [ ] Implement extension removal.
+- [ ] Implement extension listings.
+- [ ] Add extension security boundaries.
+- [ ] Generate shell completions.
+- [ ] Add shell integration documentation.
+
+Acceptance criteria:
+
+- Extensions work on supported platforms.
+- Built-in commands cannot be overwritten.
+- Extensions are never installed or executed without explicit user action.
+
+### Phase 8 — Stabilization
+
+**Target: v1.0.0**
+
+Tasks:
+
+- [ ] Finalize command compatibility policy.
+- [ ] Finalize JSON schema.
+- [ ] Finalize configuration versioning.
+- [ ] Test all supported Forgejo versions.
+- [ ] Perform security review.
+- [ ] Perform cross-platform acceptance tests.
+- [ ] Complete user documentation.
+- [ ] Publish packages.
+- [ ] Sign releases.
+- [ ] Prepare maintenance and vulnerability-response process.
+
+Acceptance criteria:
+
+- Public API and CLI contracts are documented.
+- No unresolved critical security issues.
+- Supported platforms have passing tests.
+- Stable release artifacts are available.
+- Project can accept external contributors.
+
+---
+
+## 17. Development workflow for coding agents
+
+Development must proceed in small, independently testable tasks.
+
+### 17.1 Agent responsibilities
+
+**Architect**
+
+- Maintain architecture.
+- Design interfaces.
+- Identify compatibility and security risks.
+- Break features into implementation tasks.
+
+**Implementer**
+
+- Implement one scoped feature at a time.
+- Add tests.
+- Follow package boundaries.
+- Avoid unrelated changes.
+
+**Reviewer**
+
+- Review correctness.
+- Check security implications.
+- Examine API behavior.
+- Detect regressions.
+- Verify acceptance criteria.
+
+**Documentation agent**
+
+- Maintain command documentation.
+- Update examples.
+- Maintain compatibility notes.
+- Prepare changelog entries.
+
+### 17.2 Mandatory workflow
+
+For every task:
+
+1. Inspect the relevant existing code.
+2. Verify the applicable Forgejo API contract.
+3. Identify interfaces and models.
+4. Implement the smallest viable change.
+5. Add unit and integration tests.
+6. Run static analysis.
+7. Review security-sensitive code.
+8. Update documentation.
+9. Verify acceptance criteria.
+10. Prepare a focused commit or PR.
+
+### 17.3 Coding rules
+
+- Use Go idioms.
+- Avoid global mutable state.
+- Pass `context.Context` to operations that perform I/O.
+- Keep commands thin.
+- Do not perform API calls from formatting code.
+- Do not mix Git operations with HTTP transport logic.
+- Do not ignore returned errors.
+- Never log secrets.
+- Use injected dependencies for testability.
+- Use `errors.Is` / `errors.As` for typed errors.
+- Do not invent API endpoints.
+- Never simulate success when an operation is unsupported.
+- Keep unrelated refactoring out of feature PRs.
+
+---
+
+## 18. Definition of done
+
+A feature is complete only when:
+
+- [ ] Implementation follows architecture.
+- [ ] Command syntax is documented.
+- [ ] Inputs are validated.
+- [ ] API behavior is verified.
+- [ ] Error handling is implemented.
+- [ ] Authentication and permissions are respected.
+- [ ] Non-interactive behavior is correct.
+- [ ] Unit tests are present.
+- [ ] Appropriate integration tests pass.
+- [ ] Linux, Windows and macOS builds succeed.
+- [ ] No secrets are exposed in logs.
+- [ ] Documentation is updated.
+- [ ] Reviewer approves the change.
+
+---
+
+## 19. Initial implementation instruction
+
+Begin with Phase 0 and Phase 1 only.
+
+Do not implement the entire command tree as empty placeholders.
+
+Build real, tested functionality incrementally.
+
+The first useful executable must support:
+
+```bash
+fjo --help
+fjo version
+fjo auth login
+fjo auth status
+fjo auth logout
+fjo api /user
+```
+
+The first release must establish reliable API handling, credential management and configuration before repository mutations are introduced.
+
+**Primary engineering goal:** Create a secure, maintainable foundation capable of growing into a complete Forgejo-native alternative to GitHub CLI.

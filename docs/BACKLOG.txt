@@ -1,0 +1,596 @@
+# FJO — Backlog, Ideas & Open Decisions
+
+Everything that is NOT (yet) part of docs/IMPLEMENTATION.txt:
+new feature ideas, scope changes, open questions and decisions taken during development.
+
+- Work actually done      -> docs/CHANGELOG.txt
+- Agreed plan / contract  -> docs/IMPLEMENTATION.txt
+- Everything else         -> here
+
+When an item is accepted into the plan, update IMPLEMENTATION.txt, mark the item
+here as "Accepted -> §X" and log the spec change in CHANGELOG.txt.
+
+---
+
+## Item format
+
+    ### B-<number> — <short title>
+    Type:     idea | decision | question | tech-debt | deferred
+    Status:   open | accepted -> §X | rejected | done
+    Added:    YYYY-MM-DD
+    Phase:    <when it is relevant, e.g. Phase 1 / post-1.0>
+
+    Context:
+    - why this came up
+    Proposal / options:
+    - ...
+    Decision:
+    - <filled in when resolved, with reason>
+
+Numbers are never reused.
+
+---
+
+## Open decisions
+
+Source of B-1 .. B-32: review of IMPLEMENTATION.txt v1.0 on 2026-11-13.
+"Before Phase 0" items block the start of implementation.
+
+Guiding constraint (user, 2026-11-13): fjo is meant to be an ALTERNATIVE TO
+GitHub CLI (gh). Where an open decision has a gh-aligned option, that option
+is the default recommendation unless Forgejo semantics differ. See B-20.
+
+### B-20 — Level of gh compatibility (umbrella decision)
+Type:     decision
+Status:   accepted -> §1.4
+Added:    2026-11-13
+Phase:    before Phase 0
+
+Context:
+- §1.1 says "comparable to gh"; product goal is to be a gh alternative, so
+  users, scripts and coding agents should be able to switch with minimal
+  relearning.
+Proposal / options:
+- Commit to a written compatibility policy in docs/compatibility.md:
+  - Same command/subcommand names and flag names as gh wherever the
+    Forgejo feature exists (e.g. `pr create --base/--head/--fill/--draft`,
+    `issue list --state/--label/--assignee/--limit`, `-R/--repo`, `--web`).
+  - Same `--json <fields>` / `--jq` / `--template` behaviour and, where
+    possible, the same JSON field names as gh (`number`, `title`, `state`,
+    `author.login`, `url`, `headRefName`, ...).
+  - Same exit-code meanings as gh (B-11), extended only above gh's codes.
+  - Same env-var model with FJO_ prefix (GH_TOKEN->FJO_TOKEN,
+    GH_HOST->FJO_HOST, GH_REPO->FJO_REPO, GH_PAGER->FJO_PAGER,
+    GH_PROMPT_DISABLED->FJO_PROMPT_DISABLED) and honour NO_COLOR,
+    CLICOLOR_FORCE, PAGER, EDITOR/VISUAL.
+  - Every intentional difference from gh is listed with a reason.
+- Maintain a parity table (gh command -> fjo status: done / planned /
+  not applicable on Forgejo / different semantics).
+Decision:
+- 2026-11-13: Maximum gh compatibility where Forgejo allows it (user: "alternative to gh, but for Forgejo"; explicit choice left to Claude, recommended option taken). Forgejo semantics win where they differ; every deviation documented in docs/compatibility.md. Exit codes follow from this -> B-11 option B (table to be finalized in Phase 0).
+
+### B-1 — Replace Viper with plain YAML + own precedence logic
+Type:     decision
+Status:   accepted -> §2, §6
+Added:    2026-11-13
+Phase:    before Phase 0
+
+Context:
+- Viper uses "." as key delimiter and lowercases keys. Host keys such as
+  `hosts: git.example.com:` (§6 example) are split into nested keys.
+Proposal / options:
+- A) Drop Viper; use a YAML library + application-owned precedence
+     (flag > env > repo-local > user > default), fully unit-tested.
+- B) Keep Viper, change config shape so hosts are a list, not map keys.
+Decision:
+- 2026-11-13: A) Viper dropped. YAML library + application-owned precedence (flag > env > repo-local > user > default). Reason: hostnames as map keys must work; fewer dependencies; fully unit-testable.
+
+### B-2 — `--json` flag semantics
+Type:     decision
+Status:   accepted -> §1.4, §5.1, §10.2
+Added:    2026-11-13
+Phase:    before Phase 0
+
+Context:
+- §5.1 says bare `--json` returns the default object, §10.2 shows
+  `--json number,title,state`. With pflag optional values (NoOptDefVal)
+  the space-separated form parses `number,title,state` as a positional arg;
+  only `--json=number,title` works.
+Proposal / options:
+- A) `--json <fields>` always requires fields (gh behaviour); bare `--json`
+     prints the list of available fields.
+- B) Separate `--format json` + `--fields a,b,c`.
+- Recommendation (B-20, gh alternative): A.
+Decision:
+- 2026-11-13: A) gh semantics: `--json <fields>` requires fields; bare `--json` fails with the list of available fields. `--jq` and `--template` require `--json`. Reason: gh compatibility (B-20).
+
+### B-3 — Canonical host identity
+Type:     decision
+Status:   accepted -> §6.2
+Added:    2026-11-13
+Phase:    before Phase 0
+
+Context:
+- Config is keyed by hostname; §7.5 talks about "server origin".
+  Not covered: non-default ports, subpath installs
+  (https://example.com/forgejo/), http vs https, SSH alias pointing
+  to a different hostname than the web/API host.
+Proposal / options:
+- Define a canonical host ID (normalized origin + base path) used as the key
+  in config and keyring; map SSH hosts/aliases to it explicitly.
+Decision:
+- 2026-11-13: Canonical host ID = normalized origin + base path (lowercase host, default port and trailing slash removed, https implied; e.g. `git.example.com`, `git.example.com:3000`, `example.com/forgejo`). Plain http only with explicit per-host opt-in. SSH hosts/aliases are mapped to a host ID via `ssh_hosts` in config.
+
+### B-4 — Account model
+Type:     decision
+Status:   accepted -> §6, §7.5
+Added:    2026-11-13
+Phase:    before Phase 0
+
+Context:
+- Unclear whether "account" is a user-chosen alias (`personal`) or the
+  server username; what `auth switch --host` does with multiple accounts
+  on one host; what the keyring key looks like.
+Proposal / options:
+- Account = (host ID, username); optional alias only for display/selection.
+  `auth switch --host H [--user U]`, error when ambiguous and non-interactive.
+Decision:
+- 2026-11-13: Account identity = (host ID, server username), as in gh. One active user per host; `auth switch --host H [--user U]`. Keyring entry per (host ID, username). Ambiguous identity without a terminal -> write operations fail. Named account aliases (old §6 `accounts:`) removed.
+
+### B-5 — Credential storage when OS keyring is unavailable
+Type:     decision
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 1
+
+Context:
+- §7.2 forbids plaintext fallback. On headless Linux, WSL, containers and CI
+  Secret Service is usually missing -> no persistent login for admins.
+Proposal / options:
+- A) Explicit opt-in file store (0600, `--insecure-storage`, loud warning,
+     shown in `auth status`).
+- B) Read token from git credential helper.
+- C) Env-only (FJO_TOKEN) as today.
+- Also pick keyring library (zalando/go-keyring vs 99designs/keyring).
+Decision:
+-
+
+### B-6 — Repository hosting and CI platform
+Type:     decision
+Status:   accepted -> §13.5, §16 Phase 0
+Added:    2026-11-13
+Phase:    before Phase 0
+
+Context:
+- §13.5 requires Ubuntu/Windows/macOS CI, §4 assumes `.forgejo/workflows`.
+  Forgejo Actions runners are typically Linux-only -> Windows/macOS need
+  self-hosted runners or a mirror to another CI. Phase 0 acceptance
+  ("tests run in CI") depends on this.
+Proposal / options:
+- Decide where the repo lives (Codeberg / own Forgejo / mirror) and which CI
+  covers Windows and macOS.
+Decision:
+- 2026-11-13: Project repo hosted on own Forgejo instance; CI via Forgejo Actions with self-hosted runners for Linux, Windows and macOS. Integration tests with Forgejo 15/17 containers run on the Linux runner.
+
+### B-7 — API client approach
+Type:     decision
+Status:   accepted -> §2, §4, §9
+Added:    2026-11-13
+Phase:    before Phase 1
+
+Context:
+- §2 says "typed internal client, optionally generated models".
+Proposal / options:
+- A) Own thin client, hand-written models for the used subset, checked
+     against pinned swagger (B-8).
+- B) Generate from swagger.
+- C) Use existing Forgejo Go SDK behind an adapter.
+Decision:
+- 2026-11-13: A) Own thin client with hand-written models for the used subset, validated against pinned swagger specs (B-8). Reason: full control over security, errors, pagination and streaming.
+
+### B-8 — Pinned Forgejo API contract in repo
+Type:     decision
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 0
+
+Context:
+- §17.2 step 2 "Verify the applicable Forgejo API contract" has no defined source.
+Proposal / options:
+- Store swagger.v1.json of Forgejo 15 LTS and 17 in test/fixtures/swagger/
+  as source of truth; add a test that flags endpoints used by the client
+  but missing in a pinned spec.
+Decision:
+-
+
+### B-9 — Capability detection method
+Type:     decision
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 1 / Phase 5
+
+Context:
+- §9.5 "safe probing": a 404 cannot distinguish "endpoint missing" from
+  "repo missing / no permission".
+Proposal / options:
+- Read the instance's /swagger.v1.json (+ /api/v1/version), derive
+  capabilities, cache per host ID + version with TTL; fallback to
+  version table.
+Decision:
+-
+
+### B-10 — Forgejo Actions API spike
+Type:     question
+Status:   open
+Added:    2026-11-13
+Phase:    before planning Phase 5
+
+Context:
+- Forgejo Actions REST API is much narrower than GitHub's. Logs, rerun,
+  cancel, artifacts, workflow enable/disable may not exist via REST.
+Proposal / options:
+- Time-boxed spike against Forgejo 15 and 17; rewrite §5.7 and Phase 5 to
+  what actually exists, move the rest here as deferred.
+Decision:
+-
+
+### B-11 — Exit codes vs. gh conventions
+Type:     decision
+Status:   accepted -> §10.4
+Added:    2026-11-13
+Phase:    Phase 0
+
+Context:
+- §10.4 defines its own table; Phase 3 acceptance says "consistent with
+  documented gh conventions" (gh: 1 fail, 2 cancelled, 4 auth required).
+Proposal / options:
+- A) Keep own table, drop the gh-consistency claim for exit codes.
+- B) Align with gh codes and extend above them.
+- Recommendation (B-20, gh alternative): B.
+Decision:
+- 2026-11-13: B) gh codes 0/1/2/4/8 kept with gh meaning; fjo extensions 10-16 (usage, 403, 404, conflict, network, unsupported, timeout) and 130. Implemented in internal/fjoerr, documented in docs/compatibility.md.
+
+### B-12 — Global vs. per-command flags
+Type:     decision
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 0
+
+Context:
+- §5.1 lists `--repo`, `--json`, `--jq`, `--template` as global, then says
+  flags should exist only where meaningful. `--verbose` vs `--debug`
+  not distinguished. Both `--version` and `fjo version` exist.
+Proposal / options:
+- Truly global: --host, --color, --no-pager, --debug, --help.
+  Output/repo flags as persistent flags on command groups.
+  Define --verbose (user-level progress on stderr) vs --debug (sanitized HTTP trace).
+Decision:
+-
+
+### B-13 — `--limit` / `--page` semantics
+Type:     decision
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 1
+
+Context:
+- Unclear if --limit = total items or page size; how --page interacts with
+  auto-pagination; server caps page size (MAX_RESPONSE_ITEMS).
+Proposal / options:
+- --limit = max total items (default e.g. 30); pagination internal;
+  --page only on `fjo api` / not exposed at all.
+Decision:
+-
+
+### B-14 — Where repo-local settings live
+Type:     decision
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 2
+
+Context:
+- §6.1 "repository-local nonsecret settings" and `repo set-default` have no
+  storage location.
+Proposal / options:
+- Store in .git/config (e.g. `remote.<name>.fjo-resolved`), like gh
+  (gh uses `remote.<name>.gh-resolved`).
+Decision:
+-
+
+### B-15 — Token environment variables
+Type:     decision
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 1
+
+Context:
+- FJO_TOKEN with multiple hosts is ambiguous. Forgejo Actions jobs already
+  expose an automatic token.
+Proposal / options:
+- FJO_TOKEN applies only to the resolved host; optional FJO_HOST pairing.
+- Auto-detect CI token inside Forgejo Actions (document precedence).
+Decision:
+-
+
+### B-16 — Remove `auth refresh` from PAT-only releases
+Type:     decision
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 1
+
+Context:
+- `auth refresh` makes sense only with OAuth (scopes/refresh tokens).
+Proposal / options:
+- Drop from §5.2 until OAuth2 (§7.1 "Later release").
+Decision:
+-
+
+### B-17 — Release signing / provenance mechanism
+Type:     decision
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 8 (decide earlier, affects CI)
+
+Context:
+- §15 requires signatures and provenance but no mechanism. Keyless cosign
+  needs OIDC, not a given on Forgejo CI.
+Proposal / options:
+- A) minisign  B) GPG  C) cosign with key  D) cosign keyless if CI supports OIDC.
+Decision:
+-
+
+### B-18 — Docs file naming (.txt vs .md)
+Type:     decision
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 0
+
+Context:
+- Spec requires CHANGELOG.md in root and docs/*.md; current docs are
+  markdown content in .txt files. docs/CHANGELOG.txt is the internal dev log,
+  distinct from user-facing CHANGELOG.md.
+Proposal / options:
+- Rename to .md; keep dev log as docs/DEVLOG.md or docs/CHANGELOG-dev.md.
+Decision:
+-
+
+### B-19 — Split Phase 1 into smaller milestones
+Type:     decision
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 1
+
+Context:
+- Phase 1 bundles HTTP client, keyring, multi-account, `api`, pagination,
+  typed errors, and requires a Forgejo test infra not planned anywhere.
+Proposal / options:
+- 0.0.2a: HTTP client + errors + `api /user` with FJO_TOKEN + httptest.
+- 0.0.2b: keyring + auth login/status/logout + multi-host.
+- Add explicit task: containerized Forgejo 15/17 for integration tests.
+Decision:
+-
+
+### B-33 — License and copyright holder
+Type:     decision
+Status:   open
+Added:    2026-11-13
+Phase:    before first public push
+
+Context:
+- Spec says "MIT (proposed)"; no LICENSE file was created in Phase 0 because
+  the copyright holder line and final license choice are the owner's decision.
+Decision:
+-
+
+### B-34 — Go module path vs. repository hosting
+Type:     decision
+Status:   open
+Added:    2026-11-13
+Phase:    before first public push
+
+Context:
+- Module path is github.com/maymeow/fjo (user choice, Phase 0), while B-6 says
+  the project is hosted on an own Forgejo instance. `go install
+  github.com/maymeow/fjo/cmd/fjo@latest` only works if the code is reachable
+  at that path.
+Proposal / options:
+- A) Mirror the Forgejo repo to github.com/maymeow/fjo.
+- B) Switch to the Forgejo URL as module path.
+- C) Vanity import path (own domain with go-import meta tag).
+Decision:
+-
+
+### B-35 — Race tests on Windows need a C compiler
+Type:     tech-debt
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 0 / runners
+
+Context:
+- `go test -race` needs cgo + gcc. Not available on the current Windows dev
+  machine, so race tests were not run locally in Phase 0.
+Proposal / options:
+- Install MinGW-w64 gcc on Windows dev machine and on fjo-windows-amd64 runner,
+  or run race tests only on Linux/macOS runners.
+Decision:
+-
+
+---
+
+## Ideas / new features
+
+gh commands with a Forgejo equivalent that are missing from IMPLEMENTATION.txt.
+Scope rule (user, 2026-11-13): gh-like UX, but FOR FORGEJO — add only what the
+Forgejo API actually supports, with Forgejo semantics (see B-20).
+
+### B-21 — `fjo browse`
+Type:     idea
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 2 (needs browser launcher + repo resolution)
+
+Proposal / options:
+- Open repo / issue / PR / file:line / branch / settings in the browser,
+  `--no-browser` prints the URL (gh browse equivalent).
+Decision:
+-
+
+### B-22 — `fjo label` and `fjo milestone`
+Type:     idea
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 3+
+
+Context:
+- `issue list --label/--milestone` exist as filters, but there is no way to
+  manage labels/milestones. gh has `gh label`; Forgejo also has milestones API.
+Decision:
+-
+
+### B-23 — `fjo alias`
+Type:     idea
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 7
+
+Proposal / options:
+- gh-compatible `alias set/list/delete`, including shell aliases (`!cmd`);
+  aliases must not shadow built-ins (same rule as extensions, §12).
+Decision:
+-
+
+### B-24 — `fjo status` and notifications
+Type:     idea
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 3+
+
+Proposal / options:
+- gh `status` equivalent (assigned issues, review requests, mentions) built on
+  the Forgejo notifications API; optionally `fjo notification list/read`.
+Decision:
+-
+
+### B-25 — `fjo search`
+Type:     idea
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 3+
+
+Proposal / options:
+- `search repos` / `search issues` / `search prs` limited to what Forgejo
+  search endpoints support; unsupported qualifiers -> explicit error (§5.4 rule).
+Decision:
+-
+
+### B-26 — `fjo config get/set/list`
+Type:     idea
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 1 (`cli/config/` is already in §4 layout but has no commands in §5)
+
+Proposal / options:
+- gh-compatible `config get/set/list [--host]`; never reads/writes secrets.
+Decision:
+-
+
+---
+
+## Deferred / tech debt
+
+Gaps in the spec found by the 2026-11-13 review. Not decisions — things that must
+be handled when the relevant phase is implemented.
+
+### B-27 — Redirect and proxy handling in HTTP transport
+Type:     tech-debt
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 1
+
+Context:
+- Go http.Client keeps Authorization on redirects to subdomains; §7.4 requires
+  no token on other origins.
+Proposal / options:
+- Custom CheckRedirect: keep auth only for identical origin, refuse
+  https -> http downgrade; test with httptest.
+- Custom transport must keep ProxyFromEnvironment (HTTP_PROXY/NO_PROXY).
+- Forgejo header format: `Authorization: token <PAT>`.
+Decision:
+-
+
+### B-28 — Windows-specific terminal behaviour
+Type:     tech-debt
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 0 / Phase 3
+
+Context:
+- No `less` on Windows (pager), default editor (notepad?), ANSI/VT enablement
+  on legacy consoles, Ctrl+C handling and exit code 130.
+Decision:
+-
+
+### B-29 — Browser launcher in SSH sessions and WSL
+Type:     tech-debt
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 2
+
+Proposal / options:
+- Detect SSH (SSH_CONNECTION) -> print URL instead; WSL -> use wslview /
+  cmd.exe start; honour BROWSER / FJO_BROWSER.
+Decision:
+-
+
+### B-30 — Config file safety
+Type:     tech-debt
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 0 / Phase 1
+
+Proposal / options:
+- Atomic writes (temp file + rename), file permissions 0600/0700,
+  lock against concurrent fjo processes, migration path for `version: 1`.
+- Honour XDG_CONFIG_HOME on all platforms (gh uses ~/.config on macOS too;
+  §6 uses ~/Library/Application Support) — decide and document.
+Decision:
+-
+
+### B-31 — Forgejo-specific semantics to respect (not GitHub)
+Type:     tech-debt
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 3 / Phase 4
+
+Context:
+- PRs are issues in Forgejo: `issue list` must send `type=issues`.
+- Draft PRs are a WIP title prefix (`WIP:` / `[WIP]`), not a state:
+  `pr create --draft` / `pr ready` = title edit.
+- Issue/PR `index` (number) vs internal `id` — CLI uses index.
+- Release asset upload is multipart/form-data: stream via io.Pipe +
+  multipart.Writer; size limit unknown to client -> map HTTP 413 to clear error.
+- Commit statuses API backs `pr checks`.
+- Verify each against pinned swagger (B-8).
+Decision:
+-
+
+### B-32 — Dependency and quality-gate tuning
+Type:     tech-debt
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 0
+
+Context:
+- huh + lipgloss pull in bubbletea — document justification per §2.1.
+- testify vs stdlib-only tests — pick one.
+- Coverage 85/90 % (§13.6) as target, not a release gate for v0.0.x.
+- "Create dependency injection structure" (Phase 0) is vague — define a
+  concrete app.Context / factory (gh `cmdutil.Factory` pattern).
+Decision:
+-
+
+---
+
+## Resolved (accepted / rejected)
+
+(none yet)
