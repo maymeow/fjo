@@ -308,23 +308,27 @@ fjo pr create
 fjo run list
 ```
 
-Global flags:
+Global flags (implemented):
 
 | Flag | Purpose |
 |---|---|
-| `--host` | Select Forgejo host |
-| `-R, --repo` | Select repository |
-| `--json <fields>` | Output JSON with the listed fields (comma-separated, `gh` semantics); without fields it fails and prints the available fields |
-| `--jq` | Filter JSON output (requires `--json`) |
-| `--template` | Format JSON output using Go templates (requires `--json`) |
 | `--color` | `auto`, `always`, `never` |
-| `--no-pager` | Disable terminal pager |
-| `--verbose` | Enable verbose diagnostics |
-| `--debug` | Enable sanitized debugging |
+| `--verbose` | Enable verbose diagnostics (progress on stderr) |
+| `--debug` | Enable sanitized debugging (HTTP trace; implies verbose) |
 | `--help` | Display help |
 | `--version` | Display CLI version |
 
-Only expose global flags where their semantics are meaningful. Commands that do not support repository selection should not pretend to use `--repo`.
+There is no global `--host` or `--repo` (B-12). Commands that target a host
+accept `-h, --hostname HOST` (with a hidden `--host` alias), so on those
+commands `-h` is not the help shorthand; use `--help`. On `fjo api`, only the
+long `--hostname` form exists. Repository selection flags (`-R, --repo`) are
+added to the command groups that need them in Phase 2.
+
+Only expose flags where their semantics are meaningful. `--json <fields>`
+(comma-separated, `gh` semantics; without fields it fails and prints the
+available fields), `--jq` and `--template` are registered on output-producing
+command groups from Phase 3, not globally. `--no-pager` is added together with
+the pager (Phase 3).
 
 ### 5.2 Authentication commands
 
@@ -334,41 +338,56 @@ fjo auth
 ├── logout
 ├── status
 ├── token
-├── switch
-└── refresh
+└── switch
 ```
+
+`auth refresh` is not part of PAT-only releases; it returns with OAuth2
+(B-16).
 
 Examples:
 
 ```bash
-fjo auth login --host git.example.com
-fjo auth login --host codeberg.org
+fjo auth login --hostname git.example.com
+fjo auth login --hostname codeberg.org --with-token < token.txt
 fjo auth status
-fjo auth status --host git.example.com
-fjo auth logout --host git.example.com --user developer
-fjo auth switch --host git.example.com --user deploy-bot
+fjo auth status --hostname git.example.com --active
+fjo auth logout --hostname git.example.com --user developer
+fjo auth switch --hostname git.example.com --user deploy-bot
+fjo auth token --hostname git.example.com
 ```
 
-`auth login` must support:
+`auth login` supports:
 
-- Interactive token entry
-- Token input via standard input
-- Browser-assisted navigation to the token settings page
-- Safe token validation
-- Multiple hosts
-- Multiple users per host (identity = host ID + server username, see §6.2 and §7.5)
+- Interactive token entry (host and token prompts)
+- Token input via standard input (`--with-token`)
+- Browser-assisted navigation to the token settings page (`--web`)
+- Safe token validation with `GET /user` before storing anything
+- Multiple hosts and multiple users per host (identity = host ID + server
+  username, see §6.2 and §7.5)
+- OS credential storage by default and an explicit `--insecure-storage`
+  plain-text fallback (B-5)
+- `--git-protocol ssh|https` and `--insecure-http` for the host entry
 
 Example:
 
 ```bash
 fjo auth login \
-  --host git.example.com \
+  --hostname git.example.com \
   --with-token < token.txt
 ```
 
-The token must never be passed as a required command-line argument.
+The token must never be passed as a required command-line argument. `login`
+refuses to run while `FJO_TOKEN` is set, because the environment token takes
+precedence and is never persisted (B-15).
 
-`auth token` is intended for explicit scripting compatibility; it must be documented as sensitive and must never be included in diagnostic logs.
+`auth status` verifies every stored token and exits 1 if any is invalid or a
+host is unreachable; `--show-token` is sensitive and `--active` limits the
+report to active accounts. `auth switch` changes the active user, `auth logout`
+removes one account (and the host entry when it was the last), and `auth token`
+prints the token for scripting.
+
+`auth token` is intended for explicit scripting compatibility; it must be
+documented as sensitive and must never be included in diagnostic logs.
 
 ### 5.3 Repository commands
 
@@ -723,11 +742,22 @@ hosts:
     users:
       - admin
 
+  forgejo.internal:          # self-signed/internal CA
+    api_url: https://forgejo.internal/api/v1
+    ca_file: /etc/fjo/internal-ca.pem
+    active_user: developer
+    users:
+      - developer
+
 output:
   color: auto
 ```
 
 Hostname keys contain dots and colons; the configuration loader must treat them as opaque map keys (see §2: no Viper).
+
+`ca_file` is an absolute path to a PEM bundle added to the system roots for
+that host (§7.4). `insecure_http: true` is the only way to allow plain HTTP
+and is set by `fjo auth login --insecure-http`.
 
 **Never store access tokens inside this file.**
 
@@ -1477,7 +1507,7 @@ Acceptance criteria:
 
 ### Phase 1 — API and authentication
 
-**Target: v0.0.2**
+**Target: v0.0.2** — complete (2026-11-13)
 
 Tasks:
 
@@ -1493,11 +1523,13 @@ Tasks:
 - [x] Implement `api`. (gh flags; --paginate merges arrays, see compatibility.md)
 - [x] Add typed API errors.
 - [x] Add pagination.
-- [x] Add HTTP transport tests. (httptest; CLI-level auth tests still missing)
+- [x] Add HTTP transport tests. (httptest; CLI auth, app, prompt and browser tests)
+- [x] Add integration tests against Forgejo 15 and 17. (Docker, opt-in via `-tags=integration`)
+- [x] Update authentication documentation. (docs/authentication.md; §5.1/§5.2/§6)
 
 Acceptance criteria:
 
-- Login works with Forgejo 15 and 17.
+- Login works with Forgejo 15 and 17. (integration suite against real containers)
 - Multiple hosts can be configured.
 - Tokens do not appear in config files.
 - API errors are readable.

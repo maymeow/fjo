@@ -52,6 +52,21 @@ jobs:
       - name: Build
         run: go build -trimpath -o bin/ ./cmd/fjo
 
+  integration:
+    runs-on: fjo-linux-amd64
+    timeout-minutes: 30
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: https://code.forgejo.org/actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Integration tests (Forgejo 15 and 17)
+        run: ./scripts/test-forgejo.sh
+
   lint:
     runs-on: fjo-linux-amd64
     timeout-minutes: 15

@@ -7,6 +7,7 @@
   (`go install honnef.co/go/tools/cmd/staticcheck@v0.8.2`,
   `go install golang.org/x/vuln/cmd/govulncheck@v1.9.0`).
 - `go test -race` needs cgo and a C compiler; on Windows install MinGW-w64 gcc.
+- Docker for the opt-in integration tests against Forgejo 15 and 17.
 
 ## Tasks
 
@@ -14,8 +15,18 @@
 |---|---|---|
 | Build | `make build` | `./scripts/build.ps1 build` |
 | Unit tests | `make test` | `./scripts/build.ps1 test` |
+| Integration tests (Docker) | `make test-integration` | — (Linux runner/CI) |
 | Race tests | `make race` | `./scripts/build.ps1 race` |
 | All release checks | `make check` | `./scripts/build.ps1 check` |
+
+Integration tests are opt-in and excluded from `go test ./...` by the
+`integration` build tag. `make test-integration` starts Forgejo 15.0.11 and
+17.0.1 containers, creates a temporary admin token and runs
+`go test -tags=integration ./test/integration`. The images are pulled on the
+first run; set `FJO_TEST_FORGEJO_VERSIONS` to test a subset. The test package
+can also target an existing instance through `FJO_TEST_FORGEJO_URL`,
+`FJO_TEST_FORGEJO_TOKEN` and (optionally) `FJO_TEST_FORGEJO_VERSION`; it skips
+when the URL or token is missing.
 
 ## Project documents
 

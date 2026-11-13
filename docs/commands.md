@@ -25,6 +25,79 @@ go: go1.27.4
 platform: windows/amd64
 ```
 
+## fjo auth
+
+Manage Forgejo logins. Tokens are stored in the OS credential store, or in
+`credentials.yaml` with `--insecure-storage`; they are never written to
+`config.yaml`. See [authentication.md](authentication.md) for the full model.
+
+```text
+fjo auth login
+fjo auth logout
+fjo auth status
+fjo auth switch
+fjo auth token
+```
+
+### fjo auth login
+
+```text
+fjo auth login [flags]
+```
+
+| Flag | Description |
+|---|---|
+| `-h, --hostname HOST` | Host ID or URL (default: `FJO_HOST`, then a prompt) |
+| `--with-token` | Read the token from standard input (required without a terminal) |
+| `-w, --web` | Open the token settings page in the browser |
+| `-p, --git-protocol ssh\|https` | Protocol for git operations on this host |
+| `--insecure-storage` | Store the token in a plain-text file instead of the OS keyring |
+| `--insecure-http` | Allow plain HTTP for this host (trusted development hosts only) |
+
+The token is verified with `GET /user` before it is stored. `login` refuses to
+run while `FJO_TOKEN` is set.
+
+### fjo auth status
+
+Verify every stored token and print the accounts per host. Exit code 1 if any
+token is invalid or a host cannot be reached.
+
+| Flag | Description |
+|---|---|
+| `-h, --hostname HOST` | Limit the report to one host |
+| `-t, --show-token` | Print the tokens (sensitive) |
+| `-a, --active` | Show only active accounts |
+
+### fjo auth switch
+
+Change the active account for a host. Without `--user`, the only other account
+is used, or a prompt is shown; an ambiguous choice without a terminal fails.
+
+| Flag | Description |
+|---|---|
+| `-h, --hostname HOST` | Host to switch (default: the only host with several accounts) |
+| `-u, --user USER` | Account to switch to |
+
+### fjo auth logout
+
+Delete a stored token and forget the account. Removing the active account
+promotes the next one; removing the last account removes the host entry.
+
+| Flag | Description |
+|---|---|
+| `-h, --hostname HOST` | Host to log out of |
+| `-u, --user USER` | Account to log out of |
+
+### fjo auth token
+
+Print the token for a host and account to standard output. This is sensitive;
+it exists for scripting and is never included in diagnostic logs.
+
+| Flag | Description |
+|---|---|
+| `-h, --hostname HOST` | Host whose token to print |
+| `-u, --user USER` | Account whose token to print (default: the active account) |
+
 ## fjo api
 
 Make an authenticated request to the Forgejo REST API (IMPLEMENTATION §5.9).

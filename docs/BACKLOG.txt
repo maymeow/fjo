@@ -417,6 +417,32 @@ Decision:
 
 ---
 
+### B-36 — Redactor masks ordinary words after "token"
+Type:     tech-debt
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 2 (before more user-facing messages mention tokens)
+
+Context:
+- internal/logging/redact.go: the bare-credential rule
+  `(?i)\b(token|bearer)\s+[A-Za-z0-9._~+/=-]{8,}` treats any word of 8+
+  characters after "token" as a secret. "no token provided" was printed as
+  "no token REDACTED"; the message was reworded to "no token was provided"
+  (Phase 1), which only works around this one case. Future errors such as
+  "token required" / "token rejected" / "token settings" hit it too.
+Proposal / options:
+- A) Require a credential-like value: at least one digit and length >= 20
+  (Forgejo PATs are 40 hex; JWT/bearer values are long and mixed).
+- B) Match bare "token X" only in HTTP-ish contexts (after "Authorization",
+  in debug HTTP traces) and rely on registered exact secrets otherwise
+  (FJO_TOKEN and stored tokens are already registered with the redactor).
+- Either way add regression tests with plain English phrases next to the
+  existing secret-shaped cases.
+Decision:
+-
+
+---
+
 ## Ideas / new features
 
 gh commands with a Forgejo equivalent that are missing from IMPLEMENTATION.txt.

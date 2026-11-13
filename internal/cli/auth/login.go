@@ -204,7 +204,7 @@ func readToken(f *app.Factory, o loginOptions, tokenPage string) (string, error)
 	}
 	token = strings.TrimSpace(token)
 	if token == "" {
-		return "", fjoerr.Usage("no token provided")
+		return "", fjoerr.Usage("no token was provided")
 	}
 	if strings.ContainsAny(token, " \t\r\n") {
 		return "", fjoerr.Usage("the token must be a single line without spaces")

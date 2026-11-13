@@ -11,7 +11,7 @@ LDFLAGS  := -s -w \
 	-X $(PKG)/internal/build.Commit=$(COMMIT) \
 	-X $(PKG)/internal/build.Date=$(DATE)
 
-.PHONY: all build test race vet fmt fmt-check lint vuln check clean
+.PHONY: all build test test-integration race vet fmt fmt-check lint vuln check clean
 
 all: check build
 
@@ -20,6 +20,11 @@ build:
 
 test:
 	$(GO) test ./...
+
+# Starts Forgejo 15 and 17 containers (Docker) and runs the opt-in
+# integration tests. See scripts/test-forgejo.sh.
+test-integration:
+	./scripts/test-forgejo.sh
 
 race:
 	$(GO) test -race ./...

@@ -159,10 +159,13 @@ func printAccount(w io.Writer, f *app.Factory, h *config.Host, l accountLine, sh
 	if l.err != nil {
 		fmt.Fprintf(w, "  X Failed to log in to %s account %s (%s)\n", l.host, user, src)
 		fmt.Fprintf(w, "  - %s\n", f.Redactor.String(l.err.Error()))
-		if hint := fjoerr.HintOf(l.err); hint != "" {
-			fmt.Fprintf(w, "  - %s\n", hint)
-		} else if fjoerr.KindOf(l.err) == fjoerr.KindAuth {
+		// Auth failures always get the re-login advice: the generic 401 hint
+		// ("check your credentials with 'fjo auth status'") would point the
+		// user back at the command they are running.
+		if fjoerr.KindOf(l.err) == fjoerr.KindAuth {
 			fmt.Fprintf(w, "  - To re-authenticate, run: fjo auth login --hostname %s\n", l.host)
+		} else if hint := fjoerr.HintOf(l.err); hint != "" {
+			fmt.Fprintf(w, "  - %s\n", hint)
 		}
 	} else {
 		fmt.Fprintf(w, "  ✓ Logged in to %s account %s (%s)\n", l.host, user, src)

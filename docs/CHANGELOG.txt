@@ -12,14 +12,12 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 
 ## Current status
 
-- Phase:            Phase 1 - API and authentication (IN PROGRESS, ~80 %)
-- Next target:      v0.0.2 (0.0.2a client + api DONE, 0.0.2b keyring + auth)
+- Phase:            Phase 1 - API and authentication (COMPLETE, v0.0.2)
+- Next target:      v0.0.3 (Phase 2 - Git and repositories)
 - Last updated:     2026-11-13
 - Repo:             https://github.com/kukolos/fjo (private), branch main
 - Phase 0 open:     self-hosted runners + first CI run; race tests (B-35)
-- Phase 1 open:     tests for cli/auth, app, prompt, browser;
-                    docs/authentication.md + spec 5.1/5.2 update;
-                    integration tests vs. Forgejo 15/17 (Docker)
+- Phase 1 open:     none
 - Blockers:         none for code; B-33 (license), B-34 (module path vs.
                     repo at github.com/kukolos/fjo) before a public release
 
@@ -54,6 +52,71 @@ Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
 
 ---
+
+## 2026-11-13 — Phase 1 complete: auth tests, docs, Forgejo integration
+Phase: Phase 1 / v0.0.2
+Spec:  §5.1, §5.2, §6, §7, §16 Phase 1
+
+Added:
+- internal/cli/auth/auth_test.go: login (stdin, interactive, --web,
+  --insecure-storage, plain HTTP opt-in, keyring failure, rejected token,
+  FJO_TOKEN refusal, usage errors), logout (single/ambiguous user, active
+  promotion, last user, env-token note, store failure), switch, token and
+  status (multi-account, multiple hosts, --active, --show-token, FJO_TOKEN,
+  invalid/wrong account, missing token). Coverage 86.5 %.
+- internal/app/auth_test.go: SaveConfig/cache, CredentialStore path,
+  ResolveHost precedence and errors, AccountFor (env/keyring/file/missing),
+  StoredAccount, ClientFor (TLS + stored token), CA-file error.
+  Coverage 87.8 %.
+- internal/prompt/prompt_test.go: Input, Password (non-TTY), Select with
+  retries, EOF cancellation. Coverage 81.8 %.
+- internal/browser/browser_test.go: FJO_BROWSER > BROWSER, explicit browser
+  over SSH, no launch over SSH, DISPLAY/WAYLAND on Linux, URL scheme refusal,
+  ErrNoBrowser, successful start. Coverage 82.6 %.
+- internal/cli/cmdutil/cmdutil_test.go: -h/--hostname, hidden --host, --help
+  without shorthand. Coverage 100 %.
+- test/integration/forgejo_test.go (build tag `integration`): client
+  version/user, full auth lifecycle (login --insecure-storage, config has no
+  token, credentials.yaml 0600, status, token, api /user, logout cleanup) and
+  FJO_TOKEN requests against a real instance.
+- scripts/test-forgejo.sh + `make test-integration`: starts Forgejo 15.0.11
+  and 17.0.1 containers, provisions an admin token and runs the integration
+  package; CI gains an `integration` job on the Linux runner.
+- docs/authentication.md rewritten for the implemented PAT model (login
+  methods, scopes, keyring/file/FJO_TOKEN, multi-account, host identity,
+  plain HTTP, CA file, redirect scoping); docs/commands.md gains `fjo auth`
+  and subcommand flags; docs/development.md documents the integration target.
+
+Changed:
+- IMPLEMENTATION §5.1: no global --host/--repo; host flag is -h/--hostname
+  (hidden --host) on auth/api; --json/--jq/--template stay on command groups.
+- IMPLEMENTATION §5.2: `auth refresh` removed (B-16), --hostname examples,
+  documented flags and status/switch/logout/token behavior.
+- IMPLEMENTATION §6: ca_file example and plain-HTTP opt-in note.
+- IMPLEMENTATION §16 Phase 1 marked complete; integration/docs tasks added.
+- internal/cli/auth/login.go: "no token was provided" (the old wording was
+  caught by the redactor's "token <value>" pattern and printed as REDACTED).
+  Root cause (over-broad redactor rule) recorded as BACKLOG B-36.
+- internal/cli/auth/status.go: auth failures now always print "To
+  re-authenticate, run: fjo auth login --hostname <host>" instead of the
+  generic 401 hint, which told the user to run `fjo auth status` again.
+- test/integration: the client test now proves the token is sent (anonymous
+  GET /user must fail with an auth error) instead of a no-op check.
+
+Tests:
+- go test ./... pass on Linux/amd64 (Go 1.27.4); go vet, gofmt, staticcheck
+  v0.8.2 clean.
+- go test -tags=integration ./test/integration via scripts/test-forgejo.sh:
+  pass against Forgejo 15.0.11 and 17.0.1 containers (login, status, token,
+  api /user, logout, FJO_TOKEN).
+- Coverage: cli/auth 86.5 %, app 87.8 %, prompt 81.8 %, browser 82.6 %,
+  cmdutil 100 %, api 86.0 %, credentials 91.5 %, cli 89.7 %, cli/api 90.0 %.
+- NOT run: go test -race (no gcc locally, B-35); Windows/macOS runs and the
+  new CI job (no runners yet).
+
+Notes / next steps:
+- Phase 1 is complete; next is Phase 2 (git remote parser, repository
+  detection, repo commands, browser launcher integration).
 
 ## 2026-11-13 — Tests for fsutil.WriteFileAtomic
 Phase: Phase 1 / v0.0.2
