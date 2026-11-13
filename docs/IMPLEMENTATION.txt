@@ -915,6 +915,13 @@ Also support remotes with nested application paths and configured SSH aliases.
 
 Do not assume that `origin` is always the correct remote.
 
+Implemented (Phase 2a): step 2 is `remote.<name>.fjo-resolved` written by
+`fjo repo set-default` (B-14); `FJO_REPO` is checked after `--repo`. Steps 4–5:
+only remotes on known hosts (configured hosts and `FJO_HOST`) count; remotes
+that resolve to the same repository are merged; several different
+repositories are a usage error with a hint, never a guess. Step 8 is left to
+mutating commands (Phase 2b+).
+
 ### 8.3 Git operations
 
 Use the installed Git executable for:
@@ -1538,20 +1545,22 @@ Acceptance criteria:
 
 ### Phase 2 — Git and repositories
 
-**Target: v0.0.3**
+**Target: v0.0.3** — split into 2a (detection, list, view, set-default) and
+2b (create, clone, fork and the remaining `repo` subcommands).
 
 Tasks:
 
-- [ ] Implement Git remote parser.
-- [ ] Implement repository detection.
-- [ ] Support SSH/HTTPS remotes.
-- [ ] Implement `repo list`.
-- [ ] Implement `repo view`.
-- [ ] Implement `repo create`.
-- [ ] Implement `repo clone`.
-- [ ] Add repository selection flags.
-- [ ] Implement browser launcher.
-- [ ] Add Git integration tests.
+- [x] Implement Git remote parser. (internal/git: https, http, ssh://, scp-like, git://, IPv6)
+- [x] Implement repository detection. (FJO_REPO > set-default > remotes on known hosts; ambiguity is an error)
+- [x] Support SSH/HTTPS remotes. (subpath hosts, ssh_hosts; ~/.ssh/config aliases: B-38)
+- [x] Implement `repo list`.
+- [x] Implement `repo view`.
+- [x] Implement `repo set-default`. (B-14)
+- [ ] Implement `repo create`. (2b)
+- [ ] Implement `repo clone`. (2b)
+- [ ] Add repository selection flags. (FJO_REPO and positional args done; `-R/--repo` lands with the first command group that needs it)
+- [x] Implement browser launcher. (internal/browser, Phase 1; used by `repo view --web`)
+- [x] Add Git integration tests. (real git in temp repos; Forgejo 15/17 integration for list/view/detection)
 
 Acceptance criteria:
 

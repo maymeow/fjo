@@ -97,9 +97,9 @@ func run(ctx context.Context, f *app.Factory, o options, endpoint string) error 
 	if method == "" || strings.ContainsAny(method, " \t\r\n") {
 		return fjoerr.Usage("invalid --method %q", o.method)
 	}
-	if strings.Contains(endpoint, "{owner}") || strings.Contains(endpoint, "{repo}") || strings.Contains(endpoint, "{branch}") {
-		return fjoerr.Usage("endpoint placeholders like {owner} and {repo} are not supported yet").
-			WithHint("write the repository explicitly, e.g. /repos/OWNER/REPO")
+	endpoint, repoHost, err := fillPlaceholders(ctx, f, endpoint)
+	if err != nil {
+		return err
 	}
 
 	headers, err := parseHeaders(o.headers)
@@ -156,7 +156,11 @@ func run(ctx context.Context, f *app.Factory, o options, endpoint string) error 
 		}
 	}
 
-	host, err := f.ResolveHost(o.hostname)
+	hostFlag := o.hostname
+	if hostFlag == "" {
+		hostFlag = repoHost // the repository's host when placeholders were used
+	}
+	host, err := f.ResolveHost(hostFlag)
 	if err != nil {
 		return err
 	}
@@ -201,6 +205,39 @@ func run(ctx context.Context, f *app.Factory, o options, endpoint string) error 
 		return api.ErrorFromBody(resp, data)
 	}
 	return nil
+}
+
+// fillPlaceholders replaces {owner}, {repo} and {branch} like gh: the
+// repository comes from FJO_REPO, the default set with `fjo repo
+// set-default` or the git remotes; {branch} is the checked-out branch. It
+// returns the repository's host ("" when no placeholder was used).
+func fillPlaceholders(ctx context.Context, f *app.Factory, endpoint string) (string, string, error) {
+	hasRepo := strings.Contains(endpoint, "{owner}") || strings.Contains(endpoint, "{repo}")
+	hasBranch := strings.Contains(endpoint, "{branch}")
+	if !hasRepo && !hasBranch {
+		return endpoint, "", nil
+	}
+	host := ""
+	if hasRepo {
+		ref, err := f.ResolveRepo(ctx, "")
+		if err != nil {
+			return "", "", err
+		}
+		endpoint = strings.ReplaceAll(endpoint, "{owner}", url.PathEscape(ref.Owner))
+		endpoint = strings.ReplaceAll(endpoint, "{repo}", url.PathEscape(ref.Name))
+		host = ref.Host
+	}
+	if hasBranch {
+		branch, err := f.Git().CurrentBranch(ctx)
+		if err != nil {
+			if cerr := app.GitContextError(err); fjoerr.KindOf(cerr) == fjoerr.KindUsage {
+				return "", "", cerr
+			}
+			return "", "", fjoerr.Wrap(fjoerr.KindUsage, err, "cannot fill {branch}")
+		}
+		endpoint = strings.ReplaceAll(endpoint, "{branch}", url.PathEscape(branch))
+	}
+	return endpoint, host, nil
 }
 
 func runPaginated(ctx context.Context, f *app.Factory, client *api.Client, o options, path string, headers http.Header) error {

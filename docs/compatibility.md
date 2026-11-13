@@ -47,7 +47,7 @@ Scripts written for gh that test `$? -ne 0`, `== 2`, `== 4` or `== 8` behave the
 |---|---|---|
 | `FJO_TOKEN` | `GH_TOKEN` | done (applies to the targeted host, never stored; redacted from all output) |
 | `FJO_HOST` | `GH_HOST` | done |
-| `FJO_REPO` | `GH_REPO` | planned (Phase 2) |
+| `FJO_REPO` | `GH_REPO` | done (`[HOST/]OWNER/REPO`) |
 | `FJO_CONFIG_DIR` | `GH_CONFIG_DIR` | done |
 | `FJO_EDITOR` | `GH_EDITOR` | resolved, used from Phase 3 |
 | `FJO_PAGER` | `GH_PAGER` | resolved, used from Phase 3 |
@@ -66,9 +66,10 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | `gh help`, `gh completion` | same | done (cobra built-in) |
 | `gh auth login/logout/status/switch/token` | same | done |
 | `gh auth refresh` | — | n/a until OAuth (BACKLOG B-16) |
-| `gh api` | `fjo api` | done; differs: `--paginate`, no placeholders/GraphQL/`--jq` yet (see below) |
+| `gh api` | `fjo api` | done (incl. `{owner}`/`{repo}`/`{branch}`); differs: `--paginate`, no GraphQL/`--jq` yet (see below) |
 | `gh config get/set/list` | same | idea (BACKLOG B-26) |
-| `gh repo ...` | same | planned (Phase 2) |
+| `gh repo list/view/set-default` | same | done (Phase 2a); no `--json` until Phase 3 |
+| `gh repo create/clone/fork/edit/rename/delete/archive/unarchive/sync` | same | planned (Phase 2b) |
 | `gh browse` | same | idea (BACKLOG B-21) |
 | `gh issue ...` | same | planned (Phase 3) |
 | `gh pr ...` | same | planned (Phase 3); draft = `WIP:` title prefix (differs) |
@@ -90,7 +91,10 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | Host identity | Hosts may include a port or base path (`example.com/forgejo`) | Self-hosted Forgejo runs on custom ports and subpaths |
 | Config format | Single `config.yaml` with `hosts:` map | Tokens are never stored in it |
 | `api --paginate` | Pages that are JSON arrays are merged into one array (gh prints the pages one after another) | Output stays valid JSON for `jq` and scripts |
-| `api` placeholders | `{owner}`, `{repo}`, `{branch}` are rejected with a usage error until repository resolution exists (Phase 2) | No silent requests to a literal `{owner}` path |
 | `api` GraphQL, `--jq`, `--template`, `--cache`, `--preview` | Not available | Forgejo has no GraphQL API; output filters come in Phase 3 |
 | `api --input` | Sets `Content-Type: application/json` unless `-H` overrides it | Forgejo API endpoints expect JSON |
+| Repository detection | Only remotes on a known Forgejo host (configured hosts, `FJO_HOST`) are considered; several different repositories are an error until `fjo repo set-default` picks one. gh prefers `upstream` > `github` > `origin` and prompts | `origin` is not assumed (IMPLEMENTATION §8.2); no silent wrong choice |
+| `repo set-default` | Stored as `remote.<name>.fjo-resolved` in `.git/config` (gh: `gh-resolved`) | Same mechanism, own key so gh and fjo do not interfere |
+| `repo list` | Lists repositories **owned** by the user/org (Forgejo `/repos/search?uid=&exclusive=true`), newest update first; `--visibility internal`, `--language`, `--topic` not supported | Forgejo search API filters |
+| `repo view` | No README rendering; non-TTY output is `key:\tvalue` lines | README rendering comes with the markdown renderer (Phase 3) |
 | `api` absolute URLs | Only URLs inside the configured instance are accepted | Credentials must not leave the instance (§7.4) |

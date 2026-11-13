@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -52,6 +53,17 @@ func server(t *testing.T, handler http.HandlerFunc) (*httptest.Server, *[]seen) 
 
 func run(t *testing.T, srv *httptest.Server, env map[string]string, stdin string, tty bool, args ...string) result {
 	t.Helper()
+	return runFull(t, srv, env, stdin, tty, t.TempDir(), args...)
+}
+
+// runIn runs with git commands executed in gitDir.
+func runIn(t *testing.T, srv *httptest.Server, gitDir string, args ...string) result {
+	t.Helper()
+	return runFull(t, srv, nil, "", false, gitDir, args...)
+}
+
+func runFull(t *testing.T, srv *httptest.Server, env map[string]string, stdin string, tty bool, gitDir string, args ...string) result {
+	t.Helper()
 	e := map[string]string{"FJO_CONFIG_DIR": t.TempDir()}
 	if srv != nil {
 		e["FJO_HOST"] = strings.TrimPrefix(srv.URL, "https://")
@@ -69,6 +81,7 @@ func run(t *testing.T, srv *httptest.Server, env map[string]string, stdin string
 	if srv != nil {
 		f.HTTPTransport = srv.Client().Transport
 	}
+	f.GitDir = gitDir // never the fjo checkout itself
 	code := cli.Run(context.Background(), f, args)
 	return result{code, out.String(), errOut.String()}
 }
@@ -314,7 +327,7 @@ func TestUsageErrors(t *testing.T) {
 		{"api", "/x", "--paginate", "--input", "-"},
 		{"api", "/x", "--input", "-", "-F", "a=@-"},
 		{"api", "/x", "--input", filepath.Join(t.TempDir(), "missing")},
-		{"api", "/repos/{owner}/{repo}"},
+		{"api", "/repos/{owner}/{repo}"}, // not in a repository and no FJO_REPO
 	}
 	for _, args := range tests {
 		r := run(t, srv, nil, "", false, args...)
@@ -324,5 +337,41 @@ func TestUsageErrors(t *testing.T) {
 	}
 	if len(*reqs) != 0 {
 		t.Errorf("%d requests sent for invalid usage", len(*reqs))
+	}
+}
+
+func TestPlaceholdersFromFJORepo(t *testing.T) {
+	srv, reqs := server(t, jsonHandler(200, `{}`))
+	host := strings.TrimPrefix(srv.URL, "https://")
+	r := run(t, srv, map[string]string{"FJO_REPO": host + "/my-org/my.repo"}, "", false, "api", "/repos/{owner}/{repo}/issues")
+	if r.code != fjoerr.ExitOK {
+		t.Fatalf("exit %d, stderr %q", r.code, r.stderr)
+	}
+	if got := (*reqs)[0].path; got != "/api/v1/repos/my-org/my.repo/issues" {
+		t.Errorf("path = %q", got)
+	}
+}
+
+func TestPlaceholderBranch(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	srv, reqs := server(t, jsonHandler(200, `{}`))
+	host := strings.TrimPrefix(srv.URL, "https://")
+	dir := t.TempDir()
+	for _, args := range [][]string{
+		{"init", "-q", "-b", "feature/x"},
+		{"remote", "add", "origin", "https://" + host + "/o/r.git"},
+	} {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	r := runIn(t, srv, dir, "api", "/repos/{owner}/{repo}/branches/{branch}")
+	if r.code != fjoerr.ExitOK {
+		t.Fatalf("exit %d, stderr %q", r.code, r.stderr)
+	}
+	if got := (*reqs)[0].path; got != "/api/v1/repos/o/r/branches/feature/x" {
+		t.Errorf("path = %q", got)
 	}
 }

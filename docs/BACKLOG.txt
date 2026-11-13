@@ -284,7 +284,7 @@ Decision:
 
 ### B-14 — Where repo-local settings live
 Type:     decision
-Status:   open
+Status:   accepted -> §8.2 (`fjo repo set-default`)
 Added:    2026-11-13
 Phase:    Phase 2
 
@@ -295,7 +295,7 @@ Proposal / options:
 - Store in .git/config (e.g. `remote.<name>.fjo-resolved`), like gh
   (gh uses `remote.<name>.gh-resolved`).
 Decision:
--
+- 2026-11-13: gh model: `remote.<name>.fjo-resolved` in the local .git/config, value "base" (that remote) or "HOST/OWNER/REPO". Taken as the recommended option during Phase 2a (no user preference stated); own key so gh and fjo never interfere.
 
 ### B-15 — Token environment variables
 Type:     decision
@@ -446,6 +446,45 @@ Decision:
   unconditionally, and a JWT-shape rule was added. Regression tests keep
   plain English ("no token provided", "token required", "token settings")
   intact while secret-shaped values are still masked.
+
+---
+
+### B-37 — 40-hex redaction rule also masks git commit SHAs
+Type:     tech-debt
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 3 (before PR/commit/checks output goes through the redactor)
+
+Context:
+- internal/logging/redact.go redacts every `\b[0-9a-f]{40}\b` because
+  Forgejo PATs are 40 lowercase hex. SHA-1 commit IDs have the same shape, so
+  error messages and debug logs that mention a commit (pr checks, merge
+  conflicts, git errors) will show [REDACTED] instead of the SHA.
+- Normal stdout output is not redacted, only errors and diagnostics.
+Proposal / options:
+- A) Drop the shape rule and rely on exact registration (every token fjo
+  reads is already registered with Redactor.Add) plus the context rules.
+- B) Keep it only in debug HTTP traces (headers/bodies), not in error
+  messages.
+Decision:
+-
+
+### B-38 — SSH aliases from ~/.ssh/config
+Type:     idea
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 2b / Phase 3
+
+Context:
+- Phase 2a maps SSH remotes via `ssh_hosts` in the fjo config or the plain
+  hostname. A remote using an alias defined only in ~/.ssh/config
+  (`Host forgejo` / `HostName git.example.com`) is not recognized until the
+  alias is added to `ssh_hosts`.
+Proposal / options:
+- Resolve with `ssh -G <alias>` (gh does this) and match the reported
+  hostname/port; cache per run; never fail when ssh is missing.
+Decision:
+-
 
 ---
 

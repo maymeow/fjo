@@ -37,6 +37,9 @@ type Factory struct {
 	// Credentials overrides the credential manager (tests); nil means the
 	// OS keyring plus the opt-in file store in the config directory.
 	Credentials *credentials.Manager
+	// GitDir is the directory git commands run in; "" means the current
+	// working directory (tests point it at a temporary repository).
+	GitDir string
 
 	configOnce sync.Once
 	config     *config.Config

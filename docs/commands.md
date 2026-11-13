@@ -98,6 +98,65 @@ it exists for scripting and is never included in diagnostic logs.
 | `-h, --hostname HOST` | Host whose token to print |
 | `-u, --user USER` | Account whose token to print (default: the active account) |
 
+## fjo repo
+
+Work with repositories (IMPLEMENTATION §5.3). Commands that accept
+`[<repository>]` (`[HOST/]OWNER/REPO` or a clone URL) use the repository of the
+current directory when it is omitted:
+
+1. `FJO_REPO`
+2. the default chosen with `fjo repo set-default`
+3. the git remote that points to a known Forgejo host (configured hosts and
+   `FJO_HOST`). Remotes on other hosts are ignored; `origin` is not special.
+   Several remotes pointing to *different* repositories are an error (exit 10)
+   with a hint to use `set-default`.
+
+HTTPS remotes are matched against host IDs including subpath installs
+(`https://example.com/forgejo/owner/repo.git`); SSH remotes through
+`ssh_hosts` of a host entry, else by hostname (ambiguous hostnames are
+reported, not guessed).
+
+### fjo repo view [<repository>]
+
+| Flag | Description |
+|---|---|
+| `-w, --web` | Open the repository in the browser (prints the URL when no browser is available) |
+| `-b, --branch BRANCH` | Open a branch (with `--web`) |
+
+On a terminal: name, description, visibility/fork/archived, default branch,
+counters and URL. Otherwise stable `key:<TAB>value` lines (`name`,
+`description`, `visibility`, `default_branch`, `fork`, `parent`, `mirror`,
+`archived`, `stars`, `forks`, `open_issues`, `open_pull_requests`, `url`,
+`clone_url`, `ssh_url`).
+
+### fjo repo list [<owner>]
+
+Repositories owned by a user or organization (default: the authenticated
+user), most recently updated first.
+
+| Flag | Description |
+|---|---|
+| `-L, --limit N` | Maximum number of repositories (default 30) |
+| `--visibility public\|private` | Filter by visibility |
+| `--archived` / `--no-archived` | Only / no archived repositories |
+| `--fork` / `--source` | Only forks / only non-forks |
+| `--hostname HOST` | Forgejo host (default: `FJO_HOST`, `defaults.host`) |
+
+Non-TTY output is tab-separated: `full_name`, description (one line), info
+(`private`, `fork`, `archived`, `mirror`), updated time (RFC 3339).
+
+### fjo repo set-default [<repository>]
+
+Choose the repository used in this clone when several remotes point to
+different repositories. Stored as `remote.<name>.fjo-resolved` in the local
+`.git/config`. The repository must be one of the remotes; without an argument
+the only candidate is taken, or a prompt is shown on a terminal.
+
+| Flag | Description |
+|---|---|
+| `-v, --view` | Print the current default (`HOST/OWNER/REPO`) |
+| `-u, --unset` | Remove the default |
+
 ## fjo api
 
 Make an authenticated request to the Forgejo REST API (IMPLEMENTATION §5.9).
@@ -127,6 +186,9 @@ fjo api <endpoint> [flags]
 - On HTTP status >= 400 the body is printed to stdout, the error to stderr,
   exit code 4/11/12/13/14 (see compatibility.md).
 - Authentication is required (exit 4 without a login or `FJO_TOKEN`).
+- `{owner}`, `{repo}` and `{branch}` in the endpoint are filled from the
+  current repository (see `fjo repo`) and the checked-out branch; the request
+  then goes to that repository's host unless `--hostname` is given.
 
 ```text
 fjo api /user

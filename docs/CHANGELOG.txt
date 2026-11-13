@@ -12,12 +12,13 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 
 ## Current status
 
-- Phase:            Phase 1 - API and authentication (COMPLETE, v0.0.2)
-- Next target:      v0.0.3 (Phase 2 - Git and repositories)
+- Phase:            Phase 2 - Git and repositories (IN PROGRESS, 2a done)
+- Next target:      v0.0.3 (2b: repo create, clone, fork, edit, delete, ...)
 - Last updated:     2026-11-13
 - Repo:             https://github.com/kukolos/fjo (private), branch main
 - Phase 0 open:     self-hosted runners + first CI run; race tests (B-35)
-- Phase 1 open:     none
+- Phase 2 open:     repo create/clone/fork/edit/rename/delete/archive/
+                    unarchive/sync; -R/--repo helper; B-37, B-38
 - Blockers:         none for code; B-33 (license), B-34 (module path vs.
                     repo at github.com/kukolos/fjo) before a public release
 
@@ -52,6 +53,71 @@ Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
 
 ---
+
+## 2026-11-13 — Phase 2a: git remotes, repository detection, repo list/view/set-default
+Phase: Phase 2 / v0.0.3 (part 2a)
+Spec:  §5.3, §5.9, §6.2, §8.1–8.3, §16 Phase 2
+
+Decisions:
+- B-14: `remote.<name>.fjo-resolved` in .git/config (gh model), value "base"
+  or "HOST/OWNER/REPO". Recommended option taken; no user preference stated.
+- Only remotes on known hosts (configured + FJO_HOST) are considered; with no
+  known host nothing is guessed (GitHub remotes are not "Forgejo").
+
+Added:
+- internal/git: Client runs the git executable with argument arrays,
+  GIT_TERMINAL_PROMPT=0 and LC_ALL=C; Remotes (fetch/push URL + fjo-resolved),
+  SetResolved/UnsetResolved, CurrentBranch, TopLevel; ErrNotRepository,
+  ErrNotInstalled, typed *Error. ParseURL for https/http/ssh://, scp-like
+  (incl. IPv6 and aliases), git://, git+ssh://; rejects local paths/file://.
+- internal/reporef: Ref{Host, Owner, Name}; Parse("[HOST/]OWNER/REPO" or URL);
+  FromURL maps remotes to host IDs (longest subpath match for HTTP(S);
+  ssh_hosts, then unique hostname for SSH; ambiguous SSH hostnames reported).
+- internal/app/repo.go: Factory.Git (GitDir for tests), ParseRepo,
+  ResolveRepo (flag > FJO_REPO > set-default > unique known remote),
+  RemoteRepos, DistinctRepos, GitContextError (not a repo / no git -> exit 10
+  with hint). FJO_HOST counts as a known host for matching.
+- internal/api/repos.go: Repository model, GetRepository, GetUser,
+  SearchRepositories (/repos/search uid+exclusive, is_private, archived,
+  mode, sort/order, pagination with {ok,data} pages, X-Total-Count).
+- `fjo repo view [<repo>]` (-w/--web, -b/--branch), `fjo repo list [<owner>]`
+  (-L, --visibility, --archived/--no-archived, --fork/--source, --hostname),
+  `fjo repo set-default [<repo>]` (-v/--view, -u/--unset, prompt on TTY).
+- `fjo api`: {owner}/{repo}/{branch} placeholders filled from the current
+  repository / branch; the request targets that repository's host.
+- Tests: internal/git (real git in temp repos), reporef, app/repo_test.go,
+  cli/repo, api/repos_test.go, api placeholders; integration test
+  TestRepositoriesAgainstForgejo (private repo, org listing, visibility filter,
+  not found, detection from a git remote, api placeholders).
+- docs: commands.md `fjo repo`, compatibility.md rows and differences,
+  IMPLEMENTATION §8.2 notes and Phase 2 split; BACKLOG B-14 accepted,
+  B-37 (40-hex rule masks commit SHAs), B-38 (~/.ssh/config aliases).
+
+Fixed (found by the new tests):
+- scp-like IPv6 remotes (git@[::1]:o/r) were rejected as local paths.
+- SSH remotes did not match a host known only through FJO_HOST.
+
+Deviations from spec:
+- `repo list` lists owned repositories only (gh semantics) via repo search;
+  no --language/--topic/--visibility internal.
+- `repo view` shows no README; no --json until the output package (Phase 3).
+- -R/--repo helper deferred to the first command group that needs it.
+
+Tests:
+- Linux/amd64: go test ./... pass; gofmt, go vet (linux/windows/darwin, also
+  -tags integration), staticcheck v0.8.2 clean; govulncheck: none.
+- scripts/test-forgejo.sh: pass against Forgejo 15.0.11 and 17.0.1
+  (4 tests each, incl. repositories).
+- Coverage: git 91.2 %, reporef 93.9 %, cli/repo 82.6 %, app 85.9 %,
+  api 87.1 %, cli/api 89.8 %.
+- Manual smoke: `repo --help`; `repo view` in a checkout with only a GitHub
+  remote (exit 10 + hint); outside a repository (exit 10 + hint).
+
+Notes / next steps:
+- Phase 2b: repo create (--private/--public, --description, --owner/org,
+  --initialize/--gitignore/--license, --default-branch, --clone), repo clone
+  (git clone with the right protocol, upstream remote for forks), fork, edit,
+  rename, delete/archive with confirmation (§5.3), sync.
 
 ## 2026-11-13 — B-36: redactor keeps ordinary words after "token"
 Phase: Phase 1 follow-up / v0.0.2

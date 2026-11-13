@@ -8,11 +8,15 @@ package integration_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
@@ -55,6 +59,7 @@ type result struct {
 type runner struct {
 	t       *testing.T
 	dir     string
+	gitDir  string
 	keyring *credentials.Memory
 	file    *credentials.File
 }
@@ -64,6 +69,7 @@ func newRunner(t *testing.T) *runner {
 	return &runner{
 		t:       t,
 		dir:     dir,
+		gitDir:  t.TempDir(),
 		keyring: credentials.NewMemory(),
 		file:    &credentials.File{Path: filepath.Join(dir, credentials.FileName)},
 	}
@@ -80,6 +86,7 @@ func (r *runner) run(env map[string]string, stdin string, args ...string) result
 	getenv := func(k string) string { return e[k] }
 	ios.SetGetenv(getenv)
 	f := app.New(ios, getenv, build.Info{Version: "integration", Platform: runtime.GOOS + "/" + runtime.GOARCH})
+	f.GitDir = r.gitDir
 	f.Credentials = &credentials.Manager{
 		Keyring:  r.keyring,
 		File:     r.file,
@@ -268,4 +275,111 @@ func readFile(t *testing.T, path string) string {
 		t.Fatalf("read %s: %v", path, err)
 	}
 	return string(b)
+}
+
+// envRunner returns a runner authenticated through FJO_HOST/FJO_TOKEN with
+// the plain-HTTP opt-in stored for the test host.
+func envRunner(t *testing.T, inst instance) (*runner, map[string]string) {
+	t.Helper()
+	r := newRunner(t)
+	hostID, err := config.NormalizeHost(inst.url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.New()
+	cfg.Hosts[hostID] = &config.Host{InsecureHTTP: strings.HasPrefix(inst.url, "http://")}
+	cfg.Defaults.Host = hostID
+	if err := config.Save(filepath.Join(r.dir, config.FileName), cfg); err != nil {
+		t.Fatal(err)
+	}
+	return r, map[string]string{"FJO_HOST": inst.url, "FJO_TOKEN": inst.token}
+}
+
+func TestRepositoriesAgainstForgejo(t *testing.T) {
+	inst := configured(t)
+	ctx := t.Context()
+	client, err := api.New(api.Options{BaseURL: apiURL(inst.url), Token: inst.token})
+	if err != nil {
+		t.Fatal(err)
+	}
+	me, err := client.CurrentUser(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	suffix := fmt.Sprint(time.Now().UnixNano())
+	name := "fjo-it-" + suffix
+	org := "fjo-org-" + suffix
+	if _, err := client.JSON(ctx, http.MethodPost, "user/repos",
+		map[string]any{"name": name, "private": true, "description": "integration", "auto_init": true}, nil); err != nil {
+		t.Fatalf("create repo: %v", err)
+	}
+	if _, err := client.JSON(ctx, http.MethodPost, "orgs", map[string]any{"username": org}, nil); err != nil {
+		t.Fatalf("create org: %v", err)
+	}
+	if _, err := client.JSON(ctx, http.MethodPost, "orgs/"+org+"/repos", map[string]any{"name": "shared"}, nil); err != nil {
+		t.Fatalf("create org repo: %v", err)
+	}
+	t.Cleanup(func() {
+		bg := context.Background()
+		_, _ = client.JSON(bg, http.MethodDelete, "repos/"+me.Login+"/"+name, nil, nil)
+		_, _ = client.JSON(bg, http.MethodDelete, "repos/"+org+"/shared", nil, nil)
+		_, _ = client.JSON(bg, http.MethodDelete, "orgs/"+org, nil, nil)
+	})
+
+	r, env := envRunner(t, inst)
+	full := me.Login + "/" + name
+
+	res := r.run(env, "", "repo", "view", full)
+	if res.code != fjoerr.ExitOK {
+		t.Fatalf("repo view: exit %d, stderr %q", res.code, res.stderr)
+	}
+	for _, want := range []string{"name:\t" + full + "\n", "visibility:\tprivate\n", "description:\tintegration\n", "default_branch:\tmain\n"} {
+		if !strings.Contains(res.stdout, want) {
+			t.Errorf("repo view missing %q:\n%s", want, res.stdout)
+		}
+	}
+
+	res = r.run(env, "", "repo", "list", "--limit", "100")
+	if res.code != fjoerr.ExitOK || !strings.Contains(res.stdout, full+"\t") {
+		t.Errorf("repo list (own, private): exit %d stdout %q stderr %q", res.code, res.stdout, res.stderr)
+	}
+	if strings.Contains(res.stdout, org+"/shared") {
+		t.Errorf("repo list without owner must not include organization repositories:\n%s", res.stdout)
+	}
+	res = r.run(env, "", "repo", "list", "--visibility", "public", "--limit", "100")
+	if strings.Contains(res.stdout, full+"\t") {
+		t.Errorf("--visibility public listed a private repository:\n%s", res.stdout)
+	}
+
+	res = r.run(env, "", "repo", "list", org)
+	if res.code != fjoerr.ExitOK || res.stdout == "" || !strings.HasPrefix(res.stdout, org+"/shared\t") {
+		t.Errorf("repo list ORG: exit %d stdout %q stderr %q", res.code, res.stdout, res.stderr)
+	}
+
+	res = r.run(env, "", "repo", "view", me.Login+"/does-not-exist-"+suffix)
+	if res.code != fjoerr.ExitNotFound {
+		t.Errorf("missing repo: exit %d, stderr %q", res.code, res.stderr)
+	}
+
+	// Repository detection from a git remote, and {owner}/{repo} in fjo api.
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"remote", "add", "origin", strings.TrimRight(inst.url, "/") + "/" + full + ".git"},
+	} {
+		if out, err := exec.Command("git", append([]string{"-C", r.gitDir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	res = r.run(env, "", "repo", "view")
+	if res.code != fjoerr.ExitOK || !strings.Contains(res.stdout, "name:\t"+full) {
+		t.Errorf("repo view from remote: exit %d stdout %q stderr %q", res.code, res.stdout, res.stderr)
+	}
+	res = r.run(env, "", "api", "/repos/{owner}/{repo}")
+	if res.code != fjoerr.ExitOK || !strings.Contains(res.stdout, `"full_name":"`+full+`"`) {
+		t.Errorf("api placeholders: exit %d stdout %q stderr %q", res.code, res.stdout, res.stderr)
+	}
 }
