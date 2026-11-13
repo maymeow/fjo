@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -64,6 +65,9 @@ func (c *Config) Validate() error {
 			if err := validateAPIURL(h.APIURL, h.InsecureHTTP); err != nil {
 				add("%s.api_url: %v", prefix, err)
 			}
+		}
+		if h.CAFile != "" && !filepath.IsAbs(h.CAFile) {
+			add("%s.ca_file: %q must be an absolute path", prefix, h.CAFile)
 		}
 		if h.ActiveUser != "" && !contains(h.Users, h.ActiveUser) {
 			add("%s.active_user: %q is not listed in users", prefix, h.ActiveUser)

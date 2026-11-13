@@ -1463,7 +1463,7 @@ Tasks:
 - [x] Create build scripts.
 - [ ] Set up self-hosted Forgejo Actions runners (Linux, Windows, macOS).
 - [x] Add CI pipeline. (workflow written; first run pending until runners exist)
-- [ ] Pin swagger specs of Forgejo 15 LTS and 17 in `test/fixtures/swagger/`.
+- [x] Pin swagger specs of Forgejo 15 LTS and 17 in `test/fixtures/swagger/`. (15.0.11, 17.0.1)
 - [x] Finalize exit-code table aligned with `gh` (§1.4, BACKLOG B-11).
 - [x] Create project documentation skeleton, including the `gh` parity table in `docs/compatibility.md`.
 
@@ -1481,19 +1481,19 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Implement Forgejo HTTP client.
-- [ ] Implement API base URL handling.
-- [ ] Add authentication header handling.
-- [ ] Add OS credential storage.
-- [ ] Add token validation.
-- [ ] Implement `auth login`.
-- [ ] Implement `auth logout`.
-- [ ] Implement `auth status`.
-- [ ] Add host/account configuration.
-- [ ] Implement `api`.
-- [ ] Add typed API errors.
-- [ ] Add pagination.
-- [ ] Add HTTP transport tests.
+- [x] Implement Forgejo HTTP client.
+- [x] Implement API base URL handling.
+- [x] Add authentication header handling. (scoped to the instance root)
+- [x] Add OS credential storage. (go-keyring; opt-in --insecure-storage)
+- [x] Add token validation.
+- [x] Implement `auth login`.
+- [x] Implement `auth logout`.
+- [x] Implement `auth status`.
+- [x] Add host/account configuration.
+- [ ] Implement `api`. (not started)
+- [x] Add typed API errors.
+- [x] Add pagination.
+- [x] Add HTTP transport tests. (httptest; CLI-level auth tests still missing)
 
 Acceptance criteria:
 

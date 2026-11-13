@@ -31,6 +31,9 @@ type Host struct {
 	Users        []string `yaml:"users,omitempty"`
 	SSHHosts     []string `yaml:"ssh_hosts,omitempty"`
 	InsecureHTTP bool     `yaml:"insecure_http,omitempty"`
+	// CAFile is a PEM bundle trusted in addition to the system roots, for
+	// self-hosted servers with an internal CA (§7.4).
+	CAFile string `yaml:"ca_file,omitempty"`
 }
 
 // Output holds presentation preferences.

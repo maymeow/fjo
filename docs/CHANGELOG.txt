@@ -12,13 +12,16 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 
 ## Current status
 
-- Phase:            Phase 0 — Project foundation (code done, initial commit on main)
-- Next target:      v0.0.1
+- Phase:            Phase 1 - API and authentication (IN PROGRESS, ~70 %)
+- Next target:      v0.0.2 (0.0.2a client + api, 0.0.2b keyring + auth)
 - Last updated:     2026-11-13
-- Open for Phase 0: self-hosted runners + first CI run; pinned swagger specs;
-                    race tests (no gcc locally, B-35)
-- Blockers:         none for code; B-33 (license) and B-34 (module path)
-                    before the first public push
+- Repo:             https://github.com/kukolos/fjo (private), branch main
+- Phase 0 open:     self-hosted runners + first CI run; race tests (B-35)
+- Phase 1 open:     `fjo api` command; tests for cli/auth, app, prompt,
+                    browser, fsutil; docs/authentication.md + spec 5.1/5.2
+                    update; integration tests vs. Forgejo 15/17 (Docker)
+- Blockers:         none for code; B-33 (license), B-34 (module path vs.
+                    repo at github.com/kukolos/fjo) before a public release
 
 Update this block whenever an entry below changes the status.
 
@@ -51,6 +54,125 @@ Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
 
 ---
+
+## 2026-11-13 — Phase 1 (part 1): API client, credential storage, auth commands
+Phase: Phase 1 / v0.0.2 (work in progress, continued on another machine)
+Spec:  §5.2, §6, §7.1–7.5, §9.1–9.4, §16 Phase 0 (swagger), §16 Phase 1
+
+Decisions (details in BACKLOG):
+- B-5:  zalando/go-keyring; keyring failure is an error; plain-text file only
+        with explicit `auth login --insecure-storage` (like gh).
+- B-8:  swagger specs pinned (Forgejo 15.0.11 and 17.0.1).
+- B-12: no global --host; commands take `-h/--hostname` (gh), hidden
+        `--host` alias. `fjo api` will use `--hostname` only (no -h, as gh).
+- B-13: --limit = total items, pagination internal; --paginate only on `api`.
+- B-15: FJO_TOKEN applies to whichever host the command targets; never stored.
+- B-16: `auth refresh` dropped until OAuth2.
+- B-19: Phase 1 split into 0.0.2a (client + api) and 0.0.2b (keyring + auth).
+
+Added:
+- test/fixtures/swagger/forgejo-v15.0.11.json and forgejo-v17.0.1.json from
+  code.forgejo.org (templates/swagger/v1_json.tmpl at those tags). The two
+  template placeholders (AppVer, AppSubUrl) were replaced with the version
+  and "" so the files are valid JSON. sha256 of the patched files:
+  15.0.11 2590e146848ddf268bd9735dd3cb0fe398774839dfc2a9b0448f824d4b930c13
+  17.0.1  dc84d216e852f0eed59b29db80e0bcebd91e7b127d62ba31ebd0ed9432a60bc3
+- internal/api — own thin client:
+  - Options{BaseURL, Token, UserAgent, CAFile, Logger, Transport, MaxRetries}.
+  - `Authorization: token <PAT>` is sent ONLY to requests inside the
+    instance root (same scheme + host + base path; derived from api_url by
+    stripping "api/v1/") and stripped from every other request, including
+    redirect hops (authTransport). https->http redirects are refused;
+    max 10 redirects.
+  - Base transport = clone of http.DefaultTransport (keeps HTTP(S)_PROXY /
+    NO_PROXY), TLS >= 1.2, optional ca_file added to the system roots.
+  - Retries (default 2, exponential backoff, Retry-After capped at 10 s)
+    only for GET/HEAD/OPTIONS on 429/502/503/504 and transient net errors.
+  - APIError{StatusCode, Method, Message, Errors, URL (sanitized, no
+    query), RequestID} mapped to fjoerr kinds: 401 auth, 403 forbidden,
+    404 not_found, 409/412/413/422 conflict, 429/5xx unavailable; TLS
+    errors -> unavailable with a ca_file hint; net timeout -> timeout.
+  - Pagination: ParsePage (Link + X-Total-Count), Client.Pages (follows
+    rel=next inside the instance only, loop detection, max pages), generic
+    List[T] with --limit semantics (page size min(limit, 50)).
+  - Endpoint registry: every endpoint is declared via endpoint(method,
+    path); swagger_test.go checks each one exists in both pinned specs.
+  - Endpoints so far: GET /user (CurrentUser), GET /version (ServerVersion).
+- internal/credentials: Store interface; Keyring (service "fjo:<host ID>",
+  account = username, 3 s timeout); File (credentials.yaml next to
+  config.yaml, 0600, warning header, deleted when empty); Memory (tests);
+  Manager (keyring first, no silent fallback, only one copy kept).
+- internal/fsutil.WriteFileAtomic (config.Save now uses it).
+- internal/config: host field `ca_file` (absolute path), APIURL(id, host),
+  Config.HostIDs / AddUser / RemoveUser.
+- internal/app: Factory gains Browser, Prompter, HTTPTransport,
+  Credentials; SaveConfig, CredentialStore, ResolveHost (flag > FJO_HOST >
+  defaults.host > the only host), AccountFor (FJO_TOKEN > active user's
+  stored token), StoredAccount, APIClient, ClientFor. User-Agent
+  "fjo/<version> (<platform>)". All tokens are registered with the redactor.
+- internal/prompt (Input, Password without echo, numbered Select) and
+  internal/browser (FJO_BROWSER / BROWSER, no launch over SSH, wslview on
+  WSL, only http(s) URLs, argument arrays).
+- internal/fjoerr: Silent errors (exit code without a printed message).
+- internal/cli/cmdutil.AddHostnameFlag: -h/--hostname + hidden --host;
+  defines --help without shorthand (cobra 1.10 panics on the -h clash).
+- `fjo auth`:
+  - login: -h/--hostname, --with-token (stdin), -w/--web, -p/--git-protocol,
+    --insecure-storage, --insecure-http. Refuses when FJO_TOKEN is set and
+    http:// without --insecure-http; verifies the token via GET /user and
+    shows the server version; stores the token; adds the user as active;
+    the first host becomes defaults.host. Interactive: host prompt + hidden
+    token prompt.
+  - logout: -h/--hostname, -u/--user; picks or prompts; deletes the token
+    from both stores; the next user becomes active; empty host is removed.
+  - status: -h/--hostname, -t/--show-token, -a/--active; verifies every
+    token; gh-like report on stdout; exit 1 (silent) if any check fails;
+    FJO_TOKEN is shown for the resolved host.
+  - switch: -h/--hostname, -u/--user; the only other user, or a prompt.
+  - token: -h/--hostname, -u/--user; prints the token (documented sensitive).
+
+NOT done yet (continue here):
+- `fjo api <endpoint>` (§5.9) — not started. Planned design:
+  -X/--method (GET; POST when fields are given), -F/--field (typed:
+  true/false/null/ints, @file, @-), -f/--raw-field, -H/--header,
+  --input FILE|-, --paginate (merge JSON arrays into one array; documented
+  deviation from gh's concatenated pages), -i/--include, --silent,
+  --hostname (no -h). GET fields -> query string. On error status print the
+  body to stdout and the classified error to stderr. Requires auth (exit 4)
+  like gh. Build on Client.ResolveURL, Client.Do, Client.Pages and
+  api.ErrorFromBody. Register in internal/cli/root.go.
+- Tests: internal/cli/auth (login/logout/status/switch/token with
+  httptest.NewTLSServer, f.HTTPTransport = srv.Client().Transport and
+  f.Credentials = &credentials.Manager{Keyring: credentials.NewMemory(),
+  File: credentials.NewMemory()}), app/auth.go, prompt, browser, fsutil.
+  Coverage of app (22 %) and config (70 %) fell below the Phase 0 level.
+- Docs: docs/authentication.md (implemented behavior, token scopes,
+  insecure storage, FJO_TOKEN), docs/commands.md, docs/compatibility.md
+  (parity rows for auth/api, --paginate deviation), IMPLEMENTATION §5.1/§5.2
+  (no global --host, --hostname, no auth refresh) and §6 (ca_file).
+- Integration tests against real Forgejo 15/17 (Docker; opt-in via env vars,
+  e.g. FJO_TEST_FORGEJO_URL + FJO_TEST_FORGEJO_TOKEN, behind a build tag).
+- Later: capability registry (B-9), config file locking (B-30), --json for
+  auth status.
+
+Tests:
+- go vet, gofmt, staticcheck: clean. govulncheck: no vulnerabilities.
+- go test ./...: pass on windows/amd64. Coverage: api 86 %, credentials
+  91.5 %, cli 89.7 %, logging 95.7 %, fjoerr 81.2 %, iostreams 80 %,
+  config 69.8 %, app 22 %; cli/auth, prompt, browser and fsutil have no
+  tests yet.
+- GOOS=linux and GOOS=darwin go vet: clean.
+- Manual smoke tests of bin/fjo.exe: auth --help, login without a host
+  (exit 10), status without logins (exit 1), http:// without
+  --insecure-http (exit 10), unreachable host (exit 14).
+- NOT tested: login against a real Forgejo server; the real OS keyring
+  (only the go-keyring mock).
+
+Notes for the next machine:
+- Install Go >= 1.27.4, staticcheck v0.8.2 and govulncheck v1.9.0 (see
+  docs/development.md), then run: go test ./...
+- Line endings: committed from Windows with core.autocrlf=true; consider a
+  .gitattributes with `* text=auto eol=lf`.
 
 ## 2026-11-13 — Phase 0 foundation implemented
 Phase: Phase 0 / v0.0.1

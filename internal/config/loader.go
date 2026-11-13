@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/maymeow/fjo/internal/fsutil"
 )
 
 // FileName is the configuration file name inside the config directory.
@@ -71,9 +73,8 @@ func Parse(r io.Reader) (*Config, error) {
 	return cfg, nil
 }
 
-// Save validates cfg and writes it to path atomically: the data goes to a
-// temporary file in the same directory which then replaces the target.
-// The directory is created with 0700 and the file with 0600 permissions.
+// Save validates cfg and writes it to path atomically with 0600 permissions
+// (see fsutil.WriteFileAtomic).
 func Save(path string, cfg *Config) error {
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("refusing to save invalid config: %w", err)
@@ -89,46 +90,8 @@ func Save(path string, cfg *Config) error {
 		return fmt.Errorf("encode config: %w", err)
 	}
 
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("create config directory: %w", err)
-	}
-
-	tmp, err := os.CreateTemp(dir, ".config-*.yaml.tmp")
-	if err != nil {
-		return fmt.Errorf("create temp config: %w", err)
-	}
-	tmpName := tmp.Name()
-	cleanup := func() { _ = os.Remove(tmpName) }
-
-	if err := tmp.Chmod(0o600); err != nil && !isChmodUnsupported(err) {
-		_ = tmp.Close()
-		cleanup()
-		return fmt.Errorf("set config permissions: %w", err)
-	}
-	if _, err := tmp.Write(buf.Bytes()); err != nil {
-		_ = tmp.Close()
-		cleanup()
-		return fmt.Errorf("write temp config: %w", err)
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		cleanup()
-		return fmt.Errorf("sync temp config: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		cleanup()
-		return fmt.Errorf("close temp config: %w", err)
-	}
-	if err := os.Rename(tmpName, path); err != nil {
-		cleanup()
-		return fmt.Errorf("replace config: %w", err)
+	if err := fsutil.WriteFileAtomic(path, buf.Bytes()); err != nil {
+		return fmt.Errorf("save config: %w", err)
 	}
 	return nil
-}
-
-// isChmodUnsupported reports errors from platforms (Windows) where file mode
-// bits are not supported for this operation.
-func isChmodUnsupported(err error) bool {
-	return errors.Is(err, errors.ErrUnsupported)
 }

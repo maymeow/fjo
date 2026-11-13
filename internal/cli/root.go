@@ -14,6 +14,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/app"
 	"github.com/maymeow/fjo/internal/build"
+	"github.com/maymeow/fjo/internal/cli/auth"
 	"github.com/maymeow/fjo/internal/cli/version"
 	"github.com/maymeow/fjo/internal/config"
 	"github.com/maymeow/fjo/internal/fjoerr"
@@ -47,6 +48,9 @@ func Run(ctx context.Context, f *app.Factory, args []string) fjoerr.ExitCode {
 }
 
 func printError(f *app.Factory, err error) {
+	if fjoerr.IsSilent(err) {
+		return
+	}
 	msg := f.Redactor.String(err.Error())
 	fmt.Fprintf(f.IO.ErrOut, "error: %s\n", msg)
 	if hint := fjoerr.HintOf(err); hint != "" {
@@ -100,7 +104,7 @@ func NewRootCmd(f *app.Factory) *cobra.Command {
 	}
 	cmd.RunE = func(c *cobra.Command, _ []string) error { return c.Help() }
 
-	cmd.AddCommand(version.NewCmd(f))
+	cmd.AddCommand(version.NewCmd(f), auth.NewCmd(f))
 
 	classifyArgErrors(cmd)
 	return cmd

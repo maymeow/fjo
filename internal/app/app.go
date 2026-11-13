@@ -5,14 +5,18 @@ package app
 
 import (
 	"log/slog"
+	"net/http"
 	"path/filepath"
 	"sync"
 
+	"github.com/maymeow/fjo/internal/browser"
 	"github.com/maymeow/fjo/internal/build"
 	"github.com/maymeow/fjo/internal/config"
+	"github.com/maymeow/fjo/internal/credentials"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/iostreams"
 	"github.com/maymeow/fjo/internal/logging"
+	"github.com/maymeow/fjo/internal/prompt"
 )
 
 // Factory provides lazily-initialized dependencies to commands.
@@ -24,6 +28,15 @@ type Factory struct {
 
 	// Logger is replaced by the root command once --verbose/--debug are known.
 	Logger *slog.Logger
+
+	// Browser opens URLs (--web). Prompter asks interactive questions.
+	Browser  browser.Opener
+	Prompter prompt.Prompter
+	// HTTPTransport overrides the base HTTP transport (tests).
+	HTTPTransport http.RoundTripper
+	// Credentials overrides the credential manager (tests); nil means the
+	// OS keyring plus the opt-in file store in the config directory.
+	Credentials *credentials.Manager
 
 	configOnce sync.Once
 	config     *config.Config
@@ -42,6 +55,8 @@ func New(io *iostreams.IOStreams, getenv func(string) string, info build.Info) *
 		BuildInfo: info,
 		Redactor:  r,
 		Logger:    logging.New(io.ErrOut, logging.Quiet, r),
+		Browser:   browser.New(getenv),
+		Prompter:  prompt.New(io),
 	}
 }
 

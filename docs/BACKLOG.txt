@@ -139,7 +139,7 @@ Decision:
 
 ### B-5 — Credential storage when OS keyring is unavailable
 Type:     decision
-Status:   open
+Status:   accepted -> internal/credentials
 Added:    2026-11-13
 Phase:    Phase 1
 
@@ -153,7 +153,7 @@ Proposal / options:
 - C) Env-only (FJO_TOKEN) as today.
 - Also pick keyring library (zalando/go-keyring vs 99designs/keyring).
 Decision:
--
+- 2026-11-13: A) like gh: zalando/go-keyring; keyring failure is an error with a hint; `auth login --insecure-storage` stores the token in credentials.yaml (0600, separate from config.yaml), shown as "insecure storage" in auth status.
 
 ### B-6 — Repository hosting and CI platform
 Type:     decision
@@ -190,7 +190,7 @@ Decision:
 
 ### B-8 — Pinned Forgejo API contract in repo
 Type:     decision
-Status:   open
+Status:   accepted -> test/fixtures/swagger
 Added:    2026-11-13
 Phase:    Phase 0
 
@@ -201,7 +201,7 @@ Proposal / options:
   as source of truth; add a test that flags endpoints used by the client
   but missing in a pinned spec.
 Decision:
--
+- 2026-11-13: Pinned forgejo-v15.0.11.json and forgejo-v17.0.1.json; internal/api/swagger_test.go checks every registered endpoint against both.
 
 ### B-9 — Capability detection method
 Type:     decision
@@ -252,7 +252,7 @@ Decision:
 
 ### B-12 — Global vs. per-command flags
 Type:     decision
-Status:   open
+Status:   accepted
 Added:    2026-11-13
 Phase:    Phase 0
 
@@ -265,11 +265,11 @@ Proposal / options:
   Output/repo flags as persistent flags on command groups.
   Define --verbose (user-level progress on stderr) vs --debug (sanitized HTTP trace).
 Decision:
--
+- 2026-11-13: gh model: no global --host/--repo; auth commands take -h/--hostname (hidden --host alias), `api` takes --hostname. --verbose = progress on stderr, --debug = sanitized HTTP trace. Output/repo flags per command group (Phase 2/3).
 
 ### B-13 — `--limit` / `--page` semantics
 Type:     decision
-Status:   open
+Status:   accepted
 Added:    2026-11-13
 Phase:    Phase 1
 
@@ -280,7 +280,7 @@ Proposal / options:
 - --limit = max total items (default e.g. 30); pagination internal;
   --page only on `fjo api` / not exposed at all.
 Decision:
--
+- 2026-11-13: gh semantics: --limit = max total items; pagination is internal (api.List); --paginate only on `fjo api`; no --page flag.
 
 ### B-14 — Where repo-local settings live
 Type:     decision
@@ -299,7 +299,7 @@ Decision:
 
 ### B-15 — Token environment variables
 Type:     decision
-Status:   open
+Status:   accepted
 Added:    2026-11-13
 Phase:    Phase 1
 
@@ -310,11 +310,11 @@ Proposal / options:
 - FJO_TOKEN applies only to the resolved host; optional FJO_HOST pairing.
 - Auto-detect CI token inside Forgejo Actions (document precedence).
 Decision:
--
+- 2026-11-13: FJO_TOKEN applies to whichever host the command targets (FJO_HOST picks the host); never persisted; no automatic CI token detection.
 
 ### B-16 — Remove `auth refresh` from PAT-only releases
 Type:     decision
-Status:   open
+Status:   accepted -> spec 5.2 (pending edit)
 Added:    2026-11-13
 Phase:    Phase 1
 
@@ -323,7 +323,7 @@ Context:
 Proposal / options:
 - Drop from §5.2 until OAuth2 (§7.1 "Later release").
 Decision:
--
+- 2026-11-13: `auth refresh` dropped until OAuth2 is implemented.
 
 ### B-17 — Release signing / provenance mechanism
 Type:     decision
@@ -356,7 +356,7 @@ Decision:
 
 ### B-19 — Split Phase 1 into smaller milestones
 Type:     decision
-Status:   open
+Status:   accepted
 Added:    2026-11-13
 Phase:    Phase 1
 
@@ -368,7 +368,7 @@ Proposal / options:
 - 0.0.2b: keyring + auth login/status/logout + multi-host.
 - Add explicit task: containerized Forgejo 15/17 for integration tests.
 Decision:
--
+- 2026-11-13: 0.0.2a = HTTP client + errors + pagination + `fjo api`; 0.0.2b = keyring + auth login/status/logout/switch/token + multi-host. Integration tests vs. containerized Forgejo 15/17 are an explicit task.
 
 ### B-33 — License and copyright holder
 Type:     decision
@@ -503,7 +503,7 @@ be handled when the relevant phase is implemented.
 
 ### B-27 — Redirect and proxy handling in HTTP transport
 Type:     tech-debt
-Status:   open
+Status:   partly done (Phase 1)
 Added:    2026-11-13
 Phase:    Phase 1
 
@@ -516,7 +516,7 @@ Proposal / options:
 - Custom transport must keep ProxyFromEnvironment (HTTP_PROXY/NO_PROXY).
 - Forgejo header format: `Authorization: token <PAT>`.
 Decision:
--
+- 2026-11-13: internal/api/transport.go: token only inside the instance root (scheme + host + base path), stripped on other hops, https->http redirects refused, ProxyFromEnvironment kept. Open: proxy integration test.
 
 ### B-28 — Windows-specific terminal behaviour
 Type:     tech-debt

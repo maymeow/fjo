@@ -75,6 +75,9 @@ type Error struct {
 	// Hint is an optional actionable suggestion shown below the message.
 	Hint string
 	Err  error
+	// Silent errors set the exit code but print nothing: the command has
+	// already reported the problem (e.g. `auth status`).
+	Silent bool
 }
 
 func (e *Error) Error() string {
@@ -104,6 +107,15 @@ func Wrap(kind Kind, err error, format string, args ...any) *Error {
 
 // Usage returns an invalid-usage error.
 func Usage(format string, args ...any) *Error { return New(KindUsage, format, args...) }
+
+// Silent returns an error that only carries an exit code.
+func Silent(kind Kind) *Error { return &Error{Kind: kind, Silent: true} }
+
+// IsSilent reports whether err should not be printed.
+func IsSilent(err error) bool {
+	var fe *Error
+	return errors.As(err, &fe) && fe.Silent
+}
 
 // WithHint returns e with an actionable hint attached.
 func (e *Error) WithHint(hint string) *Error {
