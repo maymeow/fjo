@@ -14,6 +14,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/app"
 	"github.com/maymeow/fjo/internal/build"
+	apicmd "github.com/maymeow/fjo/internal/cli/api"
 	"github.com/maymeow/fjo/internal/cli/auth"
 	"github.com/maymeow/fjo/internal/cli/version"
 	"github.com/maymeow/fjo/internal/config"
@@ -104,7 +105,7 @@ func NewRootCmd(f *app.Factory) *cobra.Command {
 	}
 	cmd.RunE = func(c *cobra.Command, _ []string) error { return c.Help() }
 
-	cmd.AddCommand(version.NewCmd(f), auth.NewCmd(f))
+	cmd.AddCommand(version.NewCmd(f), auth.NewCmd(f), apicmd.NewCmd(f))
 
 	classifyArgErrors(cmd)
 	return cmd

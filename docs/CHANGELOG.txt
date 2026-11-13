@@ -12,14 +12,14 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 
 ## Current status
 
-- Phase:            Phase 1 - API and authentication (IN PROGRESS, ~70 %)
-- Next target:      v0.0.2 (0.0.2a client + api, 0.0.2b keyring + auth)
+- Phase:            Phase 1 - API and authentication (IN PROGRESS, ~80 %)
+- Next target:      v0.0.2 (0.0.2a client + api DONE, 0.0.2b keyring + auth)
 - Last updated:     2026-11-13
 - Repo:             https://github.com/kukolos/fjo (private), branch main
 - Phase 0 open:     self-hosted runners + first CI run; race tests (B-35)
-- Phase 1 open:     `fjo api` command; tests for cli/auth, app, prompt,
-                    browser, fsutil; docs/authentication.md + spec 5.1/5.2
-                    update; integration tests vs. Forgejo 15/17 (Docker)
+- Phase 1 open:     tests for cli/auth, app, prompt, browser, fsutil;
+                    docs/authentication.md + spec 5.1/5.2 update;
+                    integration tests vs. Forgejo 15/17 (Docker)
 - Blockers:         none for code; B-33 (license), B-34 (module path vs.
                     repo at github.com/kukolos/fjo) before a public release
 
@@ -54,6 +54,54 @@ Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
 
 ---
+
+## 2026-11-13 — Phase 1 (part 2): `fjo api`
+Phase: Phase 1 / v0.0.2a
+Spec:  §5.9, §7.4, §9.4, §16 Phase 1
+
+Added:
+- internal/cli/api (package apicmd), registered in internal/cli/root.go:
+  `fjo api <endpoint>` with --hostname (no -h, as gh), -X/--method,
+  -F/--field (true/false/null/int64, @file, @-), -f/--raw-field,
+  -H/--header, --input FILE|-, --paginate, -i/--include, --silent.
+  - Method defaults to GET, POST when fields or --input are given and -X
+    is not set (gh).
+  - GET/HEAD fields -> query string; with --input the fields also go to the
+    query; otherwise a JSON object. Nested keys `a[]=` and `a[b]=`;
+    duplicate / conflicting keys are usage errors.
+  - --input sets Content-Type: application/json unless -H overrides it.
+  - --paginate: GET only, uses Client.Pages (next links only inside the
+    instance), merges JSON-array pages into one array; a non-array first
+    page is printed as-is.
+  - JSON is indented on a TTY, verbatim otherwise. On status >= 400 the
+    body goes to stdout and the classified error to stderr (exit 4/11/12/
+    13/14). Requires auth (exit 4) via Factory.ClientFor.
+  - {owner}/{repo}/{branch} placeholders -> usage error until Phase 2.
+- internal/cli/api/api_test.go (TLS httptest server, FJO_HOST + FJO_TOKEN):
+  GET, TTY pretty print, query/JSON fields, @file/@-, --input, headers,
+  error statuses -> exit codes, --include/--silent, pagination incl.
+  relative next links and refusal of a foreign next link, absolute URL
+  outside the instance, not logged in, usage errors.
+- docs/commands.md: `fjo api` section. docs/compatibility.md: auth + api
+  marked done, FJO_TOKEN/FJO_HOST done, api differences listed.
+
+Deviations from spec:
+- --paginate merges arrays instead of gh's concatenated pages (documented).
+- No --jq/--template/--cache/--preview and no GraphQL (Forgejo has none).
+
+Tests:
+- Linux/amd64 (Fedora 44, Go 1.27.4): go test ./... pass; go vet, gofmt,
+  staticcheck v0.8.2 clean; govulncheck v1.9.0: no vulnerabilities;
+  GOOS=windows and GOOS=darwin go vet clean. Coverage cli/api 90 %.
+- Manual smoke: api --help; no host (exit 10); not logged in (exit 4);
+  unreachable host (exit 14).
+- NOT tested: against a real Forgejo server; -race (no gcc here, B-35).
+
+Notes / next steps:
+- Continue with: tests for internal/cli/auth (pattern from cli/api tests:
+  httptest.NewTLSServer + f.HTTPTransport + in-memory credentials.Manager),
+  app/auth.go, prompt, browser, fsutil; then docs/authentication.md and
+  spec §5.1/§5.2/§6; then Docker integration tests vs. Forgejo 15/17.
 
 ## 2026-11-13 — Phase 1 (part 1): API client, credential storage, auth commands
 Phase: Phase 1 / v0.0.2 (work in progress, continued on another machine)
@@ -132,7 +180,7 @@ Added:
   - token: -h/--hostname, -u/--user; prints the token (documented sensitive).
 
 NOT done yet (continue here):
-- `fjo api <endpoint>` (§5.9) — not started. Planned design:
+- [DONE in part 2] `fjo api <endpoint>` (§5.9). Planned design:
   -X/--method (GET; POST when fields are given), -F/--field (typed:
   true/false/null/ints, @file, @-), -f/--raw-field, -H/--header,
   --input FILE|-, --paginate (merge JSON arrays into one array; documented

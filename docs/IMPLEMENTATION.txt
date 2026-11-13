@@ -1490,7 +1490,7 @@ Tasks:
 - [x] Implement `auth logout`.
 - [x] Implement `auth status`.
 - [x] Add host/account configuration.
-- [ ] Implement `api`. (not started)
+- [x] Implement `api`. (gh flags; --paginate merges arrays, see compatibility.md)
 - [x] Add typed API errors.
 - [x] Add pagination.
 - [x] Add HTTP transport tests. (httptest; CLI-level auth tests still missing)

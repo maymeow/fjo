@@ -45,8 +45,8 @@ Scripts written for gh that test `$? -ne 0`, `== 2`, `== 4` or `== 8` behave the
 
 | fjo | gh equivalent | Status |
 |---|---|---|
-| `FJO_TOKEN` | `GH_TOKEN` | planned (Phase 1); already redacted from all output |
-| `FJO_HOST` | `GH_HOST` | resolved, used from Phase 1 |
+| `FJO_TOKEN` | `GH_TOKEN` | done (applies to the targeted host, never stored; redacted from all output) |
+| `FJO_HOST` | `GH_HOST` | done |
 | `FJO_REPO` | `GH_REPO` | planned (Phase 2) |
 | `FJO_CONFIG_DIR` | `GH_CONFIG_DIR` | done |
 | `FJO_EDITOR` | `GH_EDITOR` | resolved, used from Phase 3 |
@@ -64,9 +64,9 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 |---|---|---|
 | `gh --version`, `gh version` | `fjo --version`, `fjo version` | done |
 | `gh help`, `gh completion` | same | done (cobra built-in) |
-| `gh auth login/logout/status/switch/token` | same | planned (Phase 1) |
+| `gh auth login/logout/status/switch/token` | same | done |
 | `gh auth refresh` | — | n/a until OAuth (BACKLOG B-16) |
-| `gh api` | `fjo api` | planned (Phase 1) |
+| `gh api` | `fjo api` | done; differs: `--paginate`, no placeholders/GraphQL/`--jq` yet (see below) |
 | `gh config get/set/list` | same | idea (BACKLOG B-26) |
 | `gh repo ...` | same | planned (Phase 2) |
 | `gh browse` | same | idea (BACKLOG B-21) |
@@ -89,3 +89,8 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | Exit codes 10–16 | fjo distinguishes usage, 403, 404, conflict, network, unsupported, timeout | Better automation; gh codes unchanged |
 | Host identity | Hosts may include a port or base path (`example.com/forgejo`) | Self-hosted Forgejo runs on custom ports and subpaths |
 | Config format | Single `config.yaml` with `hosts:` map | Tokens are never stored in it |
+| `api --paginate` | Pages that are JSON arrays are merged into one array (gh prints the pages one after another) | Output stays valid JSON for `jq` and scripts |
+| `api` placeholders | `{owner}`, `{repo}`, `{branch}` are rejected with a usage error until repository resolution exists (Phase 2) | No silent requests to a literal `{owner}` path |
+| `api` GraphQL, `--jq`, `--template`, `--cache`, `--preview` | Not available | Forgejo has no GraphQL API; output filters come in Phase 3 |
+| `api --input` | Sets `Content-Type: application/json` unless `-H` overrides it | Forgejo API endpoints expect JSON |
+| `api` absolute URLs | Only URLs inside the configured instance are accepted | Credentials must not leave the instance (§7.4) |
