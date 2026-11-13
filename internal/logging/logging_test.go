@@ -28,6 +28,9 @@ func TestRedactorPatterns(t *testing.T) {
 		{"clone https://alice:pa55word@git.example.com/o/r.git", "pa55word"},
 		{"token " + hexToken, hexToken},
 		{"leaked " + hexToken + " here", hexToken},
+		{"token abcdef0123456789abcdef", "abcdef0123456789abcdef"},
+		{"Bearer A1b2C3d4E5f6G7h8I9j0", "A1b2C3d4E5f6G7h8I9j0"},
+		{"token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature", "eyJhbGciOiJIUzI1NiJ9"},
 	}
 	for _, tt := range tests {
 		got := r.String(tt.in)
@@ -46,6 +49,15 @@ func TestRedactorKeepsHarmlessText(t *testing.T) {
 		"GET https://git.example.com/api/v1/repos/o/r?limit=50&page=2",
 		"status=200 duration=12ms",
 		"commit abc1234",
+		// BACKLOG B-36: ordinary words after "token" are not secrets.
+		"no token provided",
+		"no token was provided",
+		"token required",
+		"token rejected by server",
+		"token settings page",
+		"token verification failed",
+		"bearer credentials required",
+		"token abcdefghijklmnopqrst", // 20 letters, no digit: not credential-shaped
 	} {
 		if got := r.String(s); got != s {
 			t.Errorf("String(%q) = %q, should be unchanged", s, got)
@@ -88,11 +100,11 @@ func TestLoggerRedactsEverything(t *testing.T) {
 		"url", u,
 		"headers", hdr,
 		"err", errors.New("failed using env-provided-token-value"),
-		slog.Group("req", "auth", "Bearer grouped-secret-value"),
+		slog.Group("req", "auth", "Bearer grouped-s3cret-value"),
 	)
 
 	out := buf.String()
-	for _, leak := range []string{hexToken, "secretpw", "qq123", "inmessage", "env-provided-token-value", "pre-bound-secret", "grouped-secret-value"} {
+	for _, leak := range []string{hexToken, "secretpw", "qq123", "inmessage", "env-provided-token-value", "pre-bound-secret", "grouped-s3cret-value"} {
 		if strings.Contains(out, leak) {
 			t.Errorf("log output leaked %q:\n%s", leak, out)
 		}

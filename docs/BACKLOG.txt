@@ -419,7 +419,7 @@ Decision:
 
 ### B-36 — Redactor masks ordinary words after "token"
 Type:     tech-debt
-Status:   open
+Status:   done
 Added:    2026-11-13
 Phase:    Phase 2 (before more user-facing messages mention tokens)
 
@@ -439,7 +439,13 @@ Proposal / options:
 - Either way add regression tests with plain English phrases next to the
   existing secret-shaped cases.
 Decision:
--
+- 2026-11-13: applied option A to the bare "token/bearer <value>" rule:
+  redact only values of at least 20 characters that contain a digit (real
+  Forgejo PATs are 40 hex; exact secrets are registered separately). The
+  Authorization-header and `token=`/`password=` rules still redact
+  unconditionally, and a JWT-shape rule was added. Regression tests keep
+  plain English ("no token provided", "token required", "token settings")
+  intact while secret-shaped values are still masked.
 
 ---
 

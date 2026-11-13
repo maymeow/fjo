@@ -53,6 +53,32 @@ when a task is done and verified.
 
 ---
 
+## 2026-11-13 — B-36: redactor keeps ordinary words after "token"
+Phase: Phase 1 follow-up / v0.0.2
+Spec:  §7.4, §10.3
+
+Changed:
+- internal/logging/redact.go: the unconditional bare rule
+  `(token|bearer) <value>` no longer redacts every 8+ character word. A
+  credential-like value now needs at least 20 characters and one digit;
+  actual secrets are still registered exactly (FJO_TOKEN, stored tokens) and
+  the Authorization-header and `token=`/`password=` rules redact
+  unconditionally. Added a JWT-shape rule
+  (`eyJ... . ... . ...`).
+- internal/logging/logging_test.go: regression cases for "no token provided",
+  "token required", "token rejected", "token settings", "token verification"
+  and "bearer credentials required", alongside 40-hex, mixed and JWT values;
+  the logger test uses a credential-shaped grouped value.
+- docs/BACKLOG.txt: B-36 marked done with the chosen variant (A).
+
+Tests:
+- go test ./internal/logging and go test ./... pass; go vet, gofmt and
+  staticcheck clean.
+
+Notes / next steps:
+- Future messages may mention tokens without losing words; exact secrets are
+  still protected by registration and shape rules.
+
 ## 2026-11-13 — Phase 1 complete: auth tests, docs, Forgejo integration
 Phase: Phase 1 / v0.0.2
 Spec:  §5.1, §5.2, §6, §7, §16 Phase 1
