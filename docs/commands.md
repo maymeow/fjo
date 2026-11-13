@@ -176,6 +176,13 @@ host's `git_protocol` (`ssh` or `https`; see `fjo auth login --git-protocol`).
 Arguments after `--` are passed to `git clone` unchanged. The default
 directory is the repository name.
 
+Clone URLs and repository names come from the server and are treated as
+untrusted: only `https`, `http` and `ssh` URLs are accepted (no options,
+`file://`, local paths or `<helper>::` transports), the URL and directory are
+passed after `--`, and a server-provided name is used as a directory only if
+it is a single safe path element (otherwise pass the directory explicitly).
+The same applies to `repo create --clone` and `repo fork --clone`.
+
 ### fjo repo fork [<repository>]
 
 Fork a repository into the authenticated user's account or an organization.
@@ -211,8 +218,10 @@ confirmation; `--yes` skips the prompt (required without a terminal).
 
 ### fjo repo delete [<repository>]
 
-Delete a repository and everything in it. Requires confirmation; `--yes` skips
-the prompt and is required without a terminal. Accepts `-R/--repo`.
+Delete a repository and everything in it. On a terminal you must type the
+repository name (`OWNER/REPO`, or `HOST/OWNER/REPO`) to confirm; "y" is not
+enough. `--yes` skips the prompt and is required without a terminal. Accepts
+`-R/--repo`.
 
 ### fjo repo archive [<repository>] / unarchive [<repository>]
 

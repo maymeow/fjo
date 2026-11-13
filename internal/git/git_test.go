@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -172,5 +173,39 @@ func TestErrorMessage(t *testing.T) {
 	var ge *Error
 	if !errors.As(err, &ge) || ge.ExitCode == 0 || ge.Error() == "" {
 		t.Errorf("err = %#v", err)
+	}
+}
+
+func TestRunWithIO(t *testing.T) {
+	c := newRepo(t)
+	ctx := context.Background()
+
+	var out, errOut strings.Builder
+	if err := c.RunWithIO(ctx, &out, &errOut, "rev-parse", "--is-inside-work-tree"); err != nil {
+		t.Fatalf("RunWithIO: %v", err)
+	}
+	if strings.TrimSpace(out.String()) != "true" {
+		t.Errorf("stdout = %q", out.String())
+	}
+
+	// Errors are classified from captured stderr, which is also streamed.
+	errOut.Reset()
+	err := c.RunWithIO(ctx, nil, &errOut, "rev-parse", "--verify", "does-not-exist")
+	var ge *Error
+	if !errors.As(err, &ge) || ge.Stderr == "" {
+		t.Fatalf("err = %#v", err)
+	}
+	if !strings.Contains(errOut.String(), ge.Stderr) {
+		t.Errorf("stderr was not streamed: %q", errOut.String())
+	}
+
+	// nil writers are allowed.
+	if err := c.RunWithIO(ctx, nil, nil, "status", "--short"); err != nil {
+		t.Errorf("nil writers: %v", err)
+	}
+
+	missing := &Client{Dir: t.TempDir(), Path: "/nonexistent/git"}
+	if err := missing.RunWithIO(ctx, nil, nil, "status"); err == nil {
+		t.Error("missing git binary should fail")
 	}
 }

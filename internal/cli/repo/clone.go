@@ -12,6 +12,7 @@ import (
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
 	"github.com/maymeow/fjo/internal/fjoerr"
+	"github.com/maymeow/fjo/internal/git"
 )
 
 func newCloneCmd(f *app.Factory) *cobra.Command {
@@ -80,20 +81,67 @@ func cloneURL(f *app.Factory, host string, repo *api.Repository) (string, error)
 	if h := cfg.Host(host); h != nil && h.GitProtocol != "" {
 		protocol = h.GitProtocol
 	}
+	var u string
 	switch protocol {
 	case "", "https":
 		if repo.CloneURL == "" {
 			return "", fjoerr.New(fjoerr.KindGeneral, "the server returned no HTTPS clone URL for %s", repo.FullName)
 		}
-		return repo.CloneURL, nil
+		u = repo.CloneURL
 	case "ssh":
 		if repo.SSHURL == "" {
 			return "", fjoerr.New(fjoerr.KindGeneral, "the server returned no SSH clone URL for %s", repo.FullName)
 		}
-		return repo.SSHURL, nil
+		u = repo.SSHURL
 	default:
 		return "", fjoerr.Usage("invalid git protocol %q for %s: use ssh or https", protocol, host)
 	}
+	if err := checkCloneURL(u); err != nil {
+		return "", fjoerr.New(fjoerr.KindGeneral, "refusing clone URL %q returned by %s: %v", u, host, err)
+	}
+	return u, nil
+}
+
+// checkCloneURL accepts only network URLs git cannot mistake for an option
+// or a special transport. Clone URLs come from the server and are therefore
+// untrusted: a value like "--config=core.sshCommand=..." would otherwise run
+// a local command (see also the "--" in cloneRepository).
+func checkCloneURL(u string) error {
+	if strings.HasPrefix(u, "-") {
+		return fmt.Errorf("it looks like a command-line option")
+	}
+	if strings.IndexFunc(u, func(r rune) bool { return r <= ' ' || r == 0x7f }) >= 0 {
+		return fmt.Errorf("it contains whitespace or control characters")
+	}
+	if i := strings.Index(u, "::"); i >= 0 && !strings.Contains(u[:i], "/") && !strings.Contains(u[:i], "@") {
+		return fmt.Errorf("git remote helper transports (<helper>::) are not allowed")
+	}
+	p, err := git.ParseURL(u)
+	if err != nil {
+		return err
+	}
+	switch p.Scheme {
+	case "https", "http", "ssh":
+		return nil
+	}
+	return fmt.Errorf("unsupported scheme %q", p.Scheme)
+}
+
+// checkDirName validates a directory name derived from the server (the
+// repository name): one path element that git cannot read as an option or a
+// remote.
+func checkDirName(name string) error {
+	switch {
+	case name == "", name == ".", name == "..":
+		return fmt.Errorf("empty or relative name")
+	case strings.HasPrefix(name, "-"):
+		return fmt.Errorf("it starts with '-'")
+	case strings.ContainsAny(name, `/\:`):
+		return fmt.Errorf("it contains a path separator or ':'")
+	case strings.IndexFunc(name, func(r rune) bool { return r < ' ' || r == 0x7f }) >= 0:
+		return fmt.Errorf("it contains control characters")
+	}
+	return nil
 }
 
 // cloneRepository runs git clone and returns the destination directory.
@@ -103,14 +151,17 @@ func cloneRepository(ctx context.Context, f *app.Factory, host string, repo *api
 		return "", err
 	}
 	if dest == "" {
+		if err := checkDirName(repo.Name); err != nil {
+			return "", fjoerr.New(fjoerr.KindGeneral, "cannot use repository name %q from the server as a directory: %v", repo.Name, err).
+				WithHint("pass the destination directory explicitly")
+		}
 		dest = repo.Name
 	}
-	if dest == "" {
-		return "", fjoerr.New(fjoerr.KindGeneral, "cannot determine a directory name for %s", repo.FullName)
-	}
+	// "--" ends option parsing: the URL and directory are never read as git
+	// options, whatever the server returned.
 	args := []string{"clone"}
 	args = append(args, gitArgs...)
-	args = append(args, u, dest)
+	args = append(args, "--", u, dest)
 	if err := f.Git().RunWithIO(ctx, f.IO.Out, f.IO.ErrOut, args...); err != nil {
 		return "", fjoerr.Wrap(fjoerr.KindGeneral, err, "cannot clone %s", repo.FullName).
 			WithHint("check that git can access " + u)

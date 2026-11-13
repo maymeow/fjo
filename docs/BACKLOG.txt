@@ -488,6 +488,25 @@ Decision:
 
 ---
 
+### B-39 — `repo rename` should update the local remote
+Type:     idea
+Status:   open
+Added:    2026-11-13
+Phase:    Phase 3
+
+Context:
+- gh updates the URL of the remote that points to the renamed repository
+  when run inside a clone. fjo renames on the server only; the old URL keeps
+  working through Forgejo's redirect but shows the old name.
+Proposal / options:
+- After a successful rename, if a local remote resolves to the old
+  repository, rewrite its URL (same protocol and form) with
+  `git remote set-url -- <name> <url>`; report it on stderr.
+Decision:
+-
+
+---
+
 ## Ideas / new features
 
 gh commands with a Forgejo equivalent that are missing from IMPLEMENTATION.txt.

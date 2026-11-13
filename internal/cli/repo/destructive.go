@@ -39,7 +39,7 @@ func runDelete(ctx context.Context, f *app.Factory, o deleteOptions, args []stri
 	if err != nil {
 		return err
 	}
-	if err := confirmAction(f, o.yes, "Delete repository", ref.String()); err != nil {
+	if err := confirmByName(f, o.yes, ref.FullName(), ref.String()); err != nil {
 		return err
 	}
 	client, _, err := f.ClientFor(ref.Host)

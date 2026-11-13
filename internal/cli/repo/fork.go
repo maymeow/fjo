@@ -100,7 +100,7 @@ func addUpstream(ctx context.Context, f *app.Factory, host string, source *api.R
 	}
 	g := f.Git()
 	g.Dir = dir
-	if _, err := g.Run(ctx, "remote", "add", "upstream", u); err != nil {
+	if _, err := g.Run(ctx, "remote", "add", "--", "upstream", u); err != nil {
 		return fjoerr.Wrap(fjoerr.KindGeneral, err, "cannot add the upstream remote in %s", dir).
 			WithHint("add it manually with 'git remote add upstream " + u + "'")
 	}

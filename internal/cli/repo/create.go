@@ -112,7 +112,11 @@ func runCreate(ctx context.Context, f *app.Factory, o createOptions, arg string)
 		case fjoerr.KindNotFound:
 			return fjoerr.Wrap(fjoerr.KindNotFound, err, "organization %q not found on %s", owner, host)
 		case fjoerr.KindConflict:
-			return fjoerr.Wrap(fjoerr.KindConflict, err, "repository %s/%s already exists on %s", owner, name, host)
+			full := name
+			if owner != "" {
+				full = owner + "/" + name
+			}
+			return fjoerr.Wrap(fjoerr.KindConflict, err, "repository %s already exists on %s", full, host)
 		}
 		return err
 	}

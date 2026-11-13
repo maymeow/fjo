@@ -439,7 +439,7 @@ func TestRepositoriesAgainstForgejo(t *testing.T) {
 	if _, err := client.JSON(ctx, http.MethodPost, "orgs", map[string]any{"username": org}, nil); err != nil {
 		t.Fatalf("create org: %v", err)
 	}
-	if _, err := client.JSON(ctx, http.MethodPost, "orgs/"+org+"/repos", map[string]any{"name": "shared"}, nil); err != nil {
+	if _, err := client.JSON(ctx, http.MethodPost, "orgs/"+org+"/repos", map[string]any{"name": "shared", "auto_init": true}, nil); err != nil {
 		t.Fatalf("create org repo: %v", err)
 	}
 	t.Cleanup(func() {
@@ -503,5 +503,15 @@ func TestRepositoriesAgainstForgejo(t *testing.T) {
 	res = r.run(env, "", "api", "/repos/{owner}/{repo}")
 	if res.code != fjoerr.ExitOK || !strings.Contains(res.stdout, `"full_name":"`+full+`"`) {
 		t.Errorf("api placeholders: exit %d stdout %q stderr %q", res.code, res.stdout, res.stderr)
+	}
+
+	// repo clone uses the clone URL returned by the server (public repo, so
+	// git needs no credentials).
+	res = r.run(env, "", "repo", "clone", org+"/shared")
+	if res.code != fjoerr.ExitOK {
+		t.Fatalf("repo clone: exit %d, stderr %q", res.code, res.stderr)
+	}
+	if _, err := os.Stat(filepath.Join(r.gitDir, "shared", "README.md")); err != nil {
+		t.Errorf("cloned repository has no README.md: %v", err)
 	}
 }

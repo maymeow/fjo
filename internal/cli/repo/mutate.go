@@ -29,6 +29,28 @@ func confirmAction(f *app.Factory, yes bool, action, subject string) error {
 	return fjoerr.New(fjoerr.KindCancelled, "not confirmed")
 }
 
+// confirmByName guards irreversible operations (repository deletion) like gh:
+// the user must type the repository name; "y" is not enough. want is
+// "OWNER/REPO"; the full "HOST/OWNER/REPO" is accepted too.
+func confirmByName(f *app.Factory, yes bool, want, full string) error {
+	if yes {
+		return nil
+	}
+	if !f.IO.CanPrompt() {
+		return fjoerr.Usage("deleting %s requires --yes when not running interactively", full)
+	}
+	fmt.Fprintf(f.IO.ErrOut, "This permanently deletes %s, including all issues, pull requests and releases.\n", full)
+	answer, err := f.Prompter.Input(fmt.Sprintf("Type %s to confirm deletion:", want))
+	if err != nil {
+		return err
+	}
+	answer = strings.TrimSpace(answer)
+	if strings.EqualFold(answer, want) || strings.EqualFold(answer, full) {
+		return nil
+	}
+	return fjoerr.New(fjoerr.KindCancelled, "confirmation did not match %s; nothing was deleted", want)
+}
+
 // reportRepo prints the URL on stdout and a short confirmation on stderr when
 // the output is a terminal (scripts get a stable URL).
 func reportRepo(f *app.Factory, action string, r *api.Repository) {

@@ -101,6 +101,7 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | `repo clone` | Uses the host's configured `git_protocol`; private HTTPS clones need Git credentials configured outside fjo; no `gh auth setup-git` yet | fjo does not manage Git credential helpers |
 | `repo fork` | `--clone` adds the source as `upstream`; no `--remote` mode | Forgejo fork API |
 | `repo edit` | Only description, homepage, visibility (public/private) and default branch; no topics/template/feature toggles | Forgejo `EditRepoOption` subset |
-| `repo rename/delete/archive` | Require `--yes` without a terminal; exact confirmation text differs from gh | Prevent accidental destructive actions (§5.3) |
+| `repo rename/delete/archive` | Require `--yes` without a terminal. `delete` asks for the repository name like gh; `rename`/`archive` ask y/N | Prevent accidental destructive actions (§5.3) |
+| `repo rename` | Does not update the local git remote URL (gh updates it) | BACKLOG B-39 |
 | `repo sync` | No `--force`; Forgejo syncs the default branch or one named branch | No force option in the Forgejo API |
 | `api` absolute URLs | Only URLs inside the configured instance are accepted | Credentials must not leave the instance (§7.4) |

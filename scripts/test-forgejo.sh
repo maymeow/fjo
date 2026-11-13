@@ -28,15 +28,24 @@ for version in $VERSIONS; do
   containers+=("$name")
 
   echo "==> Forgejo $version"
-  docker run -d --name "$name" -p 127.0.0.1::3000 \
-    -e FORGEJO__security__INSTALL_LOCK=true \
-    -e FORGEJO__database__DB_TYPE=sqlite3 \
-    -e FORGEJO__service__DISABLE_REGISTRATION=true \
-    "$IMAGE:$version" >/dev/null
-
-  port="$(docker port "$name" 3000/tcp | head -n1 | sed 's/.*://')"
+  # The host port must be known before start: ROOT_URL has to match it so the
+  # clone URLs returned by the API work from the host (fjo repo clone).
+  port=""
+  for _ in 1 2 3 4 5; do
+    candidate=$((20000 + RANDOM % 20000))
+    if docker run -d --name "$name" -p "127.0.0.1:$candidate:3000" \
+      -e FORGEJO__security__INSTALL_LOCK=true \
+      -e FORGEJO__database__DB_TYPE=sqlite3 \
+      -e FORGEJO__service__DISABLE_REGISTRATION=true \
+      -e FORGEJO__server__ROOT_URL="http://127.0.0.1:$candidate/" \
+      "$IMAGE:$version" >/dev/null 2>&1; then
+      port="$candidate"
+      break
+    fi
+    docker rm -f "$name" >/dev/null 2>&1 || true
+  done
   if [ -z "$port" ]; then
-    echo "cannot determine the published port for $name" >&2
+    echo "cannot start $name on a free port" >&2
     exit 1
   fi
   url="http://127.0.0.1:$port"

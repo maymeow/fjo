@@ -15,6 +15,9 @@ import (
 	"github.com/maymeow/fjo/internal/git"
 )
 
+// bareRepo creates a bare repository and returns an https clone URL that git
+// rewrites to it (url.<path>.insteadOf), because fjo only accepts network
+// clone URLs from the server.
 func bareRepo(t *testing.T) string {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
@@ -25,7 +28,11 @@ func bareRepo(t *testing.T) string {
 	if _, err := c.Run(context.Background(), "init", "--bare", "-q"); err != nil {
 		t.Fatal(err)
 	}
-	return dir
+	u := "https://forge.invalid/" + filepath.Base(dir) + ".git"
+	t.Setenv("GIT_CONFIG_COUNT", "1")
+	t.Setenv("GIT_CONFIG_KEY_0", "url."+dir+".insteadOf")
+	t.Setenv("GIT_CONFIG_VALUE_0", u)
+	return u
 }
 
 func repoResponseJSON(fullName, name, cloneURL string) string {
@@ -146,7 +153,7 @@ func TestCreateRepositoryErrors(t *testing.T) {
 	}
 
 	r := h.run(nil, false, "", "repo", "create", "taken")
-	if r.code != fjoerr.ExitConflict || !strings.Contains(r.stderr, "already exists") {
+	if r.code != fjoerr.ExitConflict || !strings.Contains(r.stderr, "repository taken already exists") {
 		t.Errorf("conflict: exit %d, stderr %q", r.code, r.stderr)
 	}
 }
@@ -227,7 +234,7 @@ func TestForkRepositoryCloneAddsUpstream(t *testing.T) {
 	}
 	found := false
 	for _, rem := range remotes {
-		if rem.Name == "upstream" && rem.FetchURL == bare {
+		if rem.Name == "upstream" && (rem.FetchURL == bare || strings.HasSuffix(rem.FetchURL, strings.TrimSuffix(filepath.Base(bare), ".git"))) {
 			found = true
 		}
 	}
@@ -346,6 +353,90 @@ func TestDeleteRepositoryCommand(t *testing.T) {
 	r = h.run(nil, false, "", "repo", "delete", "org/project")
 	if r.code != fjoerr.ExitUsage || len(h.reqs) != 1 {
 		t.Errorf("without --yes: exit %d, requests %d, stderr %q", r.code, len(h.reqs), r.stderr)
+	}
+}
+
+func TestDeleteRequiresTypedName(t *testing.T) {
+	h := newHarness(t, mutationHandler(""))
+	for _, answer := range []string{"y\n", "yes\n", "org/other\n", "\n"} {
+		r := h.run(nil, true, answer, "repo", "delete", "org/project")
+		if r.code != fjoerr.ExitCancel || !strings.Contains(r.stderr, "nothing was deleted") {
+			t.Errorf("answer %q: exit %d, stderr %q", answer, r.code, r.stderr)
+		}
+	}
+	if len(h.reqs) != 0 {
+		t.Fatalf("a wrong confirmation sent requests: %v", h.reqs)
+	}
+
+	r := h.run(nil, true, "org/project\n", "repo", "delete", "org/project")
+	if r.code != fjoerr.ExitOK || len(h.reqs) != 1 {
+		t.Fatalf("typed name: exit %d, requests %d, stderr %q", r.code, len(h.reqs), r.stderr)
+	}
+	if !strings.Contains(r.stderr, "Type org/project to confirm deletion") || !strings.Contains(r.stderr, "permanently deletes") {
+		t.Errorf("prompt = %q", r.stderr)
+	}
+
+	r = h.run(nil, true, "  ORG/Project \n", "repo", "delete", "org/project")
+	if r.code != fjoerr.ExitOK {
+		t.Errorf("case-insensitive name: exit %d, stderr %q", r.code, r.stderr)
+	}
+	r = h.run(nil, true, h.host()+"/org/project\n", "repo", "delete", "org/project")
+	if r.code != fjoerr.ExitOK {
+		t.Errorf("HOST/OWNER/REPO: exit %d, stderr %q", r.code, r.stderr)
+	}
+}
+
+// TestCloneRejectsMaliciousServer: clone URLs and names come from the server.
+// A value git would read as an option must never reach git (it could run a
+// local command through core.sshCommand or --upload-pack).
+func TestCloneRejectsMaliciousServer(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	mark := filepath.Join(t.TempDir(), "PWNED")
+	tests := []struct{ name, cloneURL, repoName string }{
+		{"option as URL", "--config=core.sshCommand=touch " + mark + " #", "evil:repo"},
+		{"upload-pack", "--upload-pack=touch " + mark, "x"},
+		{"ext transport", "ext::sh -c touch% " + mark, "x"},
+		{"file URL", "file:///etc", "x"},
+		{"local path", "/etc", "x"},
+		{"whitespace", "https://forge.invalid/a b.git", "x"},
+		{"name is an option", "https://forge.invalid/o/r.git", "--template=/tmp"},
+		{"name with separator", "https://forge.invalid/o/r.git", "../escape"},
+		{"name with colon", "https://forge.invalid/o/r.git", "evil:repo"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHarness(t, func(w http.ResponseWriter, r *http.Request) {
+				b, _ := json.Marshal(map[string]any{"full_name": "org/project", "name": tt.repoName, "clone_url": tt.cloneURL})
+				_, _ = w.Write(b)
+			})
+			r := h.run(nil, false, "", "repo", "clone", "org/project")
+			if r.code == fjoerr.ExitOK {
+				t.Errorf("clone succeeded, stderr %q", r.stderr)
+			}
+			if _, err := os.Stat(mark); err == nil {
+				t.Fatal("a command from the server response was executed")
+			}
+			if !strings.Contains(r.stderr, "refusing clone URL") && !strings.Contains(r.stderr, "as a directory") {
+				t.Errorf("stderr = %q", r.stderr)
+			}
+		})
+	}
+}
+
+// An explicit destination is used as-is even when the server name is odd.
+func TestCloneExplicitDestinationWithOddServerName(t *testing.T) {
+	u := bareRepo(t)
+	h := newHarness(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, repoResponseJSON("org/project", "../odd", u))
+	})
+	r := h.run(nil, false, "", "repo", "clone", "org/project", "safe-dir")
+	if r.code != fjoerr.ExitOK {
+		t.Fatalf("exit %d, stderr %q", r.code, r.stderr)
+	}
+	if _, err := os.Stat(filepath.Join(h.gitDir, "safe-dir", ".git")); err != nil {
+		t.Errorf("clone missing: %v", err)
 	}
 }
 

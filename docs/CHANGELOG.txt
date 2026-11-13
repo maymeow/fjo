@@ -18,7 +18,7 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 - Repo:             https://github.com/kukolos/fjo (private), branch main
 - Phase 0 open:     self-hosted runners + first CI run; race tests (B-35)
 - Phase 2 open:     none; follow-ups B-37 (40-hex SHA redaction),
-                    B-38 (~/.ssh/config aliases)
+                    B-38 (~/.ssh/config aliases), B-39 (rename remote)
 - Blockers:         none for code; B-33 (license), B-34 (module path vs.
                     repo at github.com/kukolos/fjo) before a public release
 
@@ -53,6 +53,49 @@ Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
 
 ---
+
+## 2026-11-13 — Phase 2b review fixes: clone hardening, delete confirmation
+Phase: Phase 2 / v0.0.3
+Spec:  §5.3, §7.4, §8.3
+
+Security:
+- `repo clone`, `repo create --clone` and `repo fork --clone` passed the
+  server's clone_url and repository name to `git clone` without "--". A
+  malicious or compromised server could return clone_url
+  "--config=core.sshCommand=<cmd>" (or "--upload-pack=<cmd>") and run a local
+  command (reproduced with git 2.56). Fixed:
+  - `git clone [<gitflags>] -- <url> <dir>` and `git remote add -- upstream
+    <url>`;
+  - clone URLs must parse as https/http/ssh (internal/git.ParseURL); options,
+    whitespace/control characters, file://, local paths and `<helper>::`
+    transports are refused;
+  - a server-provided name is used as the directory only if it is one safe
+    path element (no '/', '\', ':', leading '-', '.', '..').
+  - Regression test TestCloneRejectsMaliciousServer; verified that it fails
+    with the old code ("a command from the server response was executed").
+
+Changed:
+- `repo delete` on a terminal requires typing OWNER/REPO (or HOST/OWNER/REPO,
+  case-insensitive) like gh; "y" is no longer enough. Non-TTY still needs
+  --yes.
+- `repo create` conflict message: "repository NAME already exists" instead of
+  "/NAME" for user repositories.
+- scripts/test-forgejo.sh: picks the host port before starting the container
+  and sets ROOT_URL to it, so API clone URLs work from the host.
+
+Added:
+- Tests: delete confirmation (wrong answers send no request), malicious
+  clone URL/name cases, explicit destination with an odd server name,
+  git.RunWithIO; integration: `repo clone` of an organization repository
+  against Forgejo 15/17. Clone unit tests now use https URLs rewritten with
+  url.<path>.insteadOf.
+- BACKLOG B-39: `repo rename` should update the local remote (gh does).
+
+Tests:
+- go test ./... pass; gofmt, go vet (linux/windows/darwin, -tags integration),
+  staticcheck clean; govulncheck: none.
+- scripts/test-forgejo.sh: pass against Forgejo 15.0.11 and 17.0.1.
+- Coverage: git 91.1 %, cli/repo 81.7 %.
 
 ## 2026-11-13 — Phase 2b: create, clone, fork, edit, rename, delete, archive, sync
 Phase: Phase 2 / v0.0.3 (part 2b)
