@@ -1,0 +1,34 @@
+[Unit]
+Description=Forgejo Actions runner (fjo-linux-amd64)
+Documentation=https://forgejo.org/docs/latest/admin/actions/
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=forgejo-runner
+Group=forgejo-runner
+SupplementaryGroups=docker
+WorkingDirectory=/var/lib/forgejo-runner
+Environment=HOME=/var/lib/forgejo-runner
+ExecStart=/usr/local/bin/forgejo-runner daemon --config /etc/forgejo-runner/config.yml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=10s
+# Let running jobs finish on stop (matches runner.shutdown_timeout).
+TimeoutStopSec=30min
+KillMode=mixed
+
+# Hardening that does not break host-mode Go builds or Docker access.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/var/lib/forgejo-runner
+
+[Install]
+WantedBy=multi-user.target

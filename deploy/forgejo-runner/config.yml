@@ -1,0 +1,85 @@
+# forgejo-runner configuration for the fjo Linux CI runner.
+#
+# Serves the `fjo-linux-amd64` label used by .forgejo/workflows/ci.yaml
+# (jobs: test, integration, lint).
+#
+# Jobs run in HOST mode, not in a job container, because
+# scripts/test-forgejo.sh starts Forgejo containers with
+# `docker run -p 127.0.0.1:<port>:3000` and then talks to them through
+# 127.0.0.1. That only works when the job runs on the same network namespace
+# as the Docker host.
+#
+# Host requirements (see README.md): git, bash, curl, gcc (go test -race),
+# node >= 20 (checkout / setup-go are JavaScript actions), Docker with the
+# runner user in the `docker` group. Go itself is installed per job by
+# actions/setup-go from the version in go.mod.
+#
+# Install as /etc/forgejo-runner/config.yml and start with
+#   forgejo-runner daemon --config /etc/forgejo-runner/config.yml
+#
+# Runner v13+: no `forgejo-runner register`. install.sh appends a
+# `server.connections` block with the UUID and token from
+# Settings → Actions → Runners → Create new runner:
+#
+#   server:
+#     connections:
+#       forgejo:
+#         url: https://forgejo.example.org
+#         uuid: <uuid>
+#         token: <token>
+#
+# The token is a secret: keep the installed file root:forgejo-runner 0640.
+
+log:
+  level: info
+  job_level: info
+
+runner:
+  # Only used by the legacy `register` flow; connections are in `server` below.
+  file: .runner
+  # test + integration + lint can run in parallel. Each host-mode job gets its
+  # own workdir; integration containers use random ports and unique names.
+  capacity: 2
+  envs:
+    # Keep Go caches in the runner's home so they survive between jobs.
+    GOPATH: /var/lib/forgejo-runner/go
+    GOCACHE: /var/lib/forgejo-runner/.cache/go-build
+    GOFLAGS: -mod=readonly
+    GOTOOLCHAIN: local
+  env_file: .env
+  # Workflow timeouts are 15–30 minutes; this is a hard upper bound.
+  timeout: 1h
+  shutdown_timeout: 30m
+  insecure: false
+  fetch_timeout: 5s
+  fetch_interval: 2s
+  report_interval: 1s
+  # Used by every connection that does not set its own labels.
+  # `:host` = run directly on the host.
+  labels:
+    - "fjo-linux-amd64:host"
+
+cache:
+  # Used by actions/setup-go (module + build cache).
+  enabled: true
+  dir: /var/lib/forgejo-runner/cache
+  # 0 = random free port; host-mode jobs reach it via localhost.
+  port: 0
+  host: ""
+  external_server: ""
+
+container:
+  # Unused in host mode; kept minimal and locked down in case a
+  # docker-label is added later.
+  network: ""
+  enable_ipv6: false
+  privileged: false
+  options: ""
+  workdir_parent: ""
+  valid_volumes: []
+  docker_host: "-"
+  force_pull: false
+
+host:
+  # Per-job workspaces. Wiped by the runner after each job.
+  workdir_parent: /var/lib/forgejo-runner/work
