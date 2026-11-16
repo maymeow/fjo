@@ -71,7 +71,7 @@ Field names follow gh where the meaning is equivalent. Known differences:
 | `repo list --json`, `repo view --json` | `name` is the short name, `nameWithOwner` is `owner/repo`; `parent` is `{nameWithOwner}`; `primaryLanguage` is a string; GitHub-only fields (`licenseInfo`, `viewerPermission`, `defaultBranchRef`, ...) are absent | Forgejo's repository model |
 | Issue/PR `state` | Lowercase `open`, `closed`, `merged`, as in the IMPLEMENTATION §10.2 example | Forgejo state values; gh uses uppercase GraphQL states |
 | Issue/PR `author`, `assignees`, `reviewers` | A user object contains only `login` | gh's user objects carry many GraphQL-only fields |
-| Issue `comments` | A count in both list and view; gh returns the comment array in `view` | Forgejo returns the count separately; `view --comments` renders the text in Phase 3b |
+| Issue `comments` | A count in both list and view; gh returns the comment array in `view` | Forgejo returns the count separately; `view --comments` renders the discussion as plain text |
 | `Comment.id`, `Review.id` | Integer database IDs | Forgejo REST IDs are integers; gh exposes GraphQL node IDs |
 | `Check.state` | Forgejo commit-status strings (`pending`, `success`, `failure`, `error`) | `pr checks` maps them to the gh-style bucket in Phase 3c |
 
@@ -95,7 +95,7 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | `gh repo list/view/set-default` | same | done (Phase 2a; `--json`/`--jq`/`--template` from 3a) |
 | `gh repo create/clone/fork/edit/rename/delete/archive/unarchive/sync` | same | done (Phase 2b); differences below |
 | `gh browse` | same | idea (BACKLOG B-21) |
-| `gh issue ...` | same | planned (Phase 3) |
+| `gh issue list/view/create/edit/close/reopen/comment/delete/pin/unpin` | same | done (Phase 3b); differences below |
 | `gh pr ...` | same | planned (Phase 3); draft = `WIP:` title prefix (differs) |
 | `gh release ...` | same | planned (Phase 4) |
 | `gh run`, `gh workflow` | same | planned (Phase 5), scope depends on Forgejo Actions API (BACKLOG B-10) |
@@ -129,3 +129,19 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | `repo rename` | Does not update the local git remote URL (gh updates it) | BACKLOG B-39 |
 | `repo sync` | No `--force`; Forgejo syncs the default branch or one named branch | No force option in the Forgejo API |
 | `api` absolute URLs | Only URLs inside the configured instance are accepted | Credentials must not leave the instance (§7.4) |
+
+## Issue command differences
+
+- `issue close --reason` returns exit 15: Forgejo has no close-reason field.
+- Labels match any selected label, as Forgejo specifies. Unknown labels and
+  milestones fail explicitly. Issue search uses the server index, which is
+  updated asynchronously. No GitHub search-qualifier translation is attempted.
+- Milestone `number` in JSON is the Forgejo milestone ID; Forgejo has no
+  repository-local milestone number.
+- `view --comments` is text-only; JSON `comments` remains a count.
+- `create --web` prefills title/body; metadata flags return exit 15.
+- Missing creation title/body and comment body use simple text prompts;
+  there is no interactive metadata picker. Deletion confirmation requires
+  the exact issue number, or `--yes` without a terminal.
+- Assignee changes use `issue edit --add-assignee/--remove-assignee`; the
+  separate `issue assign` convenience command is outside the Phase 3b checklist.

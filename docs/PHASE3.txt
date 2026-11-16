@@ -82,50 +82,52 @@ doplniť do existujúcich `repo list`/`repo view`, až potom pridávať issues.
 
 ## 3b — Issues
 
+Stav: implementované a overené 2026-11-16 (Forgejo 15.0.11 a 17.0.1).
+
 API vrstva (`internal/api/issues.go`):
 
-- [ ] Endpointy registrovať v `endpoints.go`. `swagger_test.go` ich potom
+- [x] Endpointy registrovať v `endpoints.go`. `swagger_test.go` ich potom
       overí voči 15 a 17.
-- [ ] `ListIssues`: vždy posiela `type=issues` (B-31) a používa `api.List`
+- [x] `ListIssues`: vždy posiela `type=issues` (B-31) a používa `api.List`
       s limitom (B-13).
-- [ ] Filtre: `state`, `labels`, `milestones`, `created_by`, `assigned_by`,
+- [x] Filtre: `state`, `labels`, `milestones`, `created_by`, `assigned_by`,
       `mentioned_by`, `q`. Zoznam overiť v swaggeri.
-- [ ] Filter, ktorý API nepodporuje, vráti explicitnú chybu a nesmie sa
+- [x] Filter, ktorý API nepodporuje, vráti explicitnú chybu a nesmie sa
       ticho ignorovať (§5.4).
-- [ ] Get, Create, Edit (PATCH), Comment, Delete, labels add/remove,
+- [x] Get, Create, Edit (PATCH), Comment, Delete, labels add/remove,
       pin/unpin (overiť, či ich 15 LTS podporuje; ak nie, exit 15).
-- [ ] CLI používa číslo issue (`index`), nikdy interné `id` (B-31).
+- [x] CLI používa číslo issue (`index`), nikdy interné `id` (B-31).
 
 Príkazy (`internal/cli/issue/`). Povinné podľa roadmapy sú označené (*):
 
-- [ ] (*) `issue list`: flagy `--state open|closed|all`, `--author`,
+- [x] (*) `issue list`: flagy `--state open|closed|all`, `--author`,
       `--assignee`, `--label` (opakovateľný), `--milestone`, `--search`,
       `-L/--limit`, `--web`, `--json`, `-R`.
-- [ ] (*) `issue view <num|url>`: flagy `--comments`, `--web`, `--json`.
+- [x] (*) `issue view <num|url>`: flagy `--comments`, `--web`, `--json`.
       Markdown zatiaľ ako čistý text (rendering je samostatná úloha).
-- [ ] (*) `issue create`:
-  - [ ] Flagy `--title`, `--body`/`--body-file`/`--editor`, `--label`,
+- [x] (*) `issue create`:
+  - [x] Flagy `--title`, `--body`/`--body-file`/`--editor`, `--label`,
         `--assignee`, `--milestone`, `--web`.
-  - [ ] V TTY sa chýbajúce polia doplnia promptom, bez TTY je chýbajúci
+  - [x] V TTY sa chýbajúce polia doplnia promptom, bez TTY je chýbajúci
         `--title` chyba (§11.1).
-  - [ ] Na stdout ide URL vytvoreného issue (gh to robí rovnako).
-- [ ] (*) `issue close <num>`: flag `--comment`. gh `--reason` Forgejo nemá,
+  - [x] Na stdout ide URL vytvoreného issue (gh to robí rovnako).
+- [x] (*) `issue close <num>`: flag `--comment`. gh `--reason` Forgejo nemá,
       preto vráti exit 15 a vec sa zapíše do compatibility.md.
-- [ ] (*) `issue reopen <num>`: flag `--comment`.
-- [ ] `issue comment <num>`: `--body`, `--body-file` a `--editor`.
-- [ ] `issue edit <num>`: `--title`, `--body*`, `--add-label`/`--remove-label`,
+- [x] (*) `issue reopen <num>`: flag `--comment`.
+- [x] `issue comment <num>`: `--body`, `--body-file` a `--editor`.
+- [x] `issue edit <num>`: `--title`, `--body*`, `--add-label`/`--remove-label`,
       `--add-assignee`/`--remove-assignee`, `--milestone`/`--remove-milestone`.
-- [ ] `issue delete <num>`: `--yes`. V TTY sa potvrdzuje napísaním čísla
+- [x] `issue delete <num>`: `--yes`. V TTY sa potvrdzuje napísaním čísla
       (vzor `repo delete`), bez TTY a bez `--yes` je to chyba.
-- [ ] `issue pin` / `issue unpin`: iba ak to swagger obsahuje.
-- [ ] Argument môže byť číslo, `#42` alebo plná URL issue, pričom URL
+- [x] `issue pin` / `issue unpin`: iba ak to swagger obsahuje.
+- [x] Argument môže byť číslo, `#42` alebo plná URL issue, pričom URL
       určuje host aj repo.
-- [ ] Testy:
-  - [ ] httptest pre každý príkaz.
-  - [ ] Bez TTY: chýbajúce argumenty, žiadny prompt.
-  - [ ] V TTY: prompty cez fake.
-  - [ ] Golden testy pre tabuľky a JSON.
-- [ ] Integrácia (Forgejo 15 a 17): create, list, view, comment, close,
+- [x] Testy:
+  - [x] httptest pre každý príkaz.
+  - [x] Bez TTY: chýbajúce argumenty, žiadny prompt.
+  - [x] V TTY: prompty cez fake.
+  - [x] Golden testy pre tabuľky a JSON.
+- [x] Integrácia (Forgejo 15 a 17): create, list, view, comment, close,
       reopen, edit, delete.
 
 ---
@@ -239,7 +241,7 @@ Príkazy (`internal/cli/pr/`):
 
 ## Kontrola pred uzavretím (acceptance criteria, Phase 3)
 
-- [ ] Celý issue workflow funguje end-to-end (integrácia 15 a 17).
+- [x] Celý issue workflow funguje end-to-end (integrácia 15 a 17).
 - [ ] Celý PR workflow funguje end-to-end: create, checkout, review, merge.
 - [ ] Interaktívne aj neinteraktívne použitie je otestované. Bez TTY nikdy
       nečaká na vstup.

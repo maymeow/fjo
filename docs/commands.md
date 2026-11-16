@@ -302,6 +302,63 @@ the only candidate is taken, or a prompt is shown on a terminal.
 | `-v, --view` | Print the current default (`HOST/OWNER/REPO`) |
 | `-u, --unset` | Remove the default |
 
+## fjo issue
+
+Work with repository issues. All commands accept `-R/--repo [HOST/]OWNER/REPO`
+and otherwise use the same repository selection as `fjo repo`. An issue
+argument accepts `42`, `#42` or a full issue URL; the URL selects the host
+and repository even when `--repo` or `FJO_REPO` selects something else.
+
+| Command | Flags and behavior |
+|---|---|
+| `issue list` (`ls`) | `-s/--state open\|closed\|all` (default open), `--author`, `-a/--assignee`, repeatable `-l/--label`, `-m/--milestone`, `-S/--search`, `-L/--limit` (default 30), `-w/--web` |
+| `issue view <number\|url>` | `-c/--comments`, `-w/--web`; Markdown bodies are plain text |
+| `issue create` | `-t/--title`, `--body`, `--body-file` (`-` reads stdin), `--editor`, `-l/--label`, `-a/--assignee`, `-m/--milestone`, `-w/--web` |
+| `issue edit <number\|url>` | `-t/--title`, body flags, `--add-label`, `--remove-label`, `--add-assignee`, `--remove-assignee`, `-m/--milestone`, `--remove-milestone` |
+| `issue close <number\|url>` / `reopen` | `-c/--comment` adds a comment before changing state; `close --reason` is unsupported (exit 15) |
+| `issue comment <number\|url>` | Body flags; a nonempty body is required |
+| `issue delete <number\|url>` | Type the issue number to confirm; `--yes` skips this and is required without a terminal |
+| `issue pin <number\|url>` / `unpin` | Supported by both Forgejo 15 and 17 |
+
+`list` and `view` support `--json FIELDS`, `--jq`, `--template` and
+`--no-pager`. JSON fields: `number`, `title`, `state`, `author`, `url`,
+`body`, `labels`, `milestone`, `assignees`, `comments`, `createdAt`,
+`updatedAt`, `closedAt`. The `comments` field is a count; `view --comments`
+prints the discussion as text and cannot be combined with `--json`.
+
+Non-TTY lists are TSV: number (with `#`), title, label names, updated time
+(RFC 3339). Empty lists print a diagnostic to stderr; JSON is `[]`.
+Pagination is automatic and `--limit` is the maximum total item count.
+Labels match any requested label, following Forgejo's API. Unknown label or
+milestone names fail explicitly. Text search uses Forgejo's index and newly
+created issues may take a moment to appear.
+
+Author/assignee filters and assignee mutations accept `@me`. Labels use
+names; milestones accept titles or IDs, with an exact title preferred.
+Editing retains fields that were not supplied; `--body ""` clears the body,
+and `--remove-milestone` clears the milestone. Assignee edits preserve other
+assignees. Label changes use separate API requests: if one fails, the error
+reports that the issue may be partially updated.
+
+On a terminal, missing creation title/body and comment body are prompted.
+Without a terminal, creation requires `--title` and comments require a body
+source; no prompt is started. Creation and comments print the resulting URL
+to stdout; other mutation diagnostics go to stderr.
+
+`create --web` opens the browser form with title/body prefilled. Metadata
+flags are unsupported in this mode (exit 15); select them in the form.
+`list --web` carries its filters into the browser URL; `view --web` opens
+the issue directly. When no browser is available the URL is printed.
+
+```text
+fjo issue list -R org/project --assignee @me --label bug
+fjo issue view '#42' --comments
+fjo issue create --title "Bug" --body-file issue.md
+fjo issue edit 42 --add-label bug --remove-milestone
+fjo issue close 42 --comment "Fixed in the next release"
+fjo issue list --json number,title --jq '.[].title'
+```
+
 ## fjo api
 
 Make an authenticated request to the Forgejo REST API (IMPLEMENTATION §5.9).

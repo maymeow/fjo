@@ -545,7 +545,8 @@ func TestEditorEdit(t *testing.T) {
 	if got != "edited body\n" {
 		t.Errorf("body = %q", got)
 	}
-	if mode != 0o600 {
+	// Windows does not expose POSIX permission bits through FileMode.
+	if runtime.GOOS != "windows" && mode != 0o600 {
 		t.Errorf("mode = %o, want 600", mode)
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {

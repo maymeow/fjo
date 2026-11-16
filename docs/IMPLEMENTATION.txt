@@ -1576,14 +1576,16 @@ Acceptance criteria:
 
 ### Phase 3 — Issues and pull requests
 
+Issue milestone 3b implemented and verified 2026-11-16; PR milestones remain open.
+
 **Target: v0.1.0**
 
 Tasks:
 
-- [ ] Implement issue listing.
-- [ ] Implement issue viewing.
-- [ ] Implement issue creation.
-- [ ] Implement issue closing and reopening.
+- [x] Implement issue listing.
+- [x] Implement issue viewing.
+- [x] Implement issue creation.
+- [x] Implement issue closing and reopening.
 - [ ] Implement PR listing.
 - [ ] Implement PR viewing.
 - [ ] Implement PR creation.
