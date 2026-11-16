@@ -12,13 +12,14 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 
 ## Current status
 
-- Phase:            Phase 2 - Git and repositories (COMPLETE, v0.0.3)
-- Next target:      v0.1.0 (Phase 3 - issues and pull requests)
-- Last updated:     2026-11-13
+- Phase:            Phase 3 - Issues and pull requests (3a COMPLETE)
+- Next target:      v0.1.0 (Phase 3; next milestone 3b - issues)
+- Last updated:     2026-11-16
 - Repo:             https://github.com/kukolos/fjo (private), branch main
 - Phase 0 open:     self-hosted runners + first CI run; race tests (B-35)
-- Phase 2 open:     none; follow-ups B-37 (40-hex SHA redaction),
-                    B-38 (~/.ssh/config aliases), B-39 (rename remote)
+- Phase 3 open:     B-37 (40-hex SHA redaction) before 3c; B-44 (pr list
+                    --base/--head on 15) at 3c
+- Phase 2 open:     B-38 (~/.ssh/config aliases), B-39 (rename remote)
 - Blockers:         none for code; B-33 (license), B-34 (module path vs.
                     repo at github.com/kukolos/fjo) before a public release
 
@@ -51,6 +52,94 @@ Newest entries on top. One entry per working session / merged change set.
 
 Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
+
+---
+
+## 2026-11-16 — Phase 3a review fixes: terminal sanitizing, jq strings, body flags
+Phase: Phase 3 / v0.1.0
+Spec:  §10.1, §10.2, §11.1
+
+Security:
+- Server-provided text was written to the terminal unchanged, so a
+  repository description (and in 3b an issue title) could inject escape
+  sequences such as OSC 52 (clipboard write), OSC 8 links or screen clearing.
+  New output.Sanitize replaces C0 controls (except tab/newline) and DEL with
+  caret notation and C1 controls with U+FFFD. Applied to every table cell and
+  header (TTY and TSV), to `repo view` (TTY and raw) and to `--jq` string
+  results on a terminal.
+Fixed:
+- `--jq` printed string results JSON-quoted; like gh they are now raw lines.
+- `--body ""` was treated as "no body": it now counts as given
+  (BodyOptions.Provided, needed by `issue edit` to clear a body) and
+  conflicts with `--body-file`. `--body-file ""` is a usage error.
+- `--editor` without a terminal started the editor and could hang (§11.1);
+  it is now a usage error (BodyContext.CanPrompt).
+Tests:
+- go test ./..., go vet, staticcheck; GOOS=windows/darwin builds. Race tests
+  not run locally (no gcc, B-35).
+Notes / next steps:
+- Not fixed (minor): TimeAgo uses time.Since (no injected clock), pager/editor
+  command lines split on spaces (Windows paths, B-28), tablerender twice
+  repeats rows, isBrokenPipe matches error text, truncation after a ZWJ (B-41).
+- --template output is not sanitized yet (template text may legitimately
+  contain colors); decide before issue/PR templates matter.
+
+---
+
+## 2026-11-16 — Phase 3a: output infrastructure
+Phase: Phase 3 / v0.1.0
+Spec:  §10.1, §10.2, §11.1, §16 Phase 3
+
+Added:
+- internal/output: AddJSONFlags (--json/--jq/--template), normalized JSON
+  models (Repository, Issue, PullRequest, User, Label, Milestone, Comment,
+  Review, Check) and field selection with gh-style errors.
+- internal/output: table printer (aligned TTY output, TSV without a terminal,
+  Unicode-aware width, `…` truncation, optional colors), pager resolution and
+  `--no-pager` support, editor resolution with a 0600 temporary file, and the
+  shared --body/--body-file/--editor flags.
+- `repo list --json/--jq/--template` and `repo view --json/--jq/--template`;
+  `repo list` now uses the shared table printer.
+- --no-pager on `repo list` and `repo view`.
+- Tests: field selection, jq, templates and helpers, TTY vs. TSV tables,
+  Unicode width and truncation, pager/editor precedence (injected, no real
+  process), body flags, JSON goldens for every normalized model, repo list and
+  view JSON integration.
+Changed:
+- docs/commands.md: output flags, pager/editor precedence and template helpers.
+- docs/compatibility.md: JSON model differences from gh; FJO_EDITOR/FJO_PAGER
+  status.
+- docs/PHASE3.txt: 3a checklist ticked and completion date recorded.
+- go.mod: github.com/itchyny/gojq (BACKLOG B-40); golang.org/x/text is now a
+  direct dependency for display width (B-41).
+Tests:
+- go test ./..., go vet ./..., staticcheck ./..., gofmt.
+- Cross-builds for windows/amd64 and darwin/arm64.
+- Race tests not run: this machine has no C compiler (already tracked as an
+  open Phase 0 item).
+Notes / next steps:
+- 3b (issues) is next. B-37 must land before 3c.
+
+---
+
+## 2026-11-16 — Phase 3 planning and decisions
+Phase: Phase 3 / v0.1.0 (planning only, no code)
+Spec:  §5.4, §16 Phase 3
+
+Added:
+- docs/PHASE3.txt: plan and checklist for Phase 3, split into 3a (output
+  infrastructure), 3b (issues), 3c (PR read), 3d (PR write) and 3e (review,
+  docs, closing the phase).
+- BACKLOG B-40 (gojq for --jq), B-41 (x/text for cell width), B-42
+  (--json-errors deferred), B-43 (pr create push behaviour), B-44
+  (pr list --base/--head missing in Forgejo 15).
+Changed:
+- §5.4: removed `--page` from the issue filters (B-13 already decided there
+  is no --page flag).
+- Decisions recorded: B-28 (pager/editor/VT on Windows), B-31 (verified
+  against both pinned swagger specs), B-37 (drop the 40-hex redaction rule).
+Notes / next steps:
+- 3a is implemented by the user. B-37 must land before 3c.
 
 ---
 

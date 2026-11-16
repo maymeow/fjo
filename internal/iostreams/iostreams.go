@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"strconv"
 
 	"golang.org/x/term"
 )
@@ -41,6 +42,7 @@ type IOStreams struct {
 
 	colorMode ColorMode
 	getenv    func(string) string
+	width     int
 }
 
 // System returns streams bound to the real process.
@@ -91,6 +93,38 @@ func (s *IOStreams) IsStdoutTTY() bool { return s.stdoutTTY }
 
 // IsStderrTTY reports whether stderr is a terminal.
 func (s *IOStreams) IsStderrTTY() bool { return s.stderrTTY }
+
+// StdoutFile returns the stdout stream when it is backed by a terminal,
+// otherwise nil. Pagers must only be started for this case.
+func (s *IOStreams) StdoutFile() *os.File {
+	if f, ok := s.Out.(*os.File); ok && s.stdoutTTY && term.IsTerminal(int(f.Fd())) {
+		return f
+	}
+	return nil
+}
+
+// TerminalWidth returns the width available for terminal output. Explicit
+// overrides (tests) win, then the real terminal size, then $COLUMNS, then 80.
+// Non-terminal output also uses 80 so callers can always format a table.
+func (s *IOStreams) TerminalWidth() int {
+	if s.width > 0 {
+		return s.width
+	}
+	if f := s.StdoutFile(); f != nil {
+		if w, _, err := term.GetSize(int(f.Fd())); err == nil && w > 0 {
+			return w
+		}
+	}
+	if s.stdoutTTY {
+		if n, err := strconv.Atoi(s.getenv("COLUMNS")); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 80
+}
+
+// SetTerminalWidth overrides the width reported by TerminalWidth (tests).
+func (s *IOStreams) SetTerminalWidth(n int) { s.width = n }
 
 // CanPrompt reports whether interactive prompts are allowed: both stdin and
 // stdout must be terminals and FJO_PROMPT_DISABLED must be unset.

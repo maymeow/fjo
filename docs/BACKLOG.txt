@@ -451,7 +451,7 @@ Decision:
 
 ### B-37 — 40-hex redaction rule also masks git commit SHAs
 Type:     tech-debt
-Status:   open
+Status:   accepted (implement before 3c)
 Added:    2026-11-13
 Phase:    Phase 3 (before PR/commit/checks output goes through the redactor)
 
@@ -467,7 +467,10 @@ Proposal / options:
 - B) Keep it only in debug HTTP traces (headers/bodies), not in error
   messages.
 Decision:
--
+- 2026-11-16: A) Drop the 40-hex shape rule. Every token fjo reads is
+  registered with Redactor.Add, and the Authorization, `token=` and JWT rules
+  stay. Implement before 3c (pr checks/merge). Add a regression test: a
+  SHA in an error stays visible and a registered 40-hex token is still masked.
 
 ### B-38 — SSH aliases from ~/.ssh/config
 Type:     idea
@@ -504,6 +507,93 @@ Proposal / options:
   `git remote set-url -- <name> <url>`; report it on stderr.
 Decision:
 -
+
+---
+
+Source of B-40 .. B-44: Phase 3 planning (docs/PHASE3.txt), 2026-11-16.
+
+### B-40 — Library for `--jq`
+Type:     decision
+Status:   accepted -> §10.2
+Added:    2026-11-16
+Phase:    Phase 3a
+
+Context:
+- §10.2 requires `--jq <expr>` without an external `jq` binary (Windows,
+  CI images). Implementing jq ourselves is out of scope.
+Proposal / options:
+- A) github.com/itchyny/gojq: pure Go, no cgo, also used by gh, so
+  expressions behave the same as in `gh --jq`.
+- B) Require an external `jq` binary.
+Decision:
+- 2026-11-16: A) gojq. Justification per §2.1: pure Go, no transitive
+  dependencies outside x/, actively maintained, gh parity. Use it as a
+  library only (gojq.Parse + Compile), with the context for cancellation. A
+  parse or runtime error exits with code 10.
+
+### B-41 — Display width of table cells
+Type:     decision
+Status:   accepted -> §10.1
+Added:    2026-11-16
+Phase:    Phase 3a
+
+Context:
+- §10.1 asks for Unicode-aware tables (CJK and emoji are two columns wide,
+  combining marks are zero width).
+Proposal / options:
+- A) golang.org/x/text/width (already an indirect dependency) plus our own
+  small helper for zero-width runes.
+- B) github.com/mattn/go-runewidth (new dependency).
+Decision:
+- 2026-11-16: A) x/text, so no new module is added. Truncation uses "…"
+  and never cuts a rune or a grapheme in half. If this proves insufficient
+  (emoji ZWJ sequences), revisit B.
+
+### B-42 — `--json-errors` (§10.3)
+Type:     deferred
+Status:   open
+Added:    2026-11-16
+Phase:    after Phase 3 (before Phase 8 JSON schema freeze)
+
+Context:
+- §10.3 defines a machine-readable error mode. It touches every command,
+  so it belongs with the global error handling, not with the 3a output work.
+Decision:
+- 2026-11-16: not part of 3a. Phase 3 keeps the current error output. The
+  fjoerr codes are already stable, so adding the flag later does not break
+  anything.
+
+### B-43 — `pr create` when the head branch is not on the server
+Type:     decision
+Status:   accepted -> §5.5
+Added:    2026-11-16
+Phase:    Phase 3d
+
+Context:
+- gh offers to push the branch. A CLI must never push without intent
+  (§11.1: no hidden actions without a terminal).
+Decision:
+- 2026-11-16: TTY -> prompt "Push branch X to remote Y?" (default yes);
+  no TTY -> error with a hint, unless `--push` is given. `--push` pushes
+  with `git push --set-upstream -- <remote> <branch>`. The remote is the
+  configured push remote or the remote of the resolved repository.
+
+### B-44 — `pr list --base/--head` on Forgejo 15
+Type:     tech-debt
+Status:   open
+Added:    2026-11-16
+Phase:    Phase 3c
+
+Context:
+- Swagger check (B-31): GET /repos/{o}/{r}/pulls has `base` and `head`
+  query parameters only in Forgejo 17, not in 15.0.11.
+Proposal / options:
+- A) Filter on the client for 15 (fetch pages until --limit matches are
+  found) and send the parameters for 17.
+- B) Exit 15 (unsupported) on 15.
+Decision:
+- (recommended: A, because filtering on the client is exact here. Decide
+  when implementing 3c.)
 
 ---
 
@@ -610,7 +700,7 @@ Decision:
 
 ### B-28 — Windows-specific terminal behaviour
 Type:     tech-debt
-Status:   open
+Status:   decided (pager/editor/VT); Ctrl+C open
 Added:    2026-11-13
 Phase:    Phase 0 / Phase 3
 
@@ -618,7 +708,15 @@ Context:
 - No `less` on Windows (pager), default editor (notepad?), ANSI/VT enablement
   on legacy consoles, Ctrl+C handling and exit code 130.
 Decision:
--
+- 2026-11-16 (Phase 3 planning), following gh:
+  - Pager: FJO_PAGER > config `pager` > PAGER > `less -FRX`. If the
+    command does not exist (typical on Windows), output is written directly
+    without an error. No pager when stdout is not a TTY or with --json.
+  - Editor: FJO_EDITOR > config `editor` > VISUAL > EDITOR > default
+    `notepad` on Windows and `nano` elsewhere (same as gh).
+  - VT: enable ENABLE_VIRTUAL_TERMINAL_PROCESSING on Windows consoles; if
+    that fails, behave as --color=never.
+  - Still open: Ctrl+C handling and exit code 130 on Windows.
 
 ### B-29 — Browser launcher in SSH sessions and WSL
 Type:     tech-debt
@@ -648,7 +746,7 @@ Decision:
 
 ### B-31 — Forgejo-specific semantics to respect (not GitHub)
 Type:     tech-debt
-Status:   open
+Status:   verified for Phase 3; release part open (Phase 4)
 Added:    2026-11-13
 Phase:    Phase 3 / Phase 4
 
@@ -662,7 +760,23 @@ Context:
 - Commit statuses API backs `pr checks`.
 - Verify each against pinned swagger (B-8).
 Decision:
--
+- 2026-11-16: verified against forgejo-v15.0.11.json and forgejo-v17.0.1.json:
+  - GET /repos/{o}/{r}/issues has `type`, so `issue list` always sends
+    type=issues. Filters available on both: state, labels, milestones, q,
+    created_by, assigned_by, mentioned_by, since, before.
+  - Pulls: list (state, sort, milestone, labels, poster; base/head only in
+    17 -> B-44), /pulls/{index}.{diffType}, /files, /reviews,
+    /pulls/{base}/{head}, /merge (GET = merged?, POST, DELETE) all exist.
+  - Merge `Do`: merge, rebase, rebase-merge, squash, fast-forward-only,
+    manually-merged. `merge_when_checks_succeed` exists in both, so
+    `pr merge --auto` is possible.
+  - Repository: allow_merge_commits, allow_squash_merge, allow_rebase,
+    allow_rebase_explicit, allow_fast_forward_only_merge are what decides
+    the allowed methods.
+  - Issue pin/unpin (POST/DELETE /issues/{index}/pin) exists in both.
+  - Commit status: /commits/{ref}/status (combined) and /statuses/{sha}.
+  - Draft = WIP title prefix; CLI uses index everywhere. Release upload
+    (Phase 4) still to verify then.
 
 ### B-32 — Dependency and quality-gate tuning
 Type:     tech-debt

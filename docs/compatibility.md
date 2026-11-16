@@ -49,12 +49,36 @@ Scripts written for gh that test `$? -ne 0`, `== 2`, `== 4` or `== 8` behave the
 | `FJO_HOST` | `GH_HOST` | done |
 | `FJO_REPO` | `GH_REPO` | done (`[HOST/]OWNER/REPO`) |
 | `FJO_CONFIG_DIR` | `GH_CONFIG_DIR` | done |
-| `FJO_EDITOR` | `GH_EDITOR` | resolved, used from Phase 3 |
-| `FJO_PAGER` | `GH_PAGER` | resolved, used from Phase 3 |
+| `FJO_EDITOR` | `GH_EDITOR` | done (Phase 3a: `--editor`, body flags) |
+| `FJO_PAGER` | `GH_PAGER` | done (Phase 3a: long-output commands, `--no-pager`) |
 | `FJO_PROMPT_DISABLED` | `GH_PROMPT_DISABLED` | done |
 | `FJO_DEBUG` | `GH_DEBUG` | done |
 | `FJO_NO_COLOR`, `NO_COLOR`, `CLICOLOR_FORCE` | `NO_COLOR`, `CLICOLOR_FORCE` | done |
 | `XDG_CONFIG_HOME` | `XDG_CONFIG_HOME` | done (all platforms) |
+
+## JSON output
+
+`--json FIELDS`, `--jq EXPR` and `--template TPL` follow gh: fields are
+comma-separated, bare `--json` prints the sorted field list as a usage error,
+and `--jq`/`--template` require `--json`. The output is a normalized fjo
+model (IMPLEMENTATION §10.2), never the raw Forgejo response. JSON is compact
+when stdout is not a terminal and indented when it is.
+
+Field names follow gh where the meaning is equivalent. Known differences:
+
+| Area | Difference | Reason |
+|---|---|---|
+| `repo list --json`, `repo view --json` | `name` is the short name, `nameWithOwner` is `owner/repo`; `parent` is `{nameWithOwner}`; `primaryLanguage` is a string; GitHub-only fields (`licenseInfo`, `viewerPermission`, `defaultBranchRef`, ...) are absent | Forgejo's repository model |
+| Issue/PR `state` | Lowercase `open`, `closed`, `merged`, as in the IMPLEMENTATION §10.2 example | Forgejo state values; gh uses uppercase GraphQL states |
+| Issue/PR `author`, `assignees`, `reviewers` | A user object contains only `login` | gh's user objects carry many GraphQL-only fields |
+| Issue `comments` | A count in both list and view; gh returns the comment array in `view` | Forgejo returns the count separately; `view --comments` renders the text in Phase 3b |
+| `Comment.id`, `Review.id` | Integer database IDs | Forgejo REST IDs are integers; gh exposes GraphQL node IDs |
+| `Check.state` | Forgejo commit-status strings (`pending`, `success`, `failure`, `error`) | `pr checks` maps them to the gh-style bucket in Phase 3c |
+
+Templates provide the gh helper subset `tablerow`, `tablerender`, `timeago`,
+`color`, `join`, `pluck` and `truncate`. `truncate` is display-width aware
+(wide characters count twice, combining marks zero) and ends an overlong
+value with `…`.
 
 ## Command parity
 
@@ -68,7 +92,7 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | `gh auth refresh` | — | n/a until OAuth (BACKLOG B-16) |
 | `gh api` | `fjo api` | done (incl. `{owner}`/`{repo}`/`{branch}`); differs: `--paginate`, no GraphQL/`--jq` yet (see below) |
 | `gh config get/set/list` | same | idea (BACKLOG B-26) |
-| `gh repo list/view/set-default` | same | done (Phase 2a); no `--json` until Phase 3 |
+| `gh repo list/view/set-default` | same | done (Phase 2a; `--json`/`--jq`/`--template` from 3a) |
 | `gh repo create/clone/fork/edit/rename/delete/archive/unarchive/sync` | same | done (Phase 2b); differences below |
 | `gh browse` | same | idea (BACKLOG B-21) |
 | `gh issue ...` | same | planned (Phase 3) |

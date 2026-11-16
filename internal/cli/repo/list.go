@@ -3,8 +3,8 @@ package repo
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -12,6 +12,7 @@ import (
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
 	"github.com/maymeow/fjo/internal/fjoerr"
+	"github.com/maymeow/fjo/internal/output"
 )
 
 type listOptions struct {
@@ -22,6 +23,8 @@ type listOptions struct {
 	noArchived bool
 	fork       bool
 	source     bool
+	noPager    bool
+	json       *output.JSONFlags
 }
 
 func newListCmd(f *app.Factory) *cobra.Command {
@@ -33,7 +36,8 @@ func newListCmd(f *app.Factory) *cobra.Command {
 first. Without an owner, the repositories of the authenticated user are listed.`,
 		Example: `  fjo repo list
   fjo repo list my-org --limit 100
-  fjo repo list --visibility private --no-archived`,
+  fjo repo list --visibility private --no-archived
+  fjo repo list --json nameWithOwner,description,updatedAt`,
 		Aliases: []string{"ls"},
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -52,6 +56,8 @@ first. Without an owner, the repositories of the authenticated user are listed.`
 	fl.BoolVar(&o.noArchived, "no-archived", false, "Omit archived repositories")
 	fl.BoolVar(&o.fork, "fork", false, "Show only forks")
 	fl.BoolVar(&o.source, "source", false, "Show only non-forks")
+	fl.BoolVar(&o.noPager, "no-pager", false, "Disable the pager")
+	o.json = output.AddJSONFlags(cmd, output.RepositoryFields)
 	return cmd
 }
 
@@ -116,6 +122,18 @@ func runList(ctx context.Context, f *app.Factory, o listOptions, owner string) e
 		return err
 	}
 
+	if o.json.Changed() {
+		items := make([]output.Repository, len(repos))
+		for i := range repos {
+			items[i] = output.NewRepository(&repos[i])
+		}
+		return o.json.Write(ctx, f.IO.Out, items, output.WriteOptions{
+			TTY:   f.IO.IsStdoutTTY(),
+			Color: f.IO.ColorEnabled(),
+			Width: f.IO.TerminalWidth(),
+		})
+	}
+
 	tty := f.IO.IsStdoutTTY()
 	if len(repos) == 0 {
 		if tty {
@@ -123,24 +141,45 @@ func runList(ctx context.Context, f *app.Factory, o listOptions, owner string) e
 		}
 		return nil
 	}
-	if tty {
-		if total < int64(len(repos)) {
-			total = int64(len(repos))
-		}
-		fmt.Fprintf(f.IO.Out, "\nShowing %d of %d repositories in @%s\n\n", len(repos), total, who.Login)
-		tw := tabwriter.NewWriter(f.IO.Out, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(tw, "NAME\tDESCRIPTION\tINFO\tUPDATED")
-		for i := range repos {
-			r := &repos[i]
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", r.FullName, truncate(oneLine(r.Description), 50), info(r), ago(r.UpdatedAt))
-		}
-		return tw.Flush()
+	if total < int64(len(repos)) {
+		total = int64(len(repos))
 	}
+
+	rows := make([][]output.Cell, len(repos))
 	for i := range repos {
 		r := &repos[i]
-		fmt.Fprintf(f.IO.Out, "%s\t%s\t%s\t%s\n", r.FullName, oneLine(r.Description), info(r), r.UpdatedAt.UTC().Format(time.RFC3339))
+		updated := r.UpdatedAt.UTC().Format(time.RFC3339)
+		if tty {
+			updated = output.TimeAgo(r.UpdatedAt)
+		}
+		rows[i] = []output.Cell{
+			output.Text(r.FullName),
+			output.Text(oneLine(r.Description)),
+			output.Text(info(r)),
+			output.Text(updated),
+		}
 	}
-	return nil
+	table := &output.Table{Headers: []string{"NAME", "DESCRIPTION", "INFO", "UPDATED"}, Rows: rows}
+	write := func(w io.Writer) error {
+		if tty {
+			fmt.Fprintf(w, "\nShowing %d of %d repositories in @%s\n\n", len(repos), total, who.Login)
+		}
+		return table.Print(w, output.TableOptions{
+			TTY:   tty,
+			Width: f.IO.TerminalWidth(),
+			Color: f.IO.ColorEnabled(),
+		})
+	}
+	pager := output.ResolvePager(f.Getenv, configPager(f))
+	return pager.Run(ctx, f.IO.Out, f.IO.ErrOut, output.PagerOptions{Disabled: o.noPager}, write)
+}
+
+func configPager(f *app.Factory) string {
+	cfg, err := f.Config()
+	if err != nil || cfg == nil {
+		return ""
+	}
+	return cfg.Defaults.Pager
 }
 
 func info(r *api.Repository) string {
@@ -159,40 +198,4 @@ func info(r *api.Repository) string {
 
 func oneLine(s string) string {
 	return strings.Join(strings.Fields(s), " ")
-}
-
-func truncate(s string, n int) string {
-	r := []rune(s)
-	if len(r) <= n {
-		return s
-	}
-	return string(r[:n-1]) + "…"
-}
-
-// now is replaced in tests.
-var now = time.Now
-
-func ago(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	d := now().Sub(t)
-	switch {
-	case d < time.Minute:
-		return "less than a minute ago"
-	case d < time.Hour:
-		return plural(int(d.Minutes()), "minute") + " ago"
-	case d < 24*time.Hour:
-		return plural(int(d.Hours()), "hour") + " ago"
-	case d < 30*24*time.Hour:
-		return plural(int(d.Hours()/24), "day") + " ago"
-	}
-	return t.Format("Jan 2, 2006")
-}
-
-func plural(n int, unit string) string {
-	if n == 1 {
-		return "about 1 " + unit
-	}
-	return fmt.Sprintf("about %d %ss", n, unit)
 }

@@ -1,0 +1,253 @@
+# Phase 3 — Issues a pull requesty: postup a checklist
+
+Cieľ: v0.1.0 (IMPLEMENTATION.txt §16, Phase 3; špecifikácia §5.4, §5.5, §10, §11).
+Fáza 2 (2a + 2b) je hotová, toto je ďalší krok.
+
+Rovnako ako pri fáze 2 je fáza rozdelená na menšie míľniky. Každý z nich
+skončí samostatným commitom, ktorý prejde testami (§17.2, §18 Definition of done).
+
+  3a  Výstupná infraštruktúra (--json/--jq/--template, tabuľky, pager, editor)
+  3b  Issues
+  3c  PR, iba čítanie (list, view, diff, checks)
+  3d  PR, zápis (create, checkout, merge, close/reopen/ready/edit/comment)
+  3e  PR review + upratanie, dokumentácia, uzavretie fázy
+
+---
+
+## 0. Rozhodnutia pred začatím (BACKLOG): zapísané 2026-11-16
+
+- [x] B-37: pravidlo pre 40-hex sa zruší (A). Treba to implementovať pred 3c.
+- [x] B-31: overené vo swaggeri 15.0.11 aj 17.0.1. Výnimka: `pr list
+      --base/--head` je dostupný iba v 17, pozri B-44.
+- [x] B-40: `--jq` cez itchyny/gojq.
+- [x] B-41: šírka znakov cez golang.org/x/text/width, bez novej závislosti.
+- [x] B-28: pager FJO_PAGER > config > PAGER > `less -FRX`. Ak pager chýba,
+      výstup ide priamo. Editor FJO_EDITOR > config > VISUAL > EDITOR >
+      notepad/nano. Ak sa VT nepodarí zapnúť, správa sa ako --color=never.
+- [x] B-42: `--json-errors` sa odkladá až za fázu 3.
+- [x] §5.4: `--page` odstránený (B-13).
+- [x] B-43: `pr create` sa v TTY opýta na push. Bez TTY je to chyba,
+      pokiaľ nie je zadaný `--push`.
+- [ ] B-44: rozhodnúť pri 3c (odporúčanie: filtrovať na klientovi pre 15).
+
+---
+
+## 3a — Výstupná infraštruktúra
+
+Stav: hotovo 2026-11-16.
+
+Spoločné časti pre všetky príkazy, ktoré niečo vypisujú. Najprv ich treba
+doplniť do existujúcich `repo list`/`repo view`, až potom pridávať issues.
+
+- [x] Balík `internal/cli/cmdutil` (alebo nový `internal/output`):
+  - [x] `AddJSONFlags(cmd, fields []string)` registruje `--json`, `--jq` a `--template` (B-2).
+  - [x] Ak `--json` nemá polia, skončí usage chybou (exit 10) a vypíše
+        dostupné polia zoradené ako v gh.
+  - [x] Neznáme pole vráti usage chybu so zoznamom polí.
+  - [x] `--jq` a `--template` bez `--json` skončia usage chybou.
+  - [x] `--jq` cez gojq. Pri chybe výrazu exit 10 a čitateľná správa.
+  - [x] `--template` cez text/template s podmnožinou gh helperov
+        (`tablerow`, `tablerender`, `timeago`, `color`, `join`, `pluck`, `truncate`).
+- [x] Normalizované JSON modely (§10.2), nie surové Forgejo štruktúry:
+  - [x] `Issue`, `PullRequest`, `User{login}`, `Label{name,color}`,
+        `Milestone{title,number}`, `Comment`, `Review`, `Check`.
+  - [x] Názvy polí podľa gh, kde sa dá (`number`, `title`, `state`, `author`,
+        `url`, `createdAt`, ...). Odchýlky zapísať do compatibility.md.
+  - [x] Typy a nullability sú stabilné. Na schému napísať golden testy.
+- [x] Table printer:
+  - [x] TTY: zarovnané stĺpce, rešpektuje šírku terminálu, skracuje s `…`
+        a je Unicode-aware.
+  - [x] Bez TTY: TSV bez farieb a bez skracovania (rovnako ako gh).
+  - [x] Farby iba ak je povolené `--color`/NO_COLOR/CLICOLOR_FORCE.
+  - [x] Hlášky pre prázdny výsledok idú na stderr, napr.
+        „no open issues in owner/repo“.
+  - [x] Výpis `repo list` presunúť z tabwriter na nový printer.
+- [x] Pager:
+  - [x] Poradie: `FJO_PAGER` > config `pager` > `PAGER` > `less -FRX`.
+  - [x] Flag `--no-pager`, platí iba pre príkazy s dlhým výstupom.
+  - [x] Pager sa nespúšťa, ak stdout nie je TTY, ani pri `--json`.
+  - [x] Windows: ak pager neexistuje, výstup ide priamo (B-28).
+- [x] Editor pre telo issue/PR:
+  - [x] Poradie: `FJO_EDITOR` > config `editor` > `VISUAL` > `EDITOR` >
+        default podľa OS.
+  - [x] Dočasný súbor s právami 0600, po skončení sa zmaže.
+  - [x] Prázdny obsah = zrušenie (exit 2).
+- [x] Spoločné flagy pre telo: `--body`, `--body-file` (`-` = stdin) a
+      `--editor`. Kombinácia `--body` + `--body-file` je usage chyba.
+- [x] Doplniť `--json` do `repo list` a `repo view`.
+- [x] Testy: výber polí, jq, template, tabuľka TTY vs. bez TTY, výber pagera
+      a editora (bez spúšťania skutočného procesu, cez inject).
+
+---
+
+## 3b — Issues
+
+API vrstva (`internal/api/issues.go`):
+
+- [ ] Endpointy registrovať v `endpoints.go`. `swagger_test.go` ich potom
+      overí voči 15 a 17.
+- [ ] `ListIssues`: vždy posiela `type=issues` (B-31) a používa `api.List`
+      s limitom (B-13).
+- [ ] Filtre: `state`, `labels`, `milestones`, `created_by`, `assigned_by`,
+      `mentioned_by`, `q`. Zoznam overiť v swaggeri.
+- [ ] Filter, ktorý API nepodporuje, vráti explicitnú chybu a nesmie sa
+      ticho ignorovať (§5.4).
+- [ ] Get, Create, Edit (PATCH), Comment, Delete, labels add/remove,
+      pin/unpin (overiť, či ich 15 LTS podporuje; ak nie, exit 15).
+- [ ] CLI používa číslo issue (`index`), nikdy interné `id` (B-31).
+
+Príkazy (`internal/cli/issue/`). Povinné podľa roadmapy sú označené (*):
+
+- [ ] (*) `issue list`: flagy `--state open|closed|all`, `--author`,
+      `--assignee`, `--label` (opakovateľný), `--milestone`, `--search`,
+      `-L/--limit`, `--web`, `--json`, `-R`.
+- [ ] (*) `issue view <num|url>`: flagy `--comments`, `--web`, `--json`.
+      Markdown zatiaľ ako čistý text (rendering je samostatná úloha).
+- [ ] (*) `issue create`:
+  - [ ] Flagy `--title`, `--body`/`--body-file`/`--editor`, `--label`,
+        `--assignee`, `--milestone`, `--web`.
+  - [ ] V TTY sa chýbajúce polia doplnia promptom, bez TTY je chýbajúci
+        `--title` chyba (§11.1).
+  - [ ] Na stdout ide URL vytvoreného issue (gh to robí rovnako).
+- [ ] (*) `issue close <num>`: flag `--comment`. gh `--reason` Forgejo nemá,
+      preto vráti exit 15 a vec sa zapíše do compatibility.md.
+- [ ] (*) `issue reopen <num>`: flag `--comment`.
+- [ ] `issue comment <num>`: `--body`, `--body-file` a `--editor`.
+- [ ] `issue edit <num>`: `--title`, `--body*`, `--add-label`/`--remove-label`,
+      `--add-assignee`/`--remove-assignee`, `--milestone`/`--remove-milestone`.
+- [ ] `issue delete <num>`: `--yes`. V TTY sa potvrdzuje napísaním čísla
+      (vzor `repo delete`), bez TTY a bez `--yes` je to chyba.
+- [ ] `issue pin` / `issue unpin`: iba ak to swagger obsahuje.
+- [ ] Argument môže byť číslo, `#42` alebo plná URL issue, pričom URL
+      určuje host aj repo.
+- [ ] Testy:
+  - [ ] httptest pre každý príkaz.
+  - [ ] Bez TTY: chýbajúce argumenty, žiadny prompt.
+  - [ ] V TTY: prompty cez fake.
+  - [ ] Golden testy pre tabuľky a JSON.
+- [ ] Integrácia (Forgejo 15 a 17): create, list, view, comment, close,
+      reopen, edit, delete.
+
+---
+
+## 3c — PR, iba čítanie
+
+API (`internal/api/pulls.go`):
+
+- [ ] List pulls (`state`, `sort`, `labels`, `milestone`), Get pull, `.diff`
+      a `.patch` (stream, bez bufferovania), files, commit statuses pre head SHA.
+
+Príkazy (`internal/cli/pr/`):
+
+- [ ] (*) `pr list`:
+  - [ ] Flagy `--state open|closed|merged|all`, `--author`, `--assignee`,
+        `--label`, `--base`, `--head`, `--draft`, `-L`, `--web`, `--json`.
+  - [ ] `merged` a `--draft` (WIP prefix) sa filtrujú na klientovi.
+        Treba to zdokumentovať a dať pozor, aby `--limit` stále platil.
+- [ ] (*) `pr view [<num|url|branch>]`:
+  - [ ] Bez argumentu sa nájde PR pre aktuálnu vetvu (podľa head
+        branch + owner).
+  - [ ] Flagy `--comments`, `--web`, `--json`.
+- [ ] (*) `pr diff [<num>]`:
+  - [ ] Flagy `--color`, `--name-only` (cez files endpoint), `--patch`.
+  - [ ] Výstup ide cez pager a stream sa kopíruje (io.Copy).
+- [ ] `pr checks [<num>]`:
+  - [ ] Stavy commitu na head SHA (B-31), tabuľka a `--json`.
+  - [ ] Exit 8, ak niečo ešte beží. Exit 1, ak niečo zlyhalo.
+  - [ ] `--watch` s intervalom (voliteľné, inak do BACKLOG).
+- [ ] Testy: httptest, výber PR pre aktuálnu vetvu cez git v temp repo,
+      streamovanie veľkého diffu bez načítania do pamäte.
+
+---
+
+## 3d — PR, zápis
+
+- [ ] (*) `pr create`:
+  - [ ] Head = aktuálna vetva. Ak je detached HEAD, chyba.
+  - [ ] Push remote a upstream sa zisťujú z git configu.
+  - [ ] Base = `--base`, inak default vetva repa (§5.5: iba ak je to
+        jednoznačné).
+  - [ ] Head z forku vo formáte `owner:branch`.
+  - [ ] Ak vetva nie je na serveri, správanie podľa rozhodnutia z bodu 0
+        (push alebo chyba).
+  - [ ] `--fill` a `--fill-first`: titulok a telo z commitov `base..head`.
+  - [ ] `--draft` = prefix `WIP: ` v titulku (B-31).
+  - [ ] Ďalšie flagy: `--title`, `--body*`, `--label`, `--assignee`,
+        `--reviewer`, `--milestone`, `--web`.
+  - [ ] Existujúci otvorený PR pre rovnaký head/base je chyba s jeho URL
+        (exit 13).
+  - [ ] Bez TTY: bez `--title` alebo `--fill` je to chyba.
+- [ ] (*) `pr checkout <num>`:
+  - [ ] Fetch `refs/pull/<n>/head` do lokálnej vetvy (meno = head branch,
+        prípadne `--branch`).
+  - [ ] Nikdy neprepíše lokálne zmeny (§5.5): špinavý working tree = chyba.
+  - [ ] Ak vetva existuje a nedá sa fast-forwardovať, chyba. Prepísať ju
+        dovolí iba `--force`.
+  - [ ] Hodnoty zo servera ako argumenty pre git vždy za `--`, rovnaké
+        spevnenie ako v 5dffb4a.
+  - [ ] Pri PR z forku nastaviť upstream, ak sa dá. Inak iba lokálna vetva.
+- [ ] (*) `pr merge [<num>]`:
+  - [ ] `--merge|--squash|--rebase`, plus Forgejo `rebase-merge` a
+        `fast-forward-only`, ak ich swagger obsahuje.
+  - [ ] Povolené metódy sa zistia z nastavení repa
+        (`allow_merge_commits`, `allow_squash_merge`, ...) (§5.5).
+        Nepovolená metóda = exit 15 so zoznamom povolených.
+  - [ ] V TTY výber metódy, ak nie je zadaná. Bez TTY je flag povinný.
+  - [ ] `--delete-branch` maže vzdialenú vetvu cez API a lokálnu vetvu iba
+        vtedy, keď na nej práve nie si.
+  - [ ] `--subject`, `--body*` pre merge commit.
+  - [ ] `--auto` cez `merge_when_checks_succeed`, ak to existuje vo verzii
+        15 aj 17.
+  - [ ] Nemergeovateľný PR alebo konflikt = exit 13 s čitateľnou správou
+        (SHA nesmie byť zredigované, B-37).
+- [ ] `pr close <num>`: flagy `--comment` a `--delete-branch`.
+- [ ] `pr reopen <num>`.
+- [ ] `pr ready <num>`: odstráni WIP prefix. `--undo` ho pridá späť.
+- [ ] `pr edit <num>`: rovnaké flagy ako `issue edit` a navyše `--base`
+      a `--add-reviewer`/`--remove-reviewer`.
+- [ ] `pr comment <num>`.
+- [ ] Testy:
+  - [ ] Git integrácia (temp repo + bare remote): create detekcia, checkout
+        (čistý stav, špinavý stav, existujúca vetva, --force).
+  - [ ] Integrácia Forgejo 15 a 17: create, merge (každá povolená metóda),
+        close, reopen, ready.
+
+---
+
+## 3e — Review, upratanie, uzavretie fázy
+
+- [ ] `pr review [<num>]`:
+  - [ ] Flagy `--approve`, `--request-changes`, `--comment` a `--body*`.
+  - [ ] Pred použitím overiť, či API review podporuje (§5.5). Ak nie, exit 15.
+  - [ ] Request changes a comment bez tela je chyba (rovnako ako v gh).
+  - [ ] Review vlastného PR: chybu zo servera zobraziť čitateľne (exit 13).
+- [ ] B-39 (voliteľné): `repo rename` upraví lokálny remote.
+- [ ] Ďalšie nápady presunuté mimo fázy 3: B-22 (label/milestone),
+      B-24 (status), B-25 (search), B-21 (browse). Zostávajú v BACKLOG
+      a nepatria do tejto fázy.
+- [ ] Dokumentácia:
+  - [ ] `docs/commands.md`: všetky nové príkazy, flagy a príklady.
+  - [ ] `docs/compatibility.md`: parity tabuľka issue/pr a všetky odchýlky
+        (draft = WIP, close --reason, merged filter na klientovi, merge
+        metódy).
+  - [ ] JSON schéma pre issue a pr (§10.2), aspoň ako tabuľka polí.
+  - [ ] CHANGELOG pre v0.1.0.
+  - [ ] IMPLEMENTATION.txt §16 Phase 3: odškrtnúť úlohy a zapísať dátum.
+  - [ ] BACKLOG: doplniť rozhodnutia (B-31, B-37, gojq a ďalšie).
+
+---
+
+## Kontrola pred uzavretím (acceptance criteria, Phase 3)
+
+- [ ] Celý issue workflow funguje end-to-end (integrácia 15 a 17).
+- [ ] Celý PR workflow funguje end-to-end: create, checkout, review, merge.
+- [ ] Interaktívne aj neinteraktívne použitie je otestované. Bez TTY nikdy
+      nečaká na vstup.
+- [ ] Všetky hlavné príkazy majú `--json`, `--jq` a `--template`.
+- [ ] Správanie je konzistentné so zdokumentovanými gh konvenciami
+      (flagy, exit kódy, TSV bez TTY).
+- [ ] `go vet`, linter, `go test -race ./...` a integračné testy prechádzajú.
+- [ ] Buildy pre Linux, Windows a macOS prechádzajú.
+- [ ] Žiadne tokeny v logoch ani v `--debug` výstupe. SHA sa v chybách
+      nemaskujú.
+- [ ] Definition of done (§18) je splnené pre každý príkaz.
