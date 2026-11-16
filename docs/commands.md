@@ -12,6 +12,33 @@
 | `-h, --help` | Show help |
 | `-v, --version` | Show version |
 
+## Output flags
+
+Commands with structured output (`repo list`, `repo view`, and from Phase 3 the
+issue and pull request commands) add:
+
+| Flag | Description |
+|---|---|
+| `--json FIELDS` | Output JSON with a comma-separated field list |
+| `-q, --jq EXPR` | Filter JSON output using a jq expression |
+| `-t, --template TPL` | Format JSON output using a Go template |
+| `--no-pager` | Disable the pager for this command |
+
+`--json` requires at least one field. Bare `--json` is a usage error (exit 10)
+that lists the available fields, sorted. Unknown fields, and `--jq` or
+`--template` without `--json`, are usage errors too. JSON is indented when
+stdout is a terminal and compact otherwise; `--json` is never sent through the
+pager.
+
+The pager is chosen from `FJO_PAGER`, the `defaults.pager` config value,
+`PAGER`, then `less -FRX`. It is not started when stdout is not a terminal,
+when `--no-pager` is given, or when the pager executable is missing. The
+editor used by `--editor` follows `FJO_EDITOR`, `defaults.editor`, `VISUAL`,
+`EDITOR`, then `notepad` on Windows or `nano` elsewhere.
+
+Templates support `tablerow`, `tablerender`, `timeago`, `color`, `join`,
+`pluck` and `truncate`.
+
 ## fjo version
 
 Show version information.
@@ -125,6 +152,16 @@ reported, not guessed).
 | `-R, --repo REPO` | Select the repository: `[HOST/]OWNER/REPO` |
 | `-w, --web` | Open the repository in the browser (prints the URL when no browser is available) |
 | `-b, --branch BRANCH` | Open a branch (with `--web`) |
+| `--json FIELDS` | Output JSON with the selected fields |
+| `-q, --jq EXPR` | Filter JSON output with jq (requires `--json`) |
+| `-t, --template TPL` | Format JSON output with a Go template (requires `--json`) |
+| `--no-pager` | Disable the pager |
+
+JSON fields: `name`, `nameWithOwner`, `description`, `isPrivate`,
+`isInternal`, `isFork`, `isMirror`, `isTemplate`, `isArchived`, `isEmpty`,
+`defaultBranch`, `primaryLanguage`, `topics`, `url`, `cloneUrl`, `sshUrl`,
+`websiteUrl`, `stargazerCount`, `forkCount`, `openIssueCount`,
+`openPullRequestCount`, `parent`, `createdAt`, `updatedAt`.
 
 On a terminal: name, description, visibility/fork/archived, default branch,
 counters and URL. Otherwise stable `key:<TAB>value` lines (`name`,
@@ -144,9 +181,14 @@ user), most recently updated first.
 | `--archived` / `--no-archived` | Only / no archived repositories |
 | `--fork` / `--source` | Only forks / only non-forks |
 | `--hostname HOST` | Forgejo host (default: `FJO_HOST`, `defaults.host`) |
+| `--json FIELDS` | Output JSON with the selected fields |
+| `-q, --jq EXPR` | Filter JSON output with jq (requires `--json`) |
+| `-t, --template TPL` | Format JSON output with a Go template (requires `--json`) |
+| `--no-pager` | Disable the pager |
 
-Non-TTY output is tab-separated: `full_name`, description (one line), info
-(`private`, `fork`, `archived`, `mirror`), updated time (RFC 3339).
+JSON fields are the same as `repo view --json`. Non-TTY output is
+tab-separated: `full_name`, description (one line), info (`private`, `fork`,
+`archived`, `mirror`), updated time (RFC 3339).
 
 ### fjo repo create <name>
 

@@ -328,7 +328,7 @@ Only expose flags where their semantics are meaningful. `--json <fields>`
 (comma-separated, `gh` semantics; without fields it fails and prints the
 available fields), `--jq` and `--template` are registered on output-producing
 command groups from Phase 3, not globally. `--no-pager` is added together with
-the pager (Phase 3).
+the pager (Phase 3a).
 
 ### 5.2 Authentication commands
 
@@ -481,9 +481,10 @@ Filtering:
 --label
 --milestone
 --limit
---page
 --search
 ```
+
+There is no `--page` flag: `--limit` is the maximum number of items and pagination is internal (B-13).
 
 Implement only filtering combinations supported by the target API. Unsupported filters must return an explicit error rather than silently ignoring the option.
 

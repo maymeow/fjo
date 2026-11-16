@@ -14,12 +14,15 @@ import (
 	"github.com/maymeow/fjo/internal/app"
 	"github.com/maymeow/fjo/internal/browser"
 	"github.com/maymeow/fjo/internal/fjoerr"
+	"github.com/maymeow/fjo/internal/output"
 )
 
 type viewOptions struct {
-	repo   string
-	web    bool
-	branch string
+	repo    string
+	web     bool
+	branch  string
+	noPager bool
+	json    *output.JSONFlags
 }
 
 func newViewCmd(f *app.Factory) *cobra.Command {
@@ -40,6 +43,8 @@ Without an argument the repository of the current directory is shown.`,
 	}
 	cmd.Flags().BoolVarP(&o.web, "web", "w", false, "Open the repository in the browser")
 	cmd.Flags().StringVarP(&o.branch, "branch", "b", "", "Show the given branch (with --web)")
+	cmd.Flags().BoolVar(&o.noPager, "no-pager", false, "Disable the pager")
+	o.json = output.AddJSONFlags(cmd, output.RepositoryFields)
 	addRepoFlag(cmd, &o.repo)
 	return cmd
 }
@@ -72,12 +77,24 @@ func runView(ctx context.Context, f *app.Factory, o viewOptions, args []string) 
 		}
 		return err
 	}
-	if f.IO.IsStdoutTTY() {
-		printRepoTTY(f.IO.Out, repo)
-	} else {
-		printRepoRaw(f.IO.Out, repo)
+	if o.json.Changed() {
+		return o.json.Write(ctx, f.IO.Out, output.NewRepository(repo), output.WriteOptions{
+			TTY:   f.IO.IsStdoutTTY(),
+			Color: f.IO.ColorEnabled(),
+			Width: f.IO.TerminalWidth(),
+		})
 	}
-	return nil
+	tty := f.IO.IsStdoutTTY()
+	write := func(w io.Writer) error {
+		if tty {
+			printRepoTTY(w, repo)
+		} else {
+			printRepoRaw(w, repo)
+		}
+		return nil
+	}
+	pager := output.ResolvePager(f.Getenv, configPager(f))
+	return pager.Run(ctx, f.IO.Out, f.IO.ErrOut, output.PagerOptions{Disabled: o.noPager}, write)
 }
 
 func openInBrowser(f *app.Factory, u string) error {

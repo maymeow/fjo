@@ -54,6 +54,22 @@ func TestCanPrompt(t *testing.T) {
 	}
 }
 
+func TestTerminalWidth(t *testing.T) {
+	s, _, _, _ := Test()
+	if got := s.TerminalWidth(); got != 80 {
+		t.Errorf("default width = %d", got)
+	}
+	s.SetTTY(false, true, false)
+	s.SetGetenv(envOf(map[string]string{"COLUMNS": "120"}))
+	if got := s.TerminalWidth(); got != 120 {
+		t.Errorf("COLUMNS width = %d", got)
+	}
+	s.SetTerminalWidth(42)
+	if got := s.TerminalWidth(); got != 42 {
+		t.Errorf("override width = %d", got)
+	}
+}
+
 func TestParseColorMode(t *testing.T) {
 	for _, ok := range []string{"auto", "always", "never"} {
 		if _, valid := ParseColorMode(ok); !valid {
