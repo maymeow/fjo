@@ -16,14 +16,26 @@
 #
 # Install as /etc/forgejo-runner/config.yml and start with
 #   forgejo-runner daemon --config /etc/forgejo-runner/config.yml
+#
+# Runner v13+: no `forgejo-runner register`. install.sh appends a
+# `server.connections` block with the UUID and token from
+# Settings → Actions → Runners → Create new runner:
+#
+#   server:
+#     connections:
+#       forgejo:
+#         url: https://forgejo.example.org
+#         uuid: <uuid>
+#         token: <token>
+#
+# The token is a secret: keep the installed file root:forgejo-runner 0640.
 
 log:
   level: info
   job_level: info
 
 runner:
-  # Registration state written by `forgejo-runner register`
-  # (relative to the service WorkingDirectory, /var/lib/forgejo-runner).
+  # Only used by the legacy `register` flow; connections are in `server` below.
   file: .runner
   # test + integration + lint can run in parallel. Each host-mode job gets its
   # own workdir; integration containers use random ports and unique names.
@@ -42,7 +54,8 @@ runner:
   fetch_timeout: 5s
   fetch_interval: 2s
   report_interval: 1s
-  # Overrides the labels stored in .runner. `:host` = run directly on the host.
+  # Used by every connection that does not set its own labels.
+  # `:host` = run directly on the host.
   labels:
     - "fjo-linux-amd64:host"
 

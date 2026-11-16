@@ -30,18 +30,37 @@ container that address is the container itself, so the label is
 
 ## Install
 
-1. Create a registration token: repository (or org/instance)
-   *Settings → Actions → Runners → Create new runner*.
+1. Create the runner in Forgejo: repository (or org)
+   *Settings → Actions → Runners → Create new runner*. Copy the **UUID** and
+   **Token** it shows (runner v13+ no longer uses `forgejo-runner register`).
 2. Copy this directory to the server and run:
 
    ```bash
-   sudo RUNNER_VERSION=<x.y.z> FORGEJO_URL=https://forgejo.example.org RUNNER_TOKEN=<token> ./install.sh
+   sudo RUNNER_VERSION=<x.y.z> FORGEJO_URL=https://forgejo.example.org RUNNER_UUID=<uuid> RUNNER_TOKEN=<token> ./install.sh
    ```
 
    Pick `RUNNER_VERSION` from
-   <https://code.forgejo.org/forgejo/runner/releases>. The script verifies the
-   binary's SHA-256, creates the `forgejo-runner` system user (in the `docker`
-   group), registers the runner and enables the systemd service.
+   <https://code.forgejo.org/forgejo/runner/releases>. The script first pings
+   the Forgejo Actions endpoint, then verifies the binary's SHA-256, creates
+   the `forgejo-runner` system user (in the `docker` group), writes the config
+   with a `server.connections` entry (mode 0640) and starts the systemd service.
+
+### `Cannot ping the Forgejo instance server … invalid content-type: ""`
+
+The runner reached *something* at `FORGEJO_URL`, but not Forgejo's Actions
+API. Test it from the runner server:
+
+```bash
+curl -i -X POST -H 'Content-Type: application/json' -d '{"data":"x"}' https://forgejo.example.org/api/actions/ping.v1.PingService/Ping
+```
+
+A healthy instance returns `200` with `{"data":"Hello, x!"}`. Common causes:
+
+- `FORGEJO_URL` is not the instance root (a repo/settings path, `http://`
+  that redirects to `https://`, or a different host than `ROOT_URL`).
+- Actions disabled: `[actions] ENABLED = false` in `app.ini`.
+- A reverse proxy or WAF blocks or rewrites `POST /api/actions/…`
+  (it must pass the request through unchanged, including `Content-Type`).
 3. Check the runner is *Idle* in the Forgejo UI, then push a commit or re-run
    the `ci` workflow.
 

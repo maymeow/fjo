@@ -1,31 +1,58 @@
 #!/usr/bin/env bash
-# Install and register the fjo Linux CI runner (label fjo-linux-amd64:host).
+# Install the fjo Linux CI runner (label fjo-linux-amd64:host), forgejo-runner v13+.
 #
-# Run as root on the runner server (Debian/Ubuntu with Docker already
-# installed):
+# 1. In Forgejo: repository (or org) Settings → Actions → Runners →
+#    Create new runner. Copy the UUID and Token it shows.
+# 2. On the runner server, as root (Debian/Ubuntu, Docker already installed):
 #
 #   RUNNER_VERSION=<x.y.z> \
 #   FORGEJO_URL=https://forgejo.example.org \
-#   RUNNER_TOKEN=<registration token> \
+#   RUNNER_UUID=<uuid> \
+#   RUNNER_TOKEN=<token> \
 #   ./install.sh
 #
 # RUNNER_VERSION: a release from https://code.forgejo.org/forgejo/runner/releases
-# RUNNER_TOKEN:   repository/org/instance Settings → Actions → Runners → Create new runner
-# RUNNER_NAME:    optional, defaults to the hostname.
+# FORGEJO_URL:    the instance root URL (as in app.ini ROOT_URL), no repo path.
 set -euo pipefail
 
 : "${RUNNER_VERSION:?set RUNNER_VERSION (e.g. from code.forgejo.org/forgejo/runner/releases)}"
 : "${FORGEJO_URL:?set FORGEJO_URL}"
-: "${RUNNER_TOKEN:?set RUNNER_TOKEN}"
-RUNNER_NAME="${RUNNER_NAME:-$(hostname)}"
+: "${RUNNER_UUID:?set RUNNER_UUID (Settings → Actions → Runners → Create new runner)}"
+: "${RUNNER_TOKEN:?set RUNNER_TOKEN (Settings → Actions → Runners → Create new runner)}"
+FORGEJO_URL="${FORGEJO_URL%/}"
 RUNNER_USER=forgejo-runner
 RUNNER_HOME=/var/lib/forgejo-runner
+CONFIG=/etc/forgejo-runner/config.yml
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "run as root" >&2
   exit 1
 fi
+
+# Reject values that would break the generated YAML.
+for v in FORGEJO_URL RUNNER_UUID RUNNER_TOKEN; do
+  case "${!v}" in
+    *[[:space:]\"\'\#]*) echo "$v contains whitespace, quotes or #" >&2; exit 1 ;;
+  esac
+done
+
+echo "==> Check Forgejo Actions endpoint"
+# Same RPC the runner uses on start. A working instance answers 200 with a
+# JSON body; HTML, a redirect or an empty 404 means a wrong URL, Actions
+# disabled ([actions] ENABLED) or a reverse proxy blocking /api/actions/.
+ping_url="$FORGEJO_URL/api/actions/ping.v1.PingService/Ping"
+code="$(curl -sS -o /tmp/fjo-runner-ping.$$ -w '%{http_code} %{content_type}' \
+  -X POST -H 'Content-Type: application/json' -d '{"data":"fjo"}' "$ping_url" || true)"
+if [ "${code%% *}" != 200 ] || ! grep -q '"data"' /tmp/fjo-runner-ping.$$; then
+  echo "Ping failed: $ping_url -> HTTP $code" >&2
+  head -c 300 /tmp/fjo-runner-ping.$$ >&2 || true
+  echo >&2
+  rm -f /tmp/fjo-runner-ping.$$
+  exit 1
+fi
+rm -f /tmp/fjo-runner-ping.$$
+echo "ok"
 
 echo "==> Packages"
 apt-get update
@@ -60,25 +87,34 @@ fi
 usermod -aG docker "$RUNNER_USER"
 install -d -o "$RUNNER_USER" -g "$RUNNER_USER" -m 0750 \
   "$RUNNER_HOME" "$RUNNER_HOME/work" "$RUNNER_HOME/cache" "$RUNNER_HOME/go"
-install -d -m 0755 /etc/forgejo-runner
-install -m 0644 "$HERE/config.yml" /etc/forgejo-runner/config.yml
+# Leftover from a failed legacy `register` attempt.
+rm -f "$RUNNER_HOME/.runner"
 
-echo "==> Register"
-if [ -f "$RUNNER_HOME/.runner" ]; then
-  echo "already registered ($RUNNER_HOME/.runner exists), skipping"
-else
-  (cd "$RUNNER_HOME" && runuser -u "$RUNNER_USER" -- \
-    forgejo-runner register --no-interactive \
-      --config /etc/forgejo-runner/config.yml \
-      --instance "$FORGEJO_URL" \
-      --token "$RUNNER_TOKEN" \
-      --name "$RUNNER_NAME" \
-      --labels "fjo-linux-amd64:host")
-  chmod 0600 "$RUNNER_HOME/.runner"
-fi
+echo "==> Config ($CONFIG)"
+install -d -m 0755 /etc/forgejo-runner
+umask 027
+{
+  cat "$HERE/config.yml"
+  cat <<EOF
+
+server:
+  connections:
+    forgejo:
+      url: "$FORGEJO_URL"
+      uuid: "$RUNNER_UUID"
+      token: "$RUNNER_TOKEN"
+EOF
+} > "$CONFIG.new"
+chown root:"$RUNNER_USER" "$CONFIG.new"
+chmod 0640 "$CONFIG.new"
+mv "$CONFIG.new" "$CONFIG"
+umask 022
 
 echo "==> systemd"
 install -m 0644 "$HERE/forgejo-runner.service" /etc/systemd/system/forgejo-runner.service
 systemctl daemon-reload
-systemctl enable --now forgejo-runner
-systemctl --no-pager status forgejo-runner
+systemctl enable forgejo-runner
+systemctl restart forgejo-runner
+sleep 3
+systemctl --no-pager status forgejo-runner || true
+journalctl -u forgejo-runner -n 20 --no-pager
