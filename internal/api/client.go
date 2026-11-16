@@ -184,7 +184,7 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 			return nil, classifyTransport(err, c.base.Host)
 		}
 		c.log.Debug("http request",
-			"method", req.Method, "url", req.URL.String(), "status", resp.StatusCode,
+			"method", req.Method, "url", SanitizeURL(req.URL), "status", resp.StatusCode,
 			"duration", time.Since(start).Round(time.Millisecond).String(),
 			"request_id", firstHeader(resp.Header, "X-Request-Id", "X-Gitea-Request-Id", "X-Forgejo-Request-Id"))
 		if retryable && isRetryableStatus(resp.StatusCode) {
