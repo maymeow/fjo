@@ -224,10 +224,8 @@ func newEditCmd(f *app.Factory) *cobra.Command {
 		if !fl.Changed("title") && !body.Provided() && len(addLabels)+len(removeLabels)+len(addUsers)+len(removeUsers) == 0 && !fl.Changed("milestone") && !removeMilestone {
 			return fjoerr.Usage("specify at least one field to edit")
 		}
-		text, err := bodyRead(ctx, f, &body)
-		if err != nil {
-			return err
-		}
+		// Check that the issue exists before reading the body, so that an
+		// editor or stdin is not used for an edit that will fail anyway.
 		ref, n, err := resolve(ctx, f, repo, args[0])
 		if err != nil {
 			return err
@@ -237,6 +235,10 @@ func newEditCmd(f *app.Factory) *cobra.Command {
 			return err
 		}
 		current, err := getIssue(ctx, c, ref, n)
+		if err != nil {
+			return err
+		}
+		text, err := bodyRead(ctx, f, &body)
 		if err != nil {
 			return err
 		}

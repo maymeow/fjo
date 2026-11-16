@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -180,5 +181,21 @@ func TestPartialFailure(t *testing.T) {
 	r := h.run(nil, false, "", "issue", "close", "42", "--comment", "Closing", "-R", "org/project")
 	if r.code != fjoerr.ExitForbidden || !strings.Contains(r.stderr, "comment was added") {
 		t.Fatalf("%d %s", r.code, r.stderr)
+	}
+}
+
+// A missing issue must fail before the body is read: the body source here is a
+// file that does not exist, so reading it first would fail with a different error.
+func TestEditMissingIssueSkipsBodyRead(t *testing.T) {
+	h := newHarness(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+		io.WriteString(w, `{"message":"not found"}`)
+	})
+	r := h.run(nil, false, "", "issue", "edit", "99", "-R", "org/project", "--body-file", filepath.Join(t.TempDir(), "missing.txt"))
+	if r.code != fjoerr.ExitNotFound {
+		t.Fatalf("exit %d, want not found; stderr: %s", r.code, r.stderr)
+	}
+	if len(h.reqs) != 1 || h.methods[0] != "GET" {
+		t.Fatalf("want a single GET before failing, got %v %v", h.methods, h.reqs)
 	}
 }
