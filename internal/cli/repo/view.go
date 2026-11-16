@@ -85,11 +85,12 @@ func runView(ctx context.Context, f *app.Factory, o viewOptions, args []string) 
 		})
 	}
 	tty := f.IO.IsStdoutTTY()
+	safe := sanitizeRepo(repo)
 	write := func(w io.Writer) error {
 		if tty {
-			printRepoTTY(w, repo)
+			printRepoTTY(w, safe)
 		} else {
-			printRepoRaw(w, repo)
+			printRepoRaw(w, safe)
 		}
 		return nil
 	}
@@ -170,6 +171,28 @@ func printRepoTTY(w io.Writer, r *api.Repository) {
 	}
 	fmt.Fprintln(w)
 	fmt.Fprintf(w, "View this repository on Forgejo: %s\n", r.HTMLURL)
+}
+
+// sanitizeRepo returns a copy of r whose server-provided text cannot inject
+// terminal escape sequences or break the one-line "key:\tvalue" format.
+func sanitizeRepo(r *api.Repository) *api.Repository {
+	c := *r
+	for _, p := range []*string{
+		&c.FullName, &c.Description, &c.DefaultBranch, &c.Language,
+		&c.Website, &c.HTMLURL, &c.CloneURL, &c.SSHURL,
+	} {
+		*p = output.Sanitize(oneLine(*p))
+	}
+	c.Topics = make([]string, len(r.Topics))
+	for i, t := range r.Topics {
+		c.Topics[i] = output.Sanitize(oneLine(t))
+	}
+	if r.Parent != nil {
+		parent := *r.Parent
+		parent.FullName = output.Sanitize(oneLine(parent.FullName))
+		c.Parent = &parent
+	}
+	return &c
 }
 
 // printRepoRaw prints stable "key:\tvalue" lines for scripts (gh style).

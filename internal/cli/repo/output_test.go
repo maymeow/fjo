@@ -25,7 +25,7 @@ func TestRepoViewJSON(t *testing.T) {
 func TestRepoViewJSONJQ(t *testing.T) {
 	h := newHarness(t, repoHandler)
 	r := h.run(nil, false, "", "repo", "view", "org/project", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
-	if r.code != fjoerr.ExitOK || r.stdout != "\"org/project\"\n" {
+	if r.code != fjoerr.ExitOK || r.stdout != "org/project\n" {
 		t.Errorf("exit %d stdout %q stderr %q", r.code, r.stdout, r.stderr)
 	}
 }

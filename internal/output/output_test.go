@@ -127,7 +127,7 @@ func TestJSONWriteJQ(t *testing.T) {
 	if err := j.Write(context.Background(), &buf, data, WriteOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	if want := "\"one\"\n\"two\"\n"; buf.String() != want {
+	if want := "one\ntwo\n"; buf.String() != want {
 		t.Errorf("got %q, want %q", buf.String(), want)
 	}
 }
@@ -595,7 +595,8 @@ func TestBodyOptions(t *testing.T) {
 
 	var edited string
 	body, err = (&BodyOptions{Editor: true}).Read(ctx, BodyContext{
-		Getenv: func(string) string { return "" },
+		Getenv:    func(string) string { return "" },
+		CanPrompt: true,
 		Editor: EditorOptions{Run: func(_ context.Context, _ string, args ...string) error {
 			edited = args[len(args)-1]
 			return os.WriteFile(edited, []byte("editor body\n"), 0o600)
@@ -603,5 +604,108 @@ func TestBodyOptions(t *testing.T) {
 	})
 	if err != nil || body != "editor body\n" {
 		t.Errorf("editor: %q, %v", body, err)
+	}
+}
+
+func TestBodyEmptyFlagIsSet(t *testing.T) {
+	ctx := context.Background()
+	newCmd := func(args ...string) *BodyOptions {
+		t.Helper()
+		o := &BodyOptions{}
+		cmd := &cobra.Command{Use: "x", RunE: func(*cobra.Command, []string) error { return nil }}
+		AddBodyFlags(cmd, o)
+		cmd.SetArgs(args)
+		if err := cmd.Execute(); err != nil {
+			t.Fatal(err)
+		}
+		return o
+	}
+
+	o := newCmd("--body", "")
+	if !o.Provided() {
+		t.Error(`--body "" must count as provided (clears the body in edit)`)
+	}
+	if body, err := o.Read(ctx, BodyContext{}); err != nil || body != "" {
+		t.Errorf(`--body "": %q, %v`, body, err)
+	}
+	if newCmd().Provided() {
+		t.Error("no body flags must not count as provided")
+	}
+	if _, err := newCmd("--body", "", "--body-file", "x").Read(ctx, BodyContext{}); fjoerr.KindOf(err) != fjoerr.KindUsage {
+		t.Errorf(`--body "" --body-file: %v`, err)
+	}
+	if _, err := newCmd("--body-file", "").Read(ctx, BodyContext{}); fjoerr.KindOf(err) != fjoerr.KindUsage {
+		t.Errorf(`--body-file "": %v`, err)
+	}
+}
+
+func TestBodyEditorRequiresTerminal(t *testing.T) {
+	ran := false
+	_, err := (&BodyOptions{Editor: true}).Read(context.Background(), BodyContext{
+		Getenv: func(string) string { return "" },
+		Editor: EditorOptions{Run: func(context.Context, string, ...string) error {
+			ran = true
+			return nil
+		}},
+	})
+	if fjoerr.KindOf(err) != fjoerr.KindUsage || ran {
+		t.Errorf("err = %v, editor ran = %v", err, ran)
+	}
+}
+
+func TestSanitize(t *testing.T) {
+	for in, want := range map[string]string{
+		"plain":                    "plain",
+		"tab\tand\nnewline":        "tab\tand\nnewline",
+		"x\x1b]52;c;cHduZWQ=\x07y": "x^[]52;c;cHduZWQ=^Gy",
+		"cr\rdel\x7f":              "cr^Mdel^?",
+		"c1\u009bcsi":              "c1\uFFFDcsi",
+		"unicode ž 漢字 🌸":           "unicode ž 漢字 🌸",
+	} {
+		if got := Sanitize(in); got != want {
+			t.Errorf("Sanitize(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestTableSanitizesCells(t *testing.T) {
+	tb := &Table{Headers: []string{"A"}, Rows: [][]Cell{{Text("x\x1b[2Jy")}}}
+	for _, tty := range []bool{true, false} {
+		var buf bytes.Buffer
+		if err := tb.Print(&buf, TableOptions{TTY: tty, Width: 80}); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(buf.String(), "\x1b") || !strings.Contains(buf.String(), "x^[[2Jy") {
+			t.Errorf("tty=%v: escape not neutralized: %q", tty, buf.String())
+		}
+	}
+}
+
+func TestJSONWriteJQRawStringSanitizedOnTTY(t *testing.T) {
+	j := &JSONFlags{active: true, fields: []string{"title"}, jq: ".[].title"}
+	data := []jsonItem{{1, "a\x1b]0;pwn\x07b", ""}}
+	var tty, pipe bytes.Buffer
+	if err := j.Write(context.Background(), &tty, data, WriteOptions{TTY: true}); err != nil {
+		t.Fatal(err)
+	}
+	if tty.String() != "a^[]0;pwn^Gb\n" {
+		t.Errorf("tty: %q", tty.String())
+	}
+	if err := j.Write(context.Background(), &pipe, data, WriteOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if pipe.String() != "a\x1b]0;pwn\x07b\n" {
+		t.Errorf("pipe must keep the raw value: %q", pipe.String())
+	}
+}
+
+func TestJSONWriteJQNonStringStaysJSON(t *testing.T) {
+	j := &JSONFlags{active: true, fields: []string{"number", "title"}, jq: ".[0]"}
+	var buf bytes.Buffer
+	if err := j.Write(context.Background(), &buf, []jsonItem{{1, "one", ""}}, WriteOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if buf.String() != "{\"number\":1,\"title\":\"one\"}\n" {
+		t.Errorf("got %q", buf.String())
 	}
 }

@@ -174,6 +174,18 @@ func (j *JSONFlags) writeJQ(ctx context.Context, w io.Writer, data any, o WriteO
 		if err, ok := v.(error); ok {
 			return fjoerr.Usage("jq: %v", err)
 		}
+		// Like gh, string results are printed raw (no JSON quotes), so
+		// `--jq '.[].title'` yields plain lines. On a terminal they are
+		// sanitized because they are server-provided text.
+		if s, ok := v.(string); ok {
+			if o.TTY {
+				s = Sanitize(s)
+			}
+			if _, err := io.WriteString(w, s+"\n"); err != nil {
+				return fjoerr.Wrap(fjoerr.KindGeneral, err, "write jq output")
+			}
+			continue
+		}
 		if err := enc.Encode(v); err != nil {
 			return fjoerr.Wrap(fjoerr.KindGeneral, err, "write jq output")
 		}

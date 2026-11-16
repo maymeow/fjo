@@ -77,7 +77,7 @@ func (t *Table) Print(w io.Writer, o TableOptions) error {
 	widths := make([]int, cols)
 	header := make([]Cell, cols)
 	for i, h := range t.Headers {
-		header[i] = Text(h)
+		header[i] = Text(Sanitize(h))
 	}
 	rows := make([][]Cell, len(t.Rows))
 	for i, row := range t.Rows {
@@ -252,8 +252,10 @@ func truncateDisplay(s string, max int) string {
 	return strings.TrimRight(b.String(), " ") + "…"
 }
 
+// oneLine collapses whitespace and neutralizes control characters, so every
+// cell (TTY or TSV) is a single safe line.
 func oneLine(s string) string {
-	return strings.Join(strings.Fields(s), " ")
+	return Sanitize(strings.Join(strings.Fields(s), " "))
 }
 
 func renderCell(c Cell, color bool) string {

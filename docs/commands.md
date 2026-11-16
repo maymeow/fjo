@@ -28,13 +28,22 @@ issue and pull request commands) add:
 that lists the available fields, sorted. Unknown fields, and `--jq` or
 `--template` without `--json`, are usage errors too. JSON is indented when
 stdout is a terminal and compact otherwise; `--json` is never sent through the
-pager.
+pager. As in gh, a `--jq` result that is a string is printed raw, without JSON
+quotes (`--jq '.[].title'` prints one title per line); other results are JSON.
+
+Text from the server (descriptions, titles, `--jq` strings) is sanitized
+before it is written to a terminal: control characters are shown in caret
+notation (`^[` for ESC), so they cannot inject terminal escape sequences.
+Tables are sanitized in TSV mode as well; raw `--json` and piped `--jq` output
+keep the exact values.
 
 The pager is chosen from `FJO_PAGER`, the `defaults.pager` config value,
 `PAGER`, then `less -FRX`. It is not started when stdout is not a terminal,
 when `--no-pager` is given, or when the pager executable is missing. The
 editor used by `--editor` follows `FJO_EDITOR`, `defaults.editor`, `VISUAL`,
-`EDITOR`, then `notepad` on Windows or `nano` elsewhere.
+`EDITOR`, then `notepad` on Windows or `nano` elsewhere. `--editor` needs a
+terminal; without one it is a usage error. `--body ""` is an explicit empty
+body (it conflicts with `--body-file` like any other `--body`).
 
 Templates support `tablerow`, `tablerender`, `timeago`, `color`, `join`,
 `pluck` and `truncate`.

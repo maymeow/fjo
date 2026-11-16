@@ -55,6 +55,37 @@ when a task is done and verified.
 
 ---
 
+## 2026-11-16 — Phase 3a review fixes: terminal sanitizing, jq strings, body flags
+Phase: Phase 3 / v0.1.0
+Spec:  §10.1, §10.2, §11.1
+
+Security:
+- Server-provided text was written to the terminal unchanged, so a
+  repository description (and in 3b an issue title) could inject escape
+  sequences such as OSC 52 (clipboard write), OSC 8 links or screen clearing.
+  New output.Sanitize replaces C0 controls (except tab/newline) and DEL with
+  caret notation and C1 controls with U+FFFD. Applied to every table cell and
+  header (TTY and TSV), to `repo view` (TTY and raw) and to `--jq` string
+  results on a terminal.
+Fixed:
+- `--jq` printed string results JSON-quoted; like gh they are now raw lines.
+- `--body ""` was treated as "no body": it now counts as given
+  (BodyOptions.Provided, needed by `issue edit` to clear a body) and
+  conflicts with `--body-file`. `--body-file ""` is a usage error.
+- `--editor` without a terminal started the editor and could hang (§11.1);
+  it is now a usage error (BodyContext.CanPrompt).
+Tests:
+- go test ./..., go vet, staticcheck; GOOS=windows/darwin builds. Race tests
+  not run locally (no gcc, B-35).
+Notes / next steps:
+- Not fixed (minor): TimeAgo uses time.Since (no injected clock), pager/editor
+  command lines split on spaces (Windows paths, B-28), tablerender twice
+  repeats rows, isBrokenPipe matches error text, truncation after a ZWJ (B-41).
+- --template output is not sanitized yet (template text may legitimately
+  contain colors); decide before issue/PR templates matter.
+
+---
+
 ## 2026-11-16 — Phase 3a: output infrastructure
 Phase: Phase 3 / v0.1.0
 Spec:  §10.1, §10.2, §11.1, §16 Phase 3
