@@ -10,6 +10,10 @@ Development progress is tracked in [docs/CHANGELOG.txt](docs/CHANGELOG.txt).
 
 ### Added
 
+- `fjo issue list/view/create/edit/close/reopen/comment/delete/pin/unpin`,
+  including filters, issue URLs, JSON/jq/templates, body files, editor support,
+  interactive prompts and browser shortcuts (Forgejo 15 and 17).
+
 - `fjo --help` and `fjo --version`.
 - `fjo version` showing version, commit, Go version and platform.
 - Global flags `--color`, `--verbose`, `--debug`.

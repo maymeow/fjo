@@ -12,8 +12,8 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 
 ## Current status
 
-- Phase:            Phase 3 - Issues and pull requests (3a COMPLETE)
-- Next target:      v0.1.0 (Phase 3; next milestone 3b - issues)
+- Phase:            Phase 3 - Issues and pull requests (3a + 3b COMPLETE)
+- Next target:      v0.1.0 (Phase 3; next milestone 3c - PR read commands)
 - Last updated:     2026-11-16
 - Repo:             https://github.com/kukolos/fjo (private), branch main
 - Phase 0 open:     self-hosted runners + first CI run; race tests (B-35)
@@ -52,6 +52,42 @@ Newest entries on top. One entry per working session / merged change set.
 
 Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
+
+---
+
+## 2026-11-16 — Phase 3b: issues
+Phase: Phase 3 / v0.1.0
+Spec:  §5.4, §10, §11, §16 Phase 3
+
+Added:
+- Issue API, registered endpoints and filter checks against both pinned specs.
+- issue list/view/create/edit/close/reopen/comment/delete/pin/unpin.
+- Automatic pagination with type=issues, filters, @me, number/#number/URL
+  arguments, host/repository selection from issue URLs including subpaths.
+- Normalized JSON (existing lowercase state contract), jq/templates, tables,
+  pager, body files/stdin/editor, prompts and deletion confirmation.
+- Label/milestone resolution rejects unknown names; assignee edits preserve
+  other users; explicit empty body and milestone removal are supported.
+- httptest coverage for all commands, errors, prompts through a fake, non-TTY
+  validation, TSV/TTY/JSON goldens, pagination and a live issue lifecycle test.
+Changed:
+- Command reference, compatibility notes, Phase 3 checklist and roadmap status.
+Fixed:
+- Existing editor test checks POSIX mode bits only on non-Windows platforms;
+  Windows reports 0666 even when a file was created with mode 0600.
+Tests:
+- go test ./..., go vet ./..., staticcheck v0.8.2 (go run; installed binary
+  cannot read Go 1.27 export data).
+- Full integration suite passed on Forgejo 15.0.11 and 17.0.1 in Docker.
+  Issue search test waits for the asynchronous server index.
+- Linux Docker: go test -race ./... (native Windows has no cgo compiler).
+- Cross-builds: linux/amd64, windows/amd64, darwin/amd64.
+Notes / next steps:
+- create --web prefills title/body; metadata flags fail explicitly (exit 15).
+- view --comments is text-only; JSON comments remains a count.
+- close --reason returns exit 15. Markdown remains plain text as planned.
+- Label mutations use separate requests and report partial failure.
+- Next: 3c; apply B-37 before PR work and resolve B-44 at that milestone.
 
 ---
 
