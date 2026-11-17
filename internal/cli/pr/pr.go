@@ -82,9 +82,6 @@ func resolve(ctx context.Context, f *app.Factory, repo, arg string) (pullTarget,
 		if parseErr != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.RawQuery != "" {
 			return target, fjoerr.Usage("invalid pull request URL")
 		}
-		if repo != "" {
-			return target, fjoerr.Usage("--repo cannot be combined with a pull request URL")
-		}
 		// Accept OWNER/REPO/pulls/NUMBER followed by a tab such as /files or /commits.
 		segments := strings.Split(strings.Trim(u.Path, "/"), "/")
 		i := len(segments) - 2
@@ -101,6 +98,9 @@ func resolve(ctx context.Context, f *app.Factory, repo, arg string) (pullTarget,
 			return target, err
 		}
 		target.repo, err = f.ParseRepo(u.Host + "/" + strings.Join(segments[:i], "/"))
+		if err == nil && repo != "" {
+			err = checkRepoMatchesURL(f, repo, target.repo)
+		}
 	} else {
 		if arg != "" && (strings.HasPrefix(arg, "#") || numeric(arg)) {
 			target.number, err = pullNumber(arg)
@@ -200,4 +200,18 @@ func currentHead(ctx context.Context, f *app.Factory, base reporef.Ref) (branch,
 		break
 	}
 	return branch, base.Owner, nil
+}
+
+// checkRepoMatchesURL rejects --repo when it names a different repository
+// than the pull request URL. The host is compared only when --repo sets one.
+func checkRepoMatchesURL(f *app.Factory, repo string, fromURL reporef.Ref) error {
+	flag, err := f.ParseRepo(repo)
+	if err != nil {
+		return err
+	}
+	sameHost := strings.Count(repo, "/") < 2 || strings.EqualFold(flag.Host, fromURL.Host)
+	if !sameHost || !strings.EqualFold(flag.Owner, fromURL.Owner) || !strings.EqualFold(flag.Name, fromURL.Name) {
+		return fjoerr.Usage("--repo %s does not match the pull request URL (%s)", repo, fromURL.FullName())
+	}
+	return nil
 }

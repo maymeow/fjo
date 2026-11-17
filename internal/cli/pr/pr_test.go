@@ -137,9 +137,13 @@ func TestViewByNumberURLAndBranch(t *testing.T) {
 			t.Fatalf("%s: %+v", arg, res)
 		}
 	}
-	res = run(t, server, dir, nil, "view", server.URL+"/org/project/pulls/42", "-R", "org/project")
+	res = run(t, server, dir, nil, "view", server.URL+"/org/project/pulls/42", "-R", "org/project", "--json", "number")
+	if res.code != 0 {
+		t.Fatalf("URL with matching --repo: %+v", res)
+	}
+	res = run(t, server, dir, nil, "view", server.URL+"/org/project/pulls/42", "-R", "org/other")
 	if res.code != fjoerr.ExitUsage {
-		t.Fatalf("URL with --repo: %+v", res)
+		t.Fatalf("URL with different --repo: %+v", res)
 	}
 	res = run(t, server, dir, nil, "view", server.URL+"/org/project/pulls/x/files")
 	if res.code != fjoerr.ExitUsage {

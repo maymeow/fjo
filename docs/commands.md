@@ -431,7 +431,8 @@ fjo pr view https://git.example.org/team/project/pulls/42 --web
 ```
 
 Pass a PR number, `#NUMBER`, a Forgejo PR URL or a branch. A URL selects
-the instance and repository and cannot be combined with `--repo`; trailing
+the instance and repository; a `--repo` naming a different repository is
+rejected. Trailing
 tabs such as `/files` or `/commits` are accepted. With no argument, fjo looks for an open PR
 matching the current branch and head owner. A tracking branch on the same
 Forgejo instance supplies the remote branch name and owner. If several PRs
