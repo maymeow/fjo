@@ -74,7 +74,7 @@ func (t pullTarget) read(ctx context.Context) (*api.PullRequest, error) {
 	return t.client.GetPull(ctx, t.repo.Owner, t.repo.Name, t.number)
 }
 
-func resolve(ctx context.Context, f *app.Factory, repo, arg string, allowBranch bool) (pullTarget, error) {
+func resolve(ctx context.Context, f *app.Factory, repo, arg string) (pullTarget, error) {
 	var target pullTarget
 	var err error
 	if strings.Contains(arg, "://") {
@@ -82,20 +82,27 @@ func resolve(ctx context.Context, f *app.Factory, repo, arg string, allowBranch 
 		if parseErr != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.RawQuery != "" {
 			return target, fjoerr.Usage("invalid pull request URL")
 		}
-		path := strings.TrimSuffix(u.Path, "/")
-		i := strings.LastIndex(path, "/pulls/")
-		if i < 0 || strings.Count(path[:i], "/") < 2 {
-			return target, fjoerr.Usage("expected a pull request URL ending in /pulls/NUMBER")
+		if repo != "" {
+			return target, fjoerr.Usage("--repo cannot be combined with a pull request URL")
 		}
-		number := path[i+len("/pulls/"):]
-		path = path[:i]
-		target.number, err = pullNumber(number)
+		// Accept OWNER/REPO/pulls/NUMBER followed by a tab such as /files or /commits.
+		segments := strings.Split(strings.Trim(u.Path, "/"), "/")
+		i := len(segments) - 2
+		for ; i >= 2; i-- {
+			if segments[i] == "pulls" && numeric(segments[i+1]) {
+				break
+			}
+		}
+		if i < 2 {
+			return target, fjoerr.Usage("expected a pull request URL containing /pulls/NUMBER")
+		}
+		target.number, err = pullNumber(segments[i+1])
 		if err != nil {
 			return target, err
 		}
-		target.repo, err = f.ParseRepo(u.Host + path)
+		target.repo, err = f.ParseRepo(u.Host + "/" + strings.Join(segments[:i], "/"))
 	} else {
-		if arg != "" && (!allowBranch || strings.HasPrefix(arg, "#") || numeric(arg)) {
+		if arg != "" && (strings.HasPrefix(arg, "#") || numeric(arg)) {
 			target.number, err = pullNumber(arg)
 			if err != nil {
 				return target, err

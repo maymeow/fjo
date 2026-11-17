@@ -162,7 +162,7 @@ func newViewCmd(f *app.Factory) *cobra.Command {
 		if comments && j.Changed() {
 			return fjoerr.Usage("--comments cannot be combined with --json because the JSON comments field is a count")
 		}
-		target, err := resolve(ctx, f, repo, firstArg(args), true)
+		target, err := resolve(ctx, f, repo, firstArg(args))
 		if err != nil {
 			return err
 		}

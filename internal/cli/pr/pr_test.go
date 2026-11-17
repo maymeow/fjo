@@ -131,11 +131,19 @@ func TestViewByNumberURLAndBranch(t *testing.T) {
 	if res.code != 0 || !strings.Contains(res.out, "Looks good") {
 		t.Fatalf("%+v", res)
 	}
-	for _, arg := range []string{server.URL + "/org/project/pulls/42", "alice:feature/topic"} {
+	for _, arg := range []string{server.URL + "/org/project/pulls/42", server.URL + "/org/project/pulls/42/files", "alice:feature/topic"} {
 		res := run(t, server, dir, nil, "view", arg, "--json", "number,headRepository", "--jq", ".headRepository")
 		if res.code != 0 || res.out != "alice/project\n" {
 			t.Fatalf("%s: %+v", arg, res)
 		}
+	}
+	res = run(t, server, dir, nil, "view", server.URL+"/org/project/pulls/42", "-R", "org/project")
+	if res.code != fjoerr.ExitUsage {
+		t.Fatalf("URL with --repo: %+v", res)
+	}
+	res = run(t, server, dir, nil, "view", server.URL+"/org/project/pulls/x/files")
+	if res.code != fjoerr.ExitUsage {
+		t.Fatalf("URL without number: %+v", res)
 	}
 	res = run(t, server, dir, nil, "view", "42", "--web")
 	if res.code != 0 || res.browser != server.URL+"/org/project/pulls/42" {
@@ -186,6 +194,10 @@ func TestViewCurrentBranchUsesForkAndTrackingBranch(t *testing.T) {
 func TestDiffFilesAndPatch(t *testing.T) {
 	server := serve(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/api/v1/version":
+			io.WriteString(w, `{"version":"15.0.11"}`)
+		case repoPath + "/pulls":
+			io.WriteString(w, "["+pull+"]")
 		case repoPath + "/pulls/42/files":
 			io.WriteString(w, `[{"filename":"dir/a b.txt"}]`)
 		case repoPath + "/pulls/42.patch":
@@ -205,9 +217,11 @@ func TestDiffFilesAndPatch(t *testing.T) {
 		{[]string{"--patch"}, "-old\n+new\n"},
 		{[]string{"--patch", "--color=always"}, "\x1b[31m-old\x1b[0m\n\x1b[32m+new\x1b[0m\n"},
 	} {
-		res := run(t, server, t.TempDir(), nil, append([]string{"diff", "42"}, tc.args...)...)
-		if res.code != 0 || res.out != tc.want {
-			t.Fatalf("%v: %+v", tc.args, res)
+		for _, selector := range []string{"42", "alice:feature/topic"} {
+			res := run(t, server, t.TempDir(), nil, append([]string{"diff", selector}, tc.args...)...)
+			if res.code != 0 || res.out != tc.want {
+				t.Fatalf("%s %v: %+v", selector, tc.args, res)
+			}
 		}
 	}
 }

@@ -17,7 +17,7 @@ import (
 func newDiffCmd(f *app.Factory) *cobra.Command {
 	var repo string
 	var names, patch, noPager bool
-	cmd := &cobra.Command{Use: "diff [<number>]", Short: "View pull request changes", Args: cobra.MaximumNArgs(1)}
+	cmd := &cobra.Command{Use: "diff [<number|url|branch>]", Short: "View pull request changes", Args: cobra.MaximumNArgs(1)}
 	repoFlag(cmd, &repo)
 	cmd.Flags().BoolVar(&names, "name-only", false, "Show only changed file names")
 	cmd.Flags().BoolVar(&patch, "patch", false, "Show the changes in patch format")
@@ -27,7 +27,7 @@ func newDiffCmd(f *app.Factory) *cobra.Command {
 			return fjoerr.Usage("--name-only and --patch cannot be combined")
 		}
 		ctx := cmd.Context()
-		target, err := resolve(ctx, f, repo, firstArg(args), false)
+		target, err := resolve(ctx, f, repo, firstArg(args))
 		if err != nil {
 			return err
 		}

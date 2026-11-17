@@ -74,10 +74,9 @@ func (p PullRequest) AssignedTo(login string) bool {
 }
 
 type PullSearch struct {
-	State, Sort, Author, Assignee, Base, Head, HeadOwner string
-	Labels                                               []int64
-	Milestone                                            int64
-	Draft                                                bool
+	State, Author, Assignee, Base, Head, HeadOwner string
+	Labels                                         []int64
+	Draft                                          bool
 }
 
 func (c *Client) ListPulls(ctx context.Context, owner, repo string, s PullSearch, limit int) ([]PullRequest, error) {
@@ -86,16 +85,14 @@ func (c *Client) ListPulls(ctx context.Context, owner, repo string, s PullSearch
 	if state == "merged" {
 		state = "closed"
 	}
-	for k, v := range map[string]string{"state": state, "sort": s.Sort, "poster": s.Author} {
-		if v != "" {
-			q.Set(k, v)
-		}
+	if state != "" {
+		q.Set("state", state)
+	}
+	if s.Author != "" {
+		q.Set("poster", s.Author)
 	}
 	for _, label := range s.Labels {
 		q.Add("labels", strconv.FormatInt(label, 10))
-	}
-	if s.Milestone > 0 {
-		q.Set("milestone", strconv.FormatInt(s.Milestone, 10))
 	}
 	if s.Base != "" || s.Head != "" {
 		version, err := c.ServerVersion(ctx)

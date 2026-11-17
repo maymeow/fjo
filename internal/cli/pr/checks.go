@@ -13,12 +13,12 @@ import (
 
 func newChecksCmd(f *app.Factory) *cobra.Command {
 	var repo string
-	cmd := &cobra.Command{Use: "checks [<number>]", Short: "Show checks for a pull request", Args: cobra.MaximumNArgs(1)}
+	cmd := &cobra.Command{Use: "checks [<number|url|branch>]", Short: "Show checks for a pull request", Args: cobra.MaximumNArgs(1)}
 	j := output.AddJSONFlags(cmd, output.CheckFields)
 	repoFlag(cmd, &repo)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
-		target, err := resolve(ctx, f, repo, firstArg(args), false)
+		target, err := resolve(ctx, f, repo, firstArg(args))
 		if err != nil {
 			return err
 		}

@@ -431,13 +431,14 @@ fjo pr view https://git.example.org/team/project/pulls/42 --web
 ```
 
 Pass a PR number, `#NUMBER`, a Forgejo PR URL or a branch. A URL selects
-the instance and repository. With no argument, fjo looks for an open PR
+the instance and repository and cannot be combined with `--repo`; trailing
+tabs such as `/files` or `/commits` are accepted. With no argument, fjo looks for an open PR
 matching the current branch and head owner. A tracking branch on the same
 Forgejo instance supplies the remote branch name and owner. If several PRs
 match, specify a number or URL. `--comments` includes discussion as plain
 text. `--web` opens the PR in a browser.
 
-### `fjo pr diff [<number>]`
+### `fjo pr diff [<number|url|branch>]`
 
 ```bash
 fjo pr diff 42 --name-only
@@ -446,10 +447,10 @@ fjo pr diff 42 --patch --color=never > change.patch
 
 The default streams a unified diff through the configured pager on a
 terminal. `--patch` streams the patch format and `--name-only` lists
-changed paths. `--no-pager` disables the pager. With no number, fjo
-resolves the PR from the current branch.
+changed paths. `--no-pager` disables the pager. The PR is selected as in
+`pr view`; with no argument, fjo resolves it from the current branch.
 
-### `fjo pr checks [<number>]`
+### `fjo pr checks [<number|url|branch>]`
 
 ```bash
 fjo pr checks 42 --json name,state,bucket,url
@@ -457,8 +458,9 @@ fjo pr checks 42 --json name,state,bucket,url
 
 Shows the latest status in each context for the head commit. Any failure
 returns exit 1. Pending checks return exit 8 when there are no failures.
-Passing or skipped checks and empty results return exit 0. With no number,
-fjo resolves the PR from the current branch.
+Passing or skipped checks and empty results return exit 0. The PR is
+selected as in `pr view`; with no argument, fjo resolves it from the current
+branch.
 
 `pr list`, `pr view` and `pr checks` support `--json`, `--jq` and
 `--template`. Pass `--json` without a field list to see the available fields.
