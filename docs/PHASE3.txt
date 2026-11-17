@@ -16,7 +16,7 @@ skončí samostatným commitom, ktorý prejde testami (§17.2, §18 Definition o
 
 ## 0. Rozhodnutia pred začatím (BACKLOG): zapísané 2026-11-16
 
-- [x] B-37: pravidlo pre 40-hex sa zruší (A). Treba to implementovať pred 3c.
+- [x] B-37: pravidlo pre 40-hex sa zrušilo (A).
 - [x] B-31: overené vo swaggeri 15.0.11 aj 17.0.1. Výnimka: `pr list
       --base/--head` je dostupný iba v 17, pozri B-44.
 - [x] B-40: `--jq` cez itchyny/gojq.
@@ -28,7 +28,7 @@ skončí samostatným commitom, ktorý prejde testami (§17.2, §18 Definition o
 - [x] §5.4: `--page` odstránený (B-13).
 - [x] B-43: `pr create` sa v TTY opýta na push. Bez TTY je to chyba,
       pokiaľ nie je zadaný `--push`.
-- [ ] B-44: rozhodnúť pri 3c (odporúčanie: filtrovať na klientovi pre 15).
+- [x] B-44: Forgejo 15 filtruje vetvy na klientovi, Forgejo 17 aj na serveri.
 
 ---
 
@@ -136,28 +136,28 @@ Príkazy (`internal/cli/issue/`). Povinné podľa roadmapy sú označené (*):
 
 API (`internal/api/pulls.go`):
 
-- [ ] List pulls (`state`, `sort`, `labels`, `milestone`), Get pull, `.diff`
+- [x] List pulls (`state`, `sort`, `labels`, `milestone`), Get pull, `.diff`
       a `.patch` (stream, bez bufferovania), files, commit statuses pre head SHA.
 
 Príkazy (`internal/cli/pr/`):
 
-- [ ] (*) `pr list`:
-  - [ ] Flagy `--state open|closed|merged|all`, `--author`, `--assignee`,
+- [x] (*) `pr list`:
+  - [x] Flagy `--state open|closed|merged|all`, `--author`, `--assignee`,
         `--label`, `--base`, `--head`, `--draft`, `-L`, `--web`, `--json`.
-  - [ ] `merged` a `--draft` (WIP prefix) sa filtrujú na klientovi.
+  - [x] `merged` a `--draft` (WIP prefix) sa filtrujú na klientovi.
         Treba to zdokumentovať a dať pozor, aby `--limit` stále platil.
-- [ ] (*) `pr view [<num|url|branch>]`:
-  - [ ] Bez argumentu sa nájde PR pre aktuálnu vetvu (podľa head
+- [x] (*) `pr view [<num|url|branch>]`:
+  - [x] Bez argumentu sa nájde PR pre aktuálnu vetvu (podľa head
         branch + owner).
-  - [ ] Flagy `--comments`, `--web`, `--json`.
-- [ ] (*) `pr diff [<num>]`:
-  - [ ] Flagy `--color`, `--name-only` (cez files endpoint), `--patch`.
-  - [ ] Výstup ide cez pager a stream sa kopíruje (io.Copy).
-- [ ] `pr checks [<num>]`:
-  - [ ] Stavy commitu na head SHA (B-31), tabuľka a `--json`.
-  - [ ] Exit 8, ak niečo ešte beží. Exit 1, ak niečo zlyhalo.
-  - [ ] `--watch` s intervalom (voliteľné, inak do BACKLOG).
-- [ ] Testy: httptest, výber PR pre aktuálnu vetvu cez git v temp repo,
+  - [x] Flagy `--comments`, `--web`, `--json`.
+- [x] (*) `pr diff [<num>]`:
+  - [x] Flagy `--color`, `--name-only` (cez files endpoint), `--patch`.
+  - [x] Výstup ide cez pager a stream sa kopíruje (io.Copy).
+- [x] `pr checks [<num>]`:
+  - [x] Stavy commitu na head SHA (B-31), tabuľka a `--json`.
+  - [x] Exit 8, ak niečo ešte beží. Exit 1, ak niečo zlyhalo.
+  - [ ] `--watch` s intervalom (odložené do BACKLOG B-45).
+- [x] Testy: httptest, výber PR pre aktuálnu vetvu cez git v temp repo,
       streamovanie veľkého diffu bez načítania do pamäte.
 
 ---

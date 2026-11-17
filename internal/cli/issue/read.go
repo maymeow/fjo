@@ -50,7 +50,7 @@ func newListCmd(f *app.Factory) *cobra.Command {
 			}
 		}
 		// Validate names because Forgejo silently drops unknown label/milestone filters.
-		if _, err := labelIDs(ctx, c, ref, s.Labels); err != nil {
+		if _, err := c.ResolveLabelIDs(ctx, ref.Owner, ref.Name, s.Labels); err != nil {
 			return err
 		}
 		if s.Milestone != "" {
@@ -66,7 +66,7 @@ func newListCmd(f *app.Factory) *cobra.Command {
 				q.Set("q", s.Search)
 			}
 			if len(s.Labels) > 0 {
-				ids, err := labelIDs(ctx, c, ref, s.Labels)
+				ids, err := c.ResolveLabelIDs(ctx, ref.Owner, ref.Name, s.Labels)
 				if err != nil {
 					return err
 				}

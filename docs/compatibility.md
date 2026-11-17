@@ -71,9 +71,9 @@ Field names follow gh where the meaning is equivalent. Known differences:
 | `repo list --json`, `repo view --json` | `name` is the short name, `nameWithOwner` is `owner/repo`; `parent` is `{nameWithOwner}`; `primaryLanguage` is a string; GitHub-only fields (`licenseInfo`, `viewerPermission`, `defaultBranchRef`, ...) are absent | Forgejo's repository model |
 | Issue/PR `state` | Lowercase `open`, `closed`, `merged`, as in the IMPLEMENTATION §10.2 example | Forgejo state values; gh uses uppercase GraphQL states |
 | Issue/PR `author`, `assignees`, `reviewers` | A user object contains only `login` | gh's user objects carry many GraphQL-only fields |
-| Issue `comments` | A count in both list and view; gh returns the comment array in `view` | Forgejo returns the count separately; `view --comments` renders the discussion as plain text |
+| Issue/PR `comments` | A count in both list and view; gh returns the comment array in `view` | Forgejo returns the count separately; `view --comments` renders the discussion as plain text |
 | `Comment.id`, `Review.id` | Integer database IDs | Forgejo REST IDs are integers; gh exposes GraphQL node IDs |
-| `Check.state` | Forgejo commit-status strings (`pending`, `success`, `failure`, `error`) | `pr checks` maps them to the gh-style bucket in Phase 3c |
+| `Check.state` | Forgejo commit-status strings | `pr checks` maps them to gh-style buckets |
 
 Templates provide the gh helper subset `tablerow`, `tablerender`, `timeago`,
 `color`, `join`, `pluck` and `truncate`. `truncate` is display-width aware
@@ -96,7 +96,8 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | `gh repo create/clone/fork/edit/rename/delete/archive/unarchive/sync` | same | done (Phase 2b); differences below |
 | `gh browse` | same | idea (BACKLOG B-21) |
 | `gh issue list/view/create/edit/close/reopen/comment/delete/pin/unpin` | same | done (Phase 3b); differences below |
-| `gh pr ...` | same | planned (Phase 3); draft = `WIP:` title prefix (differs) |
+| `gh pr list/view/diff/checks` | same | done (Phase 3c), with differences below |
+| `gh pr create/checkout/merge/review/...` | same | planned (Phases 3d and 3e) |
 | `gh release ...` | same | planned (Phase 4) |
 | `gh run`, `gh workflow` | same | planned (Phase 5), scope depends on Forgejo Actions API (BACKLOG B-10) |
 | `gh org`, `gh ssh-key`, `gh secret`, `gh variable` | same | planned (Phase 6) |
@@ -145,3 +146,20 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
   the exact issue number, or `--yes` without a terminal.
 - Assignee changes use `issue edit --add-assignee/--remove-assignee`; the
   separate `issue assign` convenience command is outside the Phase 3b checklist.
+
+## Pull request command differences
+
+- `pr list` filters merged, draft and assignee matches on the client. Closed
+  selects unmerged closed PRs. Draft detection combines Forgejo's `draft` field
+  with the case-insensitive `WIP:` and `[WIP]` title prefixes.
+- Forgejo 17 supports server-side `base` and `head` parameters. Forgejo 15
+  filters branches on the client. `OWNER:BRANCH` also matches the head owner
+  on the client. The result limit counts matching PRs across pages.
+- JSON `headRepository` is the repository's `owner/name` string. JSON
+  `comments` is a count and `reviewers` contains requested user reviewers.
+  Diff sizes come from Forgejo's `additions`, `deletions` and `changed_files`
+  response fields.
+- `pr checks` uses the latest Forgejo status per context for the head SHA in
+  the target repository. Success maps to `pass`, failure, error and warning
+  map to `fail`, and skipped maps to `skipping`. Pending checks use
+  `pending` and leave `completedAt` null. Polling is tracked in B-45.

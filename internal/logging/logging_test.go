@@ -27,7 +27,6 @@ func TestRedactorPatterns(t *testing.T) {
 		{"password=hunter2", "hunter2"},
 		{"clone https://alice:pa55word@git.example.com/o/r.git", "pa55word"},
 		{"token " + hexToken, hexToken},
-		{"leaked " + hexToken + " here", hexToken},
 		{"token abcdef0123456789abcdef", "abcdef0123456789abcdef"},
 		{"Bearer A1b2C3d4E5f6G7h8I9j0", "A1b2C3d4E5f6G7h8I9j0"},
 		{"token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature", "eyJhbGciOiJIUzI1NiJ9"},
@@ -130,5 +129,15 @@ func TestLoggerLevels(t *testing.T) {
 	l.Info("shown")
 	if strings.Contains(buf.String(), "hidden") || !strings.Contains(buf.String(), "shown") {
 		t.Errorf("verbose filtering wrong: %q", buf.String())
+	}
+}
+
+func TestRedactorCommitSHAAndRegisteredToken(t *testing.T) {
+	r := NewRedactor()
+	r.Add(hexToken)
+	const sha = "abcdef0123456789abcdef0123456789abcdef01"
+	got := r.String("checks for commit " + sha + " failed using " + hexToken)
+	if want := "checks for commit " + sha + " failed using " + Redacted; got != want {
+		t.Fatalf("got %q, want %q", got, want)
 	}
 }

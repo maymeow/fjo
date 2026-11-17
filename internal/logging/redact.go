@@ -24,8 +24,6 @@ var patterns = []struct {
 	{regexp.MustCompile(`(?i)\b((?:access_)?token|password|passwd|secret|api_key|apikey|client_secret|sudo)=([^&\s"]+)`), "${1}=" + Redacted},
 	// Credentials in URLs: scheme://user:pass@host.
 	{regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9+.-]*://)[^/\s:@]+:[^/\s@]+@`), "${1}" + Redacted + "@"},
-	// Common Forgejo/Gitea access token shape: 40 hex chars.
-	{regexp.MustCompile(`\b[0-9a-f]{40}\b`), Redacted},
 	// JWT shape: three base64url segments.
 	{regexp.MustCompile(`\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b`), Redacted},
 }

@@ -451,7 +451,7 @@ Decision:
 
 ### B-37 — 40-hex redaction rule also masks git commit SHAs
 Type:     tech-debt
-Status:   accepted (implement before 3c)
+Status:   implemented in Phase 3c
 Added:    2026-11-13
 Phase:    Phase 3 (before PR/commit/checks output goes through the redactor)
 
@@ -580,7 +580,7 @@ Decision:
 
 ### B-44 — `pr list --base/--head` on Forgejo 15
 Type:     tech-debt
-Status:   open
+Status:   implemented in Phase 3c
 Added:    2026-11-16
 Phase:    Phase 3c
 
@@ -592,8 +592,21 @@ Proposal / options:
   found) and send the parameters for 17.
 - B) Exit 15 (unsupported) on 15.
 Decision:
-- (recommended: A, because filtering on the client is exact here. Decide
-  when implementing 3c.)
+- A. Send branch parameters to Forgejo 17 and apply the client filters
+  before counting matches toward the limit on both supported versions.
+  Use client filtering when the server version cannot be determined.
+
+---
+
+### B-45 — Polling with `pr checks --watch`
+
+Type:     enhancement
+Status:   open
+Added:    Phase 3c
+Phase:    after Phase 3c
+
+- Re-read statuses at an interval until the checks finish or the user
+  interrupts. Phase 3c reports a single snapshot of the head commit.
 
 ---
 

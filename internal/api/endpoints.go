@@ -68,3 +68,11 @@ var (
 	epPinIssue           = endpoint("POST", "/repos/{owner}/{repo}/issues/{index}/pin")
 	epUnpinIssue         = endpoint("DELETE", "/repos/{owner}/{repo}/issues/{index}/pin")
 )
+
+var (
+	epListPulls      = endpoint("GET", "/repos/{owner}/{repo}/pulls")
+	epGetPull        = endpoint("GET", "/repos/{owner}/{repo}/pulls/{index}")
+	epPullDiff       = endpoint("GET", "/repos/{owner}/{repo}/pulls/{index}.{diffType}")
+	epPullFiles      = endpoint("GET", "/repos/{owner}/{repo}/pulls/{index}/files")
+	epCommitStatuses = endpoint("GET", "/repos/{owner}/{repo}/statuses/{sha}")
+)
