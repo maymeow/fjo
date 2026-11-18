@@ -91,7 +91,7 @@ type Repository struct {
 // GetUser returns a user or organization by name (GET /users/{username}).
 func (c *Client) GetUser(ctx context.Context, name string) (*User, error) {
 	var u User
-	if _, err := c.JSON(ctx, http.MethodGet, epGetUser.Expand(name), nil, &u); err != nil {
+	if err := c.JSON(ctx, http.MethodGet, epGetUser.Expand(name), nil, &u); err != nil {
 		return nil, err
 	}
 	return &u, nil
@@ -100,7 +100,7 @@ func (c *Client) GetUser(ctx context.Context, name string) (*User, error) {
 // GetRepository returns one repository.
 func (c *Client) GetRepository(ctx context.Context, owner, name string) (*Repository, error) {
 	var r Repository
-	if _, err := c.JSON(ctx, http.MethodGet, epGetRepo.Expand(owner, name), nil, &r); err != nil {
+	if err := c.JSON(ctx, http.MethodGet, epGetRepo.Expand(owner, name), nil, &r); err != nil {
 		return nil, err
 	}
 	return &r, nil
@@ -114,7 +114,7 @@ func (c *Client) CreateRepository(ctx context.Context, owner string, opt CreateR
 		path = epCreateOrgRepo.Expand(owner)
 	}
 	var r Repository
-	if _, err := c.JSON(ctx, http.MethodPost, path, opt, &r); err != nil {
+	if err := c.JSON(ctx, http.MethodPost, path, opt, &r); err != nil {
 		return nil, err
 	}
 	return &r, nil
@@ -123,7 +123,7 @@ func (c *Client) CreateRepository(ctx context.Context, owner string, opt CreateR
 // EditRepository updates repository properties. Only fields set in opt change.
 func (c *Client) EditRepository(ctx context.Context, owner, name string, opt EditRepoOptions) (*Repository, error) {
 	var r Repository
-	if _, err := c.JSON(ctx, http.MethodPatch, epEditRepo.Expand(owner, name), opt, &r); err != nil {
+	if err := c.JSON(ctx, http.MethodPatch, epEditRepo.Expand(owner, name), opt, &r); err != nil {
 		return nil, err
 	}
 	return &r, nil
@@ -131,7 +131,7 @@ func (c *Client) EditRepository(ctx context.Context, owner, name string, opt Edi
 
 // DeleteRepository deletes a repository.
 func (c *Client) DeleteRepository(ctx context.Context, owner, name string) error {
-	_, err := c.JSON(ctx, http.MethodDelete, epDeleteRepo.Expand(owner, name), nil, nil)
+	err := c.JSON(ctx, http.MethodDelete, epDeleteRepo.Expand(owner, name), nil, nil)
 	return err
 }
 
@@ -139,7 +139,7 @@ func (c *Client) DeleteRepository(ctx context.Context, owner, name string) error
 // the given organization.
 func (c *Client) ForkRepository(ctx context.Context, owner, name string, opt ForkRepoOptions) (*Repository, error) {
 	var r Repository
-	if _, err := c.JSON(ctx, http.MethodPost, epForkRepo.Expand(owner, name), opt, &r); err != nil {
+	if err := c.JSON(ctx, http.MethodPost, epForkRepo.Expand(owner, name), opt, &r); err != nil {
 		return nil, err
 	}
 	return &r, nil
@@ -152,7 +152,7 @@ func (c *Client) SyncFork(ctx context.Context, owner, name, branch string) error
 	if branch != "" {
 		path = epSyncForkBranch.Expand(owner, name, branch)
 	}
-	_, err := c.JSON(ctx, http.MethodPost, path, nil, nil)
+	err := c.JSON(ctx, http.MethodPost, path, nil, nil)
 	return err
 }
 

@@ -230,41 +230,41 @@ func ErrorFromBody(resp *http.Response, body []byte) error {
 }
 
 // JSON performs a request with an optional JSON body and decodes a JSON
-// response into out (if non-nil).
-func (c *Client) JSON(ctx context.Context, method, path string, in, out any) (resp *http.Response, err error) {
+// response into out (if non-nil). The response body is always closed.
+func (c *Client) JSON(ctx context.Context, method, path string, in, out any) (err error) {
 	var body io.Reader
 	if in != nil {
 		b, err := json.Marshal(in)
 		if err != nil {
-			return nil, fmt.Errorf("encode request: %w", err)
+			return fmt.Errorf("encode request: %w", err)
 		}
 		body = bytes.NewReader(b)
 	}
 	req, err := c.NewRequest(ctx, method, path, body)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if in != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	resp, err = c.Do(req)
+	resp, err := c.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if err := CheckResponse(resp); err != nil {
-		return resp, err
+		return err
 	}
 	defer func() { err = fjoerr.JoinCleanup(err, resp.Body.Close()) }()
 	if out == nil {
 		if _, err := io.Copy(io.Discard, resp.Body); err != nil {
-			return resp, fjoerr.Wrap(fjoerr.KindUnavailable, err, "reading response from %s %s", method, SanitizeURL(req.URL))
+			return fjoerr.Wrap(fjoerr.KindUnavailable, err, "reading response from %s %s", method, SanitizeURL(req.URL))
 		}
-		return resp, nil
+		return nil
 	}
 	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
-		return resp, fjoerr.Wrap(fjoerr.KindGeneral, err, "invalid response from %s %s", method, SanitizeURL(req.URL))
+		return fjoerr.Wrap(fjoerr.KindGeneral, err, "invalid response from %s %s", method, SanitizeURL(req.URL))
 	}
-	return resp, nil
+	return nil
 }
 
 func (c *Client) wait(ctx context.Context, attempt int, min time.Duration) error {

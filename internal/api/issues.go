@@ -74,21 +74,21 @@ func (c *Client) ListIssues(ctx context.Context, owner, repo string, s IssueSear
 }
 func (c *Client) GetIssue(ctx context.Context, owner, repo string, number int) (*Issue, error) {
 	var v Issue
-	_, err := c.JSON(ctx, "GET", epGetIssue.Expand(owner, repo, strconv.Itoa(number)), nil, &v)
+	err := c.JSON(ctx, "GET", epGetIssue.Expand(owner, repo, strconv.Itoa(number)), nil, &v)
 	return &v, err
 }
 func (c *Client) CreateIssue(ctx context.Context, owner, repo string, opt CreateIssueOptions) (*Issue, error) {
 	var v Issue
-	_, err := c.JSON(ctx, "POST", epCreateIssue.Expand(owner, repo), opt, &v)
+	err := c.JSON(ctx, "POST", epCreateIssue.Expand(owner, repo), opt, &v)
 	return &v, err
 }
 func (c *Client) EditIssue(ctx context.Context, owner, repo string, number int, opt EditIssueOptions) (*Issue, error) {
 	var v Issue
-	_, err := c.JSON(ctx, "PATCH", epEditIssue.Expand(owner, repo, strconv.Itoa(number)), opt, &v)
+	err := c.JSON(ctx, "PATCH", epEditIssue.Expand(owner, repo, strconv.Itoa(number)), opt, &v)
 	return &v, err
 }
 func (c *Client) DeleteIssue(ctx context.Context, owner, repo string, number int) error {
-	_, err := c.JSON(ctx, "DELETE", epDeleteIssue.Expand(owner, repo, strconv.Itoa(number)), nil, nil)
+	err := c.JSON(ctx, "DELETE", epDeleteIssue.Expand(owner, repo, strconv.Itoa(number)), nil, nil)
 	return err
 }
 func (c *Client) ListIssueComments(ctx context.Context, owner, repo string, number int) ([]Comment, error) {
@@ -96,7 +96,7 @@ func (c *Client) ListIssueComments(ctx context.Context, owner, repo string, numb
 }
 func (c *Client) CreateIssueComment(ctx context.Context, owner, repo string, number int, body string) (*Comment, error) {
 	var v Comment
-	_, err := c.JSON(ctx, "POST", epCreateIssueComment.Expand(owner, repo, strconv.Itoa(number)), map[string]string{"body": body}, &v)
+	err := c.JSON(ctx, "POST", epCreateIssueComment.Expand(owner, repo, strconv.Itoa(number)), map[string]string{"body": body}, &v)
 	return &v, err
 }
 func (c *Client) ListLabels(ctx context.Context, owner, repo string) ([]Label, error) {
@@ -106,11 +106,11 @@ func (c *Client) ListMilestones(ctx context.Context, owner, repo string) ([]Mile
 	return List[Milestone](ctx, c, epListMilestones.Expand(owner, repo), url.Values{"state": {"all"}}, 0)
 }
 func (c *Client) AddIssueLabels(ctx context.Context, owner, repo string, number int, ids []int64) error {
-	_, err := c.JSON(ctx, "POST", epAddIssueLabels.Expand(owner, repo, strconv.Itoa(number)), map[string]any{"labels": ids}, nil)
+	err := c.JSON(ctx, "POST", epAddIssueLabels.Expand(owner, repo, strconv.Itoa(number)), map[string]any{"labels": ids}, nil)
 	return err
 }
 func (c *Client) RemoveIssueLabel(ctx context.Context, owner, repo string, number int, id int64) error {
-	_, err := c.JSON(ctx, "DELETE", epRemoveIssueLabel.Expand(owner, repo, strconv.Itoa(number), strconv.FormatInt(id, 10)), nil, nil)
+	err := c.JSON(ctx, "DELETE", epRemoveIssueLabel.Expand(owner, repo, strconv.Itoa(number), strconv.FormatInt(id, 10)), nil, nil)
 	return err
 }
 func (c *Client) PinIssue(ctx context.Context, owner, repo string, number int, pin bool) error {
@@ -118,7 +118,7 @@ func (c *Client) PinIssue(ctx context.Context, owner, repo string, number int, p
 	if !pin {
 		ep = epUnpinIssue
 	}
-	_, err := c.JSON(ctx, ep.Method, ep.Expand(owner, repo, strconv.Itoa(number)), nil, nil)
+	err := c.JSON(ctx, ep.Method, ep.Expand(owner, repo, strconv.Itoa(number)), nil, nil)
 	return err
 }
 

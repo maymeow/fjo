@@ -210,7 +210,7 @@ func TestErrorURLIsSanitized(t *testing.T) {
 	}))
 	defer srv.Close()
 	c := newTestClient(t, srv, "/api/v1")
-	_, err := c.JSON(context.Background(), "GET", "user?access_token=secret&x=1", nil, nil)
+	err := c.JSON(context.Background(), "GET", "user?access_token=secret&x=1", nil, nil)
 	if err == nil || strings.Contains(err.Error(), "secret") || strings.Contains(err.Error(), "?") {
 		t.Errorf("error must not contain the query: %v", err)
 	}
@@ -252,7 +252,7 @@ func TestNoRetryForUnsafeRequests(t *testing.T) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 	defer srv.Close()
-	_, err := newTestClient(t, srv, "/api/v1").JSON(context.Background(), "POST", "user/repos", map[string]string{"name": "x"}, nil)
+	err := newTestClient(t, srv, "/api/v1").JSON(context.Background(), "POST", "user/repos", map[string]string{"name": "x"}, nil)
 	if fjoerr.KindOf(err) != fjoerr.KindUnavailable || calls.Load() != 1 {
 		t.Errorf("err = %v, calls = %d", err, calls.Load())
 	}
@@ -362,7 +362,7 @@ func TestJSONRequestBody(t *testing.T) {
 		w.WriteHeader(http.StatusCreated)
 	}))
 	defer srv.Close()
-	if _, err := newTestClient(t, srv, "/api/v1").JSON(context.Background(), "POST", "user/repos", map[string]string{"name": "x"}, nil); err != nil {
+	if err := newTestClient(t, srv, "/api/v1").JSON(context.Background(), "POST", "user/repos", map[string]string{"name": "x"}, nil); err != nil {
 		t.Fatal(err)
 	}
 }

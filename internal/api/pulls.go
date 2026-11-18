@@ -126,7 +126,7 @@ func (c *Client) ListPulls(ctx context.Context, owner, repo string, s PullSearch
 
 func (c *Client) GetPull(ctx context.Context, owner, repo string, number int) (*PullRequest, error) {
 	var pr PullRequest
-	_, err := c.JSON(ctx, http.MethodGet, epGetPull.Expand(owner, repo, strconv.Itoa(number)), nil, &pr)
+	err := c.JSON(ctx, http.MethodGet, epGetPull.Expand(owner, repo, strconv.Itoa(number)), nil, &pr)
 	return &pr, err
 }
 
