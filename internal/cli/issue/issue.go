@@ -128,30 +128,6 @@ func jsonOptions(f *app.Factory) output.WriteOptions {
 }
 func line(s string) string { return output.Sanitize(strings.Join(strings.Fields(s), " ")) }
 
-func labelIDs(ctx context.Context, c *api.Client, ref reporef.Ref, names []string) ([]int64, error) {
-	ids := []int64{}
-	if len(names) == 0 {
-		return ids, nil
-	}
-	labels, err := c.ListLabels(ctx, ref.Owner, ref.Name)
-	if err != nil {
-		return nil, err
-	}
-	for _, name := range names {
-		found := false
-		for _, l := range labels {
-			if l.Name == name {
-				ids = append(ids, l.ID)
-				found = true
-				break
-			}
-		}
-		if !found {
-			return nil, fjoerr.New(fjoerr.KindNotFound, "label %q not found in %s", name, ref.FullName())
-		}
-	}
-	return ids, nil
-}
 func milestoneID(ctx context.Context, c *api.Client, ref reporef.Ref, name string) (int64, error) {
 	items, err := c.ListMilestones(ctx, ref.Owner, ref.Name)
 	if err != nil {

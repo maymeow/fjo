@@ -124,12 +124,17 @@ func (c *Client) Pages(ctx context.Context, path string, header http.Header, max
 // list endpoint. The page size is min(limit, 50); the server may cap it
 // lower (MAX_RESPONSE_ITEMS), which pagination handles transparently.
 func List[T any](ctx context.Context, c *Client, path string, query url.Values, limit int) ([]T, error) {
+	return listMatching[T](ctx, c, path, query, limit, nil)
+}
+
+// listMatching applies the limit after client-side filtering.
+func listMatching[T any](ctx context.Context, c *Client, path string, query url.Values, limit int, match func(T) bool) ([]T, error) {
 	q := url.Values{}
 	for k, v := range query {
 		q[k] = v
 	}
 	size := 50
-	if limit > 0 && limit < size {
+	if match == nil && limit > 0 && limit < size {
 		size = limit
 	}
 	q.Set("limit", strconv.Itoa(size))
@@ -148,10 +153,13 @@ func List[T any](ctx context.Context, c *Client, path string, query url.Values, 
 		if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
 			return true, fjoerr.Wrap(fjoerr.KindGeneral, err, "invalid response from %s", SanitizeURL(resp.Request.URL))
 		}
-		out = append(out, items...)
-		if limit > 0 && len(out) >= limit {
-			out = out[:limit]
-			return true, nil
+		for _, item := range items {
+			if match == nil || match(item) {
+				out = append(out, item)
+				if limit > 0 && len(out) == limit {
+					return true, nil
+				}
+			}
 		}
 		return len(items) == 0, nil
 	})

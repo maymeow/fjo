@@ -10,6 +10,8 @@ Development progress is tracked in [docs/CHANGELOG.txt](docs/CHANGELOG.txt).
 
 ### Added
 
+- Read-only pull request commands `fjo pr list/view/diff/checks` for Forgejo 15 and 17.
+
 - `fjo issue list/view/create/edit/close/reopen/comment/delete/pin/unpin`,
   including filters, issue URLs, JSON/jq/templates, body files, editor support,
   interactive prompts and browser shortcuts (Forgejo 15 and 17).

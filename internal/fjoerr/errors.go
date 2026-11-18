@@ -20,7 +20,7 @@ const (
 	ExitError       ExitCode = 1 // general failure (gh: 1)
 	ExitCancel      ExitCode = 2 // user cancelled a prompt (gh: 2)
 	ExitAuth        ExitCode = 4 // authentication required or failed (gh: 4)
-	ExitPending     ExitCode = 8 // checks still pending (gh: 8); reserved
+	ExitPending     ExitCode = 8 // checks still pending (gh: 8)
 	ExitUsage       ExitCode = 10
 	ExitForbidden   ExitCode = 11
 	ExitNotFound    ExitCode = 12

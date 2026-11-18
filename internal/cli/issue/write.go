@@ -70,7 +70,7 @@ func newCreateCmd(f *app.Factory) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		ids, err := labelIDs(ctx, c, ref, labels)
+		ids, err := c.ResolveLabelIDs(ctx, ref.Owner, ref.Name, labels)
 		if err != nil {
 			return err
 		}
@@ -242,11 +242,11 @@ func newEditCmd(f *app.Factory) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		addIDs, err := labelIDs(ctx, c, ref, addLabels)
+		addIDs, err := c.ResolveLabelIDs(ctx, ref.Owner, ref.Name, addLabels)
 		if err != nil {
 			return err
 		}
-		removeIDs, err := labelIDs(ctx, c, ref, removeLabels)
+		removeIDs, err := c.ResolveLabelIDs(ctx, ref.Owner, ref.Name, removeLabels)
 		if err != nil {
 			return err
 		}

@@ -451,7 +451,7 @@ Decision:
 
 ### B-37 — 40-hex redaction rule also masks git commit SHAs
 Type:     tech-debt
-Status:   accepted (implement before 3c)
+Status:   implemented in Phase 3c
 Added:    2026-11-13
 Phase:    Phase 3 (before PR/commit/checks output goes through the redactor)
 
@@ -580,7 +580,7 @@ Decision:
 
 ### B-44 — `pr list --base/--head` on Forgejo 15
 Type:     tech-debt
-Status:   open
+Status:   implemented in Phase 3c
 Added:    2026-11-16
 Phase:    Phase 3c
 
@@ -592,8 +592,75 @@ Proposal / options:
   found) and send the parameters for 17.
 - B) Exit 15 (unsupported) on 15.
 Decision:
-- (recommended: A, because filtering on the client is exact here. Decide
-  when implementing 3c.)
+- A. Send branch parameters to Forgejo 17 and apply the client filters
+  before counting matches toward the limit on both supported versions.
+  Use client filtering when the server version cannot be determined.
+
+---
+
+### B-45 — Polling with `pr checks --watch`
+
+Type:     enhancement
+Status:   open
+Added:    Phase 3c
+Phase:    after Phase 3c
+
+- Re-read statuses at an interval until the checks finish or the user
+  interrupts. Phase 3c reports a single snapshot of the head commit.
+
+---
+
+Source of B-46 .. B-48: Phase 3c review, 2026-11-17.
+
+### B-46 — Redacting unregistered 40-hex tokens
+
+Type:     tech-debt
+Status:   open
+Added:    2026-11-17
+Phase:    after Phase 3c
+
+Context:
+- Phase 3c removed the bare `\b[0-9a-f]{40}\b` redaction pattern because it
+  also hid commit SHAs (pr checks, debug logs).
+- Tokens are still redacted when registered (FJO_TOKEN, stored host tokens)
+  or when they follow `token `/`Bearer `/`token=`. A token that is neither
+  (e.g. another host's token echoed in a server response or a token pasted
+  into a request body) is no longer hidden.
+Options:
+- A. Accept and record it in CHANGELOG.md as a deliberate change.
+- B. Redact 40-hex only in header/log contexts that never carry SHAs.
+- C. Register every token from config, not just the active host.
+Decision:
+-
+
+---
+
+### B-47 — `pr view <branch>` falls back to closed or merged PRs
+
+Type:     enhancement
+Status:   open
+Added:    2026-11-17
+Phase:    Phase 3d or later
+
+- Branch resolution (also for `pr diff`/`pr checks` and no argument) only
+  searches open PRs. gh falls back to the most recent closed or merged PR
+  for the branch. Needs a second `state=all` search sorted by recency and
+  must keep the "multiple open PRs" conflict for open ones.
+
+---
+
+### B-48 — `pr checks` exit code with no checks
+
+Type:     compatibility
+Status:   open
+Added:    2026-11-17
+Phase:    Phase 3d or later
+
+- fjo returns exit 0 and a stderr note when the head commit has no
+  statuses. gh returns exit 1 ("no checks reported"). Decide whether to
+  match gh or document the difference in docs/compatibility.md.
+Decision:
+-
 
 ---
 

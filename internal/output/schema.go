@@ -252,3 +252,6 @@ func plural(n int, unit string) string {
 	}
 	return fmt.Sprintf("about %d %ss", n, unit)
 }
+
+// CheckFields lists the selectable fields for commit status output.
+var CheckFields = []string{"bucket", "completedAt", "description", "name", "startedAt", "state", "url"}

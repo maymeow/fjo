@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/maymeow/fjo/internal/fjoerr"
 )
 
 type Label struct {
@@ -118,4 +120,30 @@ func (c *Client) PinIssue(ctx context.Context, owner, repo string, number int, p
 	}
 	_, err := c.JSON(ctx, ep.Method, ep.Expand(owner, repo, strconv.Itoa(number)), nil, nil)
 	return err
+}
+
+// ResolveLabelIDs translates repository label names to Forgejo IDs.
+func (c *Client) ResolveLabelIDs(ctx context.Context, owner, repo string, names []string) ([]int64, error) {
+	ids := []int64{}
+	if len(names) == 0 {
+		return ids, nil
+	}
+	labels, err := c.ListLabels(ctx, owner, repo)
+	if err != nil {
+		return nil, err
+	}
+	for _, name := range names {
+		found := false
+		for _, l := range labels {
+			if l.Name == name {
+				ids = append(ids, l.ID)
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fjoerr.New(fjoerr.KindNotFound, "label %q not found in %s/%s", name, owner, repo)
+		}
+	}
+	return ids, nil
 }

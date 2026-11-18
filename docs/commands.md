@@ -402,3 +402,66 @@ fjo api -X PATCH /repos/owner/repo -f description="New description"
 ## fjo completion
 
 Generate shell completion scripts (bash, zsh, fish, powershell).
+
+## Pull requests
+
+All four commands accept `-R, --repo [HOST/]OWNER/REPO`.
+
+### `fjo pr list`
+
+```bash
+fjo pr list --state merged --base main --limit 10 --json number,title,mergedAt
+fjo pr list --head alice:feature --assignee @me --label bug --draft
+```
+
+`--state` accepts `open` (default), `closed`, `merged` and `all`.
+Use `--author` or `--assignee` with a login or `@me`, repeat `--label`
+to select labels, and use `--base` and `--head` to filter branches.
+`--draft` selects drafts, including titles with a `WIP:` or `[WIP]` prefix.
+`-L, --limit` defaults to 30 and counts matches after filtering.
+`--web` opens Forgejo's pull request list and supports its state (open,
+closed or all), author, assignee and label filters.
+
+### `fjo pr view [<number|url|branch>]`
+
+```bash
+fjo pr view 42 --comments
+fjo pr view alice:feature --json number,headRefName --jq '.headRefName'
+fjo pr view https://git.example.org/team/project/pulls/42 --web
+```
+
+Pass a PR number, `#NUMBER`, a Forgejo PR URL or a branch. A URL selects
+the instance and repository; a `--repo` naming a different repository is
+rejected. Trailing
+tabs such as `/files` or `/commits` are accepted. With no argument, fjo looks for an open PR
+matching the current branch and head owner. A tracking branch on the same
+Forgejo instance supplies the remote branch name and owner. If several PRs
+match, specify a number or URL. `--comments` includes discussion as plain
+text. `--web` opens the PR in a browser.
+
+### `fjo pr diff [<number|url|branch>]`
+
+```bash
+fjo pr diff 42 --name-only
+fjo pr diff 42 --patch --color=never > change.patch
+```
+
+The default streams a unified diff through the configured pager on a
+terminal. `--patch` streams the patch format and `--name-only` lists
+changed paths. `--no-pager` disables the pager. The PR is selected as in
+`pr view`; with no argument, fjo resolves it from the current branch.
+
+### `fjo pr checks [<number|url|branch>]`
+
+```bash
+fjo pr checks 42 --json name,state,bucket,url
+```
+
+Shows the latest status in each context for the head commit. Any failure
+returns exit 1. Pending checks return exit 8 when there are no failures.
+Passing or skipped checks and empty results return exit 0. The PR is
+selected as in `pr view`; with no argument, fjo resolves it from the current
+branch.
+
+`pr list`, `pr view` and `pr checks` support `--json`, `--jq` and
+`--template`. Pass `--json` without a field list to see the available fields.
