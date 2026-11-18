@@ -1576,9 +1576,9 @@ Acceptance criteria:
 
 ### Phase 3 — Issues and pull requests
 
-Issue milestone 3b and pull request milestones 3c and 3d are implemented.
-
-**Target: v0.1.0**
+**Target: v0.1.0** — complete (2026-11-18); split into 3a (output
+infrastructure), 3b (issues), 3c (PR read), 3d (PR write) and 3e (PR review,
+documentation, closing). Checklist: docs/PHASE3.txt.
 
 Tasks:
 
@@ -1593,9 +1593,10 @@ Tasks:
 - [x] Implement PR checks.
 - [x] Implement PR checkout.
 - [x] Implement PR merge.
-- [ ] Add human-readable tables.
-- [ ] Add JSON output.
-- [ ] Add non-interactive tests.
+- [x] Implement PR review. (POST /pulls/{index}/reviews; review API probed first, exit 15 if missing)
+- [x] Add human-readable tables. (terminal tables, TSV without a TTY)
+- [x] Add JSON output. (--json/--jq/--template; field table in docs/compatibility.md)
+- [x] Add non-interactive tests. (no-TTY paths fail with usage errors instead of prompting)
 
 Acceptance criteria:
 

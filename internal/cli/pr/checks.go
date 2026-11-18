@@ -1,8 +1,6 @@
 package pr
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/maymeow/fjo/internal/api"
@@ -51,14 +49,14 @@ func newChecksCmd(f *app.Factory) *cobra.Command {
 		case j.Changed():
 			err = j.Write(ctx, f.IO.Out, checks, jsonOptions(f))
 		case len(checks) == 0:
-			_, err = fmt.Fprintf(f.IO.ErrOut, "no checks reported for pull request #%d\n", target.number)
+			return fjoerr.New(fjoerr.KindGeneral, "no checks reported for pull request #%d", target.number)
 		default:
 			err = table.Print(f.IO.Out, tableOptions(f))
 		}
 		if err != nil {
 			return err
 		}
-		if failed {
+		if failed || len(checks) == 0 {
 			return fjoerr.Silent(fjoerr.KindGeneral)
 		}
 		if pending {

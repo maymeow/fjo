@@ -474,9 +474,9 @@ Decision:
 
 ### B-38 — SSH aliases from ~/.ssh/config
 Type:     idea
-Status:   open
+Status:   deferred
 Added:    2026-11-13
-Phase:    Phase 2b / Phase 3
+Phase:    after Phase 3
 
 Context:
 - Phase 2a maps SSH remotes via `ssh_hosts` in the fjo config or the plain
@@ -487,15 +487,15 @@ Proposal / options:
 - Resolve with `ssh -G <alias>` (gh does this) and match the reported
   hostname/port; cache per run; never fail when ssh is missing.
 Decision:
--
+- 2026-11-18 (Phase 3 closing): deferred; `ssh_hosts` in the fjo config is the workaround.
 
 ---
 
 ### B-39 — `repo rename` should update the local remote
 Type:     idea
-Status:   open
+Status:   deferred
 Added:    2026-11-13
-Phase:    Phase 3
+Phase:    after Phase 3
 
 Context:
 - gh updates the URL of the remote that points to the renamed repository
@@ -506,7 +506,7 @@ Proposal / options:
   repository, rewrite its URL (same protocol and form) with
   `git remote set-url -- <name> <url>`; report it on stderr.
 Decision:
--
+- 2026-11-18 (Phase 3 closing): deferred; documented in docs/compatibility.md, Forgejo redirects the old URL.
 
 ---
 
@@ -638,29 +638,31 @@ Decision:
 ### B-47 — `pr view <branch>` falls back to closed or merged PRs
 
 Type:     enhancement
-Status:   open
+Status:   deferred
 Added:    2026-11-17
-Phase:    Phase 3d or later
+Phase:    after Phase 3
 
 - Branch resolution (also for `pr diff`/`pr checks` and no argument) only
   searches open PRs. gh falls back to the most recent closed or merged PR
   for the branch. Needs a second `state=all` search sorted by recency and
   must keep the "multiple open PRs" conflict for open ones.
+Decision:
+- 2026-11-18 (Phase 3 closing): deferred; the open-only lookup is documented in docs/compatibility.md.
 
 ---
 
 ### B-48 — `pr checks` exit code with no checks
 
 Type:     compatibility
-Status:   open
+Status:   implemented in Phase 3e
 Added:    2026-11-17
-Phase:    Phase 3d or later
+Phase:    Phase 3e
 
 - fjo returns exit 0 and a stderr note when the head commit has no
   statuses. gh returns exit 1 ("no checks reported"). Decide whether to
   match gh or document the difference in docs/compatibility.md.
 Decision:
--
+- 2026-11-18 (Phase 3 closing): match gh. No statuses -> "no checks reported", exit 1; `--json` prints [] and also exits 1.
 
 ---
 
@@ -674,7 +676,7 @@ Forgejo API actually supports, with Forgejo semantics (see B-20).
 Type:     idea
 Status:   open
 Added:    2026-11-13
-Phase:    Phase 2 (needs browser launcher + repo resolution)
+Phase:    after Phase 3 (moved out of Phase 3 on 2026-11-18)
 
 Proposal / options:
 - Open repo / issue / PR / file:line / branch / settings in the browser,
@@ -686,7 +688,7 @@ Decision:
 Type:     idea
 Status:   open
 Added:    2026-11-13
-Phase:    Phase 3+
+Phase:    after Phase 3 (moved out of Phase 3 on 2026-11-18)
 
 Context:
 - `issue list --label/--milestone` exist as filters, but there is no way to
@@ -710,7 +712,7 @@ Decision:
 Type:     idea
 Status:   open
 Added:    2026-11-13
-Phase:    Phase 3+
+Phase:    after Phase 3 (moved out of Phase 3 on 2026-11-18)
 
 Proposal / options:
 - gh `status` equivalent (assigned issues, review requests, mentions) built on
@@ -722,7 +724,7 @@ Decision:
 Type:     idea
 Status:   open
 Added:    2026-11-13
-Phase:    Phase 3+
+Phase:    after Phase 3 (moved out of Phase 3 on 2026-11-18)
 
 Proposal / options:
 - `search repos` / `search issues` / `search prs` limited to what Forgejo
@@ -865,3 +867,33 @@ Decision:
 ## Resolved (accepted / rejected)
 
 (none yet)
+
+---
+
+Source of B-49 .. B-50: Phase 3 closing review, 2026-11-18.
+
+### B-49 — `fjo api --jq` and `--template`
+
+Type:     compatibility
+Status:   open
+Added:    2026-11-18
+Phase:    after Phase 3
+
+- gh supports `--jq` and `--template` on `gh api`. fjo has both for issue,
+  pull request and repository output (gojq, B-40), but not for `fjo api`.
+  docs/compatibility.md used to promise them for Phase 3.
+Decision:
+-
+
+### B-50 — Markdown rendering for `repo view` README and bodies
+
+Type:     enhancement
+Status:   open
+Added:    2026-11-18
+Phase:    after Phase 3
+
+- `repo view` shows no README, and issue/PR bodies are printed as plain
+  Markdown source. gh renders Markdown in a terminal. Needs a renderer
+  choice (§2.1 dependency rules) and a plain fallback without a TTY.
+Decision:
+-

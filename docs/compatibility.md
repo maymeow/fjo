@@ -75,6 +75,39 @@ Field names follow gh where the meaning is equivalent. Known differences:
 | `Comment.id`, `Review.id` | Integer database IDs | Forgejo REST IDs are integers; gh exposes GraphQL node IDs |
 | `Check.state` | Forgejo commit-status strings | `pr checks` maps them to gh-style buckets |
 
+### Issue and pull request fields
+
+Every field below can be selected with `--json`. Times are RFC 3339 strings;
+nullable fields are `null` when unset.
+
+| Field | Type | Issue | PR | Notes |
+|---|---|---|---|---|
+| `number` | integer | ✓ | ✓ | Repository-local index |
+| `title` | string | ✓ | ✓ | |
+| `state` | string | ✓ | ✓ | `open`, `closed`; PRs also `merged` |
+| `isDraft` | boolean | | ✓ | Forgejo `draft` or a `WIP:`/`[WIP]` title prefix |
+| `author` | `{login}` | ✓ | ✓ | |
+| `url` | string | ✓ | ✓ | Web URL |
+| `body` | string | ✓ | ✓ | Markdown source |
+| `labels` | `[{name, color}]` | ✓ | ✓ | |
+| `milestone` | `{title, number}` or null | ✓ | ✓ | `number` is the Forgejo milestone ID |
+| `assignees` | `[{login}]` | ✓ | ✓ | |
+| `reviewers` | `[{login}]` | | ✓ | Requested user reviewers |
+| `comments` | integer | ✓ | ✓ | Count, also in `view` |
+| `baseRefName` | string | | ✓ | |
+| `headRefName` | string | | ✓ | |
+| `headRepository` | string | | ✓ | `owner/name` |
+| `isCrossRepository` | boolean | | ✓ | Head and base are different repositories |
+| `mergeable` | string | | ✓ | `MERGEABLE`, `CONFLICTING` or `UNKNOWN` |
+| `additions`, `deletions`, `changedFiles` | integer | | ✓ | From Forgejo's PR response |
+| `createdAt`, `updatedAt` | time | ✓ | ✓ | |
+| `closedAt` | time or null | ✓ | ✓ | |
+| `mergedAt` | time or null | | ✓ | |
+
+`pr checks --json` returns check objects with `name`, `state` (Forgejo
+commit-status string), `bucket` (`pass`, `fail`, `pending`, `skipping`),
+`description`, `url`, `startedAt` and `completedAt` (null while pending).
+
 Templates provide the gh helper subset `tablerow`, `tablerender`, `timeago`,
 `color`, `join`, `pluck` and `truncate`. `truncate` is display-width aware
 (wide characters count twice, combining marks zero) and ends an overlong
@@ -98,7 +131,7 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | `gh issue list/view/create/edit/close/reopen/comment/delete/pin/unpin` | same | done (Phase 3b); differences below |
 | `gh pr list/view/diff/checks` | same | done (Phase 3c), with differences below |
 | `gh pr create/checkout/merge/close/reopen/ready/edit/comment` | same | done (Phase 3d), with differences below |
-| `gh pr review` | same | planned (Phase 3e) |
+| `gh pr review` | same | done (Phase 3e), with differences below |
 | `gh release ...` | same | planned (Phase 4) |
 | `gh run`, `gh workflow` | same | planned (Phase 5), scope depends on Forgejo Actions API (BACKLOG B-10) |
 | `gh org`, `gh ssh-key`, `gh secret`, `gh variable` | same | planned (Phase 6) |
@@ -117,12 +150,12 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | Host identity | Hosts may include a port or base path (`example.com/forgejo`) | Self-hosted Forgejo runs on custom ports and subpaths |
 | Config format | Single `config.yaml` with `hosts:` map | Tokens are never stored in it |
 | `api --paginate` | Pages that are JSON arrays are merged into one array (gh prints the pages one after another) | Output stays valid JSON for `jq` and scripts |
-| `api` GraphQL, `--jq`, `--template`, `--cache`, `--preview` | Not available | Forgejo has no GraphQL API; output filters come in Phase 3 |
+| `api` GraphQL, `--jq`, `--template`, `--cache`, `--preview` | Not available | Forgejo has no GraphQL API; `api` output filters are tracked in BACKLOG B-49 |
 | `api --input` | Sets `Content-Type: application/json` unless `-H` overrides it | Forgejo API endpoints expect JSON |
 | Repository detection | Only remotes on a known Forgejo host (configured hosts, `FJO_HOST`) are considered; several different repositories are an error until `fjo repo set-default` picks one. gh prefers `upstream` > `github` > `origin` and prompts | `origin` is not assumed (IMPLEMENTATION §8.2); no silent wrong choice |
 | `repo set-default` | Stored as `remote.<name>.fjo-resolved` in `.git/config` (gh: `gh-resolved`) | Same mechanism, own key so gh and fjo do not interfere |
 | `repo list` | Lists repositories **owned** by the user/org (Forgejo `/repos/search?uid=&exclusive=true`), newest update first; `--visibility internal`, `--language`, `--topic` not supported | Forgejo search API filters |
-| `repo view` | No README rendering; non-TTY output is `key:\tvalue` lines | README rendering comes with the markdown renderer (Phase 3) |
+| `repo view` | No README rendering; non-TTY output is `key:\tvalue` lines | Markdown rendering is tracked in BACKLOG B-50 |
 | `repo create` | Without `--private`/`--public` the server default visibility is used; `--initialize` is the `--add-readme` equivalent (Forgejo's `auto_init`); no `--source`/`--push`/`--template` yet | Forgejo `CreateRepoOption` fields only |
 | `repo clone` | Uses the host's configured `git_protocol`; private HTTPS clones need Git credentials configured outside fjo; no `gh auth setup-git` yet | fjo does not manage Git credential helpers |
 | `repo fork` | `--clone` adds the source as `upstream`; no `--remote` mode | Forgejo fork API |
@@ -164,6 +197,10 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
   the target repository. Success maps to `pass`, failure, error and warning
   map to `fail`, and skipped maps to `skipping`. Pending checks use
   `pending` and leave `completedAt` null. Polling is tracked in B-45.
+  A head commit without statuses exits 1 like gh (B-48).
+- Branch resolution (`pr view <branch>`, `pr diff`, `pr checks`, `pr review`
+  and no argument) only considers open PRs. gh falls back to the most recent
+  closed or merged PR for the branch (B-47).
 
 - Forgejo drafts use the `WIP:` title prefix for creation and readiness changes.
 - Reviewer requests use a separate Forgejo endpoint. Creation prints the
@@ -171,3 +208,8 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 - Interactive merge selection uses the repository's enabled Forgejo methods.
   Automated merges and remote head deletion follow Forgejo's repository rules.
   Local cleanup after an immediate merge uses Git's safe branch deletion.
+- `pr review` submits one review without inline comments. gh's interactive
+  editor flow is reduced to a type selection and a one-line body prompt;
+  use `--editor` or `--body-file` for longer reviews. Support for the review
+  API is probed before submitting (exit 15 if missing). Self-reviews that
+  Forgejo rejects return exit 13 with the server message.

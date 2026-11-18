@@ -176,6 +176,12 @@ func TestWritePullRequestsAgainstForgejo(t *testing.T) {
 	}
 	invoke(0, "edit", n, "--title", "Edited", "--body", "", "--remove-assignee", "@me")
 	invoke(0, "comment", n, "--body", "Discussion")
+	invoke(0, "review", n, "--comment", "--body", "Review comment")
+	invoke(fjoerr.ExitUsage, "review", n, "--request-changes")
+	own := invoke(fjoerr.ExitConflict, "review", n, "--approve")
+	if !strings.Contains(own.stderr, "could not review pull request #"+n) {
+		t.Fatalf("self-approval error is not readable: %q", own.stderr)
+	}
 	invoke(0, "close", n, "--comment", "Closing")
 	closed, err := client.GetPull(ctx, me.Login, name, index)
 	if err != nil || closed.State != "closed" || closed.Title != "Edited" || closed.Body != "" || len(closed.Assignees) != 0 {
