@@ -14,8 +14,8 @@
 
 ## Output flags
 
-Commands with structured output (`repo list`, `repo view`, and from Phase 3 the
-issue and pull request commands) add:
+Commands with structured output (`repo list`, `repo view`, the issue and
+pull request list/view commands and `pr checks`) add:
 
 | Flag | Description |
 |---|---|
@@ -459,7 +459,9 @@ fjo pr checks 42 --json name,state,bucket,url
 
 Shows the latest status in each context for the head commit. Any failure
 returns exit 1. Pending checks return exit 8 when there are no failures.
-Passing or skipped checks and empty results return exit 0. The PR is
+Passing or skipped checks return exit 0. A head commit without any
+status returns exit 1 with "no checks reported", like gh; `--json` then
+prints `[]`. The PR is
 selected as in `pr view`; with no argument, fjo resolves it from the current
 branch.
 
@@ -516,6 +518,26 @@ when checks succeed. Use `--subject` and the body flags for the merge
 message. `--delete-branch` requests deletion of the remote head branch.
 After an immediate merge, local deletion requires a matching branch tip
 and Git's safe branch deletion checks.
+
+### `fjo pr review [<number|url|branch>]`
+
+```bash
+fjo pr review 42 --approve
+fjo pr review 42 --request-changes --body "Please add tests"
+fjo pr review --comment --body-file review.md
+```
+
+Choose one of `-a, --approve`, `-r, --request-changes` or `-c, --comment`.
+`--request-changes` and `--comment` need a nonempty body from `--body`,
+`--body-file` (use `-` for standard input) or `--editor`; an approval body
+is optional. In a terminal, fjo asks for a missing review type and body.
+Without a terminal, the type flag and the required body are mandatory and
+no prompt starts. The review is attached to the head commit fjo read.
+
+Before submitting, fjo checks that the server exposes the review API and
+exits with code 15 if it does not. Forgejo rejects approving or requesting
+changes on your own pull request; fjo reports the server message with
+exit code 13. The PR is selected as in `pr view`.
 
 ### `fjo pr close`, `reopen`, `ready`, `edit`, `comment`
 

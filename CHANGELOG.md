@@ -8,28 +8,28 @@ Development progress is tracked in [docs/CHANGELOG.txt](docs/CHANGELOG.txt).
 
 ## [Unreleased]
 
+First release, v0.1.0. Supports Forgejo 15 and 17.
+
 ### Added
 
-- Create, check out, merge, close, reopen, edit and comment on pull requests,
-  and change their draft status with `fjo pr ready`.
-
-- Read-only pull request commands `fjo pr list/view/diff/checks` for Forgejo 15 and 17.
-
-- `fjo issue list/view/create/edit/close/reopen/comment/delete/pin/unpin`,
-  including filters, issue URLs, JSON/jq/templates, body files, editor support,
-  interactive prompts and browser shortcuts (Forgejo 15 and 17).
-
-- `fjo --help` and `fjo --version`.
-- `fjo version` showing version, commit, Go version and platform.
-- Global flags `--color`, `--verbose`, `--debug`.
+- Authentication: `fjo auth login/status/switch/logout/token` with tokens in the OS
+  credential store (`--insecure-storage` for hosts without one), `FJO_TOKEN`, several
+  accounts per host, and hosts with custom ports or base paths.
+- Repositories: `fjo repo list/view/create/clone/fork/edit/rename/delete/archive/unarchive/sync`
+  and `fjo repo set-default`, with repository detection from Git remotes.
+- Issues: `fjo issue list/view/create/edit/close/reopen/comment/delete/pin/unpin`,
+  including filters, issue URLs, body files, editor support, interactive prompts and
+  browser shortcuts.
+- Pull requests: `fjo pr list/view/diff/checks/create/checkout/merge/review/close/reopen/ready/edit/comment`.
+  `pr review` approves, requests changes or comments; `pr checks` exits 8 while checks
+  are pending, and 1 when a check failed or none were reported.
+- `fjo api` for authenticated REST requests, with `{owner}`, `{repo}` and `{branch}`
+  placeholders and `--paginate`.
+- Structured output: `--json`, `--jq` and `--template` for repository, issue, pull
+  request and check output; tables on a terminal and TSV otherwise; pager and editor
+  support (`FJO_PAGER`, `FJO_EDITOR`).
+- `fjo --help`, `fjo --version`, `fjo version` and shell completion.
+- Global flags `--color`, `--verbose`, `--debug`; tokens never appear in debug output.
 - User configuration file (`config.yaml`) with validation; location overridable by
   `FJO_CONFIG_DIR` or `XDG_CONFIG_HOME`.
-- gh-compatible exit codes (see docs/compatibility.md).
-
-### Fixed
-
-- `fjo auth login` reports an error when a leftover plain-text token copy cannot be removed
-  after storing the token in the OS credential store.
-- `fjo api` reports errors while writing the response body to stdout.
-- Failures while closing or reading HTTP responses and removing temporary files are no
-  longer silently ignored.
+- gh-compatible exit codes, plus fjo codes 10–16 (see docs/compatibility.md).

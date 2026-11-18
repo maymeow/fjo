@@ -305,3 +305,47 @@ func TestChecksExitAndLatestStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestChecksWithoutStatusesExitsOne(t *testing.T) {
+	server := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case repoPath + "/pulls/42":
+			io.WriteString(w, pull)
+		case repoPath + "/statuses/" + sha:
+			io.WriteString(w, `[]`)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	res := run(t, server, t.TempDir(), nil, "checks", "42")
+	if res.code != fjoerr.ExitError || res.out != "" || !strings.Contains(res.stderr, "no checks reported for pull request #42") {
+		t.Fatalf("text: %+v", res)
+	}
+	res = run(t, server, t.TempDir(), nil, "checks", "42", "--json", "name")
+	if res.code != fjoerr.ExitError || res.out != "[]\n" || res.stderr != "" {
+		t.Fatalf("json: %+v", res)
+	}
+}
+
+func TestDebugOutputHidesTokenAndKeepsSHA(t *testing.T) {
+	server := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case repoPath + "/pulls/42":
+			io.WriteString(w, pull)
+		case repoPath + "/statuses/" + sha:
+			io.WriteString(w, `[{"id":1,"context":"ci","status":"success"}]`)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	res := run(t, server, t.TempDir(), nil, "checks", "42", "--debug")
+	if res.code != 0 {
+		t.Fatalf("%+v", res)
+	}
+	if strings.Contains(res.stderr+res.out, "test-credential") {
+		t.Errorf("token leaked into debug output: %q", res.stderr)
+	}
+	if !strings.Contains(res.stderr, "/statuses/"+sha) {
+		t.Errorf("debug output should log the request with the full SHA: %q", res.stderr)
+	}
+}

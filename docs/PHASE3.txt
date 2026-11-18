@@ -218,38 +218,48 @@ Príkazy (`internal/cli/pr/`):
 
 ## 3e — Review, upratanie, uzavretie fázy
 
-- [ ] `pr review [<num>]`:
-  - [ ] Flagy `--approve`, `--request-changes`, `--comment` a `--body*`.
-  - [ ] Pred použitím overiť, či API review podporuje (§5.5). Ak nie, exit 15.
-  - [ ] Request changes a comment bez tela je chyba (rovnako ako v gh).
-  - [ ] Review vlastného PR: chybu zo servera zobraziť čitateľne (exit 13).
-- [ ] B-39 (voliteľné): `repo rename` upraví lokálny remote.
-- [ ] Ďalšie nápady presunuté mimo fázy 3: B-22 (label/milestone),
+Stav: hotovo 2026-11-18 (integrácia Forgejo 15.0.11 a 17.0.1).
+
+- [x] `pr review [<num>]`:
+  - [x] Flagy `--approve`, `--request-changes`, `--comment` a `--body*`.
+  - [x] Pred použitím overiť, či API review podporuje (§5.5). Ak nie, exit 15.
+        Sonda `GET /pulls/{index}/reviews` po načítaní PR (B-9).
+  - [x] Request changes a comment bez tela je chyba (rovnako ako v gh).
+  - [x] Review vlastného PR: chybu zo servera zobraziť čitateľne (exit 13).
+- [x] B-39 (voliteľné): odložené za fázu 3 (rozhodnutie 2026-11-18).
+- [x] Ďalšie nápady presunuté mimo fázy 3: B-22 (label/milestone),
       B-24 (status), B-25 (search), B-21 (browse). Zostávajú v BACKLOG
-      a nepatria do tejto fázy.
-- [ ] Dokumentácia:
-  - [ ] `docs/commands.md`: všetky nové príkazy, flagy a príklady.
-  - [ ] `docs/compatibility.md`: parity tabuľka issue/pr a všetky odchýlky
+      a nepatria do tejto fázy. Odložené aj B-38 a B-47; B-48 implementované
+      (exit 1 bez kontrol, ako gh). Nové: B-49 (`api --jq`), B-50 (Markdown).
+- [x] Dokumentácia:
+  - [x] `docs/commands.md`: všetky nové príkazy, flagy a príklady.
+  - [x] `docs/compatibility.md`: parity tabuľka issue/pr a všetky odchýlky
         (draft = WIP, close --reason, merged filter na klientovi, merge
-        metódy).
-  - [ ] JSON schéma pre issue a pr (§10.2), aspoň ako tabuľka polí.
-  - [ ] CHANGELOG pre v0.1.0.
-  - [ ] IMPLEMENTATION.txt §16 Phase 3: odškrtnúť úlohy a zapísať dátum.
-  - [ ] BACKLOG: doplniť rozhodnutia (B-31, B-37, gojq a ďalšie).
+        metódy, review, B-47, B-48).
+  - [x] JSON schéma pre issue a pr (§10.2), aspoň ako tabuľka polí.
+  - [x] CHANGELOG pre v0.1.0.
+  - [x] IMPLEMENTATION.txt §16 Phase 3: odškrtnúť úlohy a zapísať dátum.
+  - [x] BACKLOG: doplniť rozhodnutia (B-31, B-37, gojq a ďalšie).
 
 ---
 
 ## Kontrola pred uzavretím (acceptance criteria, Phase 3)
 
+Overené 2026-11-18.
+
 - [x] Celý issue workflow funguje end-to-end (integrácia 15 a 17).
-- [ ] Celý PR workflow funguje end-to-end: create, checkout, review, merge.
-- [ ] Interaktívne aj neinteraktívne použitie je otestované. Bez TTY nikdy
-      nečaká na vstup.
-- [ ] Všetky hlavné príkazy majú `--json`, `--jq` a `--template`.
-- [ ] Správanie je konzistentné so zdokumentovanými gh konvenciami
-      (flagy, exit kódy, TSV bez TTY).
-- [ ] `go vet`, linter, `go test -race ./...` a integračné testy prechádzajú.
-- [ ] Buildy pre Linux, Windows a macOS prechádzajú.
-- [ ] Žiadne tokeny v logoch ani v `--debug` výstupe. SHA sa v chybách
-      nemaskujú.
-- [ ] Definition of done (§18) je splnené pre každý príkaz.
+- [x] Celý PR workflow funguje end-to-end: create, checkout, review, merge
+      (TestWritePullRequestsAgainstForgejo na 15.0.11 a 17.0.1).
+- [x] Interaktívne aj neinteraktívne použitie je otestované. Bez TTY nikdy
+      nečaká na vstup (každé volanie Prompter je za kontrolou CanPrompt).
+- [x] Všetky hlavné príkazy majú `--json`, `--jq` a `--template`
+      (repo/issue/pr list a view, pr checks; `api` sleduje B-49).
+- [x] Správanie je konzistentné so zdokumentovanými gh konvenciami
+      (flagy, exit kódy, TSV bez TTY); odchýlky v docs/compatibility.md.
+- [x] `go vet`, linter, `go test -race ./...` a integračné testy prechádzajú.
+- [x] Buildy pre Linux, Windows a macOS prechádzajú (linux/amd64, linux/arm64,
+      windows/amd64, darwin/amd64, darwin/arm64).
+- [x] Žiadne tokeny v logoch ani v `--debug` výstupe. SHA sa v chybách
+      nemaskujú (TestDebugOutputHidesTokenAndKeepsSHA, B-37).
+- [x] Definition of done (§18) je splnené pre každý príkaz; schválenie
+      reviewerom prebieha v PR fázy 3e.

@@ -25,7 +25,8 @@ func NewCmd(f *app.Factory) *cobra.Command {
 	cmd := &cobra.Command{Use: "pr <command>", Short: "Work with Forgejo pull requests"}
 	cmd.AddCommand(newListCmd(f), newViewCmd(f), newDiffCmd(f), newChecksCmd(f),
 		newCreateCmd(f), newCheckoutCmd(f), newMergeCmd(f), newEditCmd(f),
-		newCloseCmd(f), newReopenCmd(f), newReadyCmd(f), newCommentCmd(f))
+		newCloseCmd(f), newReopenCmd(f), newReadyCmd(f), newCommentCmd(f),
+		newReviewCmd(f))
 	return cmd
 }
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+
+	"github.com/maymeow/fjo/internal/fjoerr"
 )
 
 var (
@@ -14,7 +16,32 @@ var (
 	epRemoveReview  = endpoint(http.MethodDelete, "/repos/{owner}/{repo}/pulls/{index}/requested_reviewers")
 	epGetBranch     = endpoint(http.MethodGet, "/repos/{owner}/{repo}/branches/{branch}")
 	epDeleteBranch  = endpoint(http.MethodDelete, "/repos/{owner}/{repo}/branches/{branch}")
+
+	epListPullReviews  = endpoint(http.MethodGet, "/repos/{owner}/{repo}/pulls/{index}/reviews")
+	epCreatePullReview = endpoint(http.MethodPost, "/repos/{owner}/{repo}/pulls/{index}/reviews")
 )
+
+// Review events accepted by CreatePullReview.
+const (
+	ReviewApprove        = "APPROVED"
+	ReviewRequestChanges = "REQUEST_CHANGES"
+	ReviewComment        = "COMMENT"
+)
+
+// CreatePullReviewOptions submits a review for the given head commit.
+type CreatePullReviewOptions struct {
+	Event    string `json:"event"`
+	Body     string `json:"body,omitempty"`
+	CommitID string `json:"commit_id,omitempty"`
+}
+
+// PullReview is a submitted pull request review.
+type PullReview struct {
+	ID      int64  `json:"id"`
+	State   string `json:"state"`
+	Body    string `json:"body"`
+	HTMLURL string `json:"html_url"`
+}
 
 // CreatePullOptions describes a new Forgejo pull request.
 type CreatePullOptions struct {
@@ -87,4 +114,26 @@ func (c *Client) GetBranchSHA(ctx context.Context, owner, repo, branch string) (
 // DeleteBranch removes a branch from the specified repository.
 func (c *Client) DeleteBranch(ctx context.Context, owner, repo, branch string) error {
 	return c.JSON(ctx, epDeleteBranch.Method, epDeleteBranch.Expand(owner, repo, branch), nil, nil)
+}
+
+// SupportsPullReviews probes the review list of a pull request. The caller
+// must already know that the pull request exists: a 404 then means the server
+// has no review API (safe probing, IMPLEMENTATION §5.5 and BACKLOG B-9).
+func (c *Client) SupportsPullReviews(ctx context.Context, owner, repo string, index int) (bool, error) {
+	_, err := List[PullReview](ctx, c, epListPullReviews.Expand(owner, repo, strconv.Itoa(index)), nil, 1)
+	switch {
+	case err == nil:
+		return true, nil
+	case fjoerr.KindOf(err) == fjoerr.KindNotFound:
+		return false, nil
+	default:
+		return false, err
+	}
+}
+
+// CreatePullReview submits an approval, a change request or a comment review.
+func (c *Client) CreatePullReview(ctx context.Context, owner, repo string, index int, opt CreatePullReviewOptions) (*PullReview, error) {
+	var review PullReview
+	err := c.JSON(ctx, epCreatePullReview.Method, epCreatePullReview.Expand(owner, repo, strconv.Itoa(index)), opt, &review)
+	return &review, err
 }
