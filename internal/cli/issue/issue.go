@@ -3,16 +3,12 @@ package issue
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"io"
 	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
-	"github.com/maymeow/fjo/internal/browser"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
 	"github.com/maymeow/fjo/internal/reporef"
@@ -26,10 +22,6 @@ func NewCmd(f *app.Factory) *cobra.Command {
 		cmd.AddCommand(newActionCmd(f, action))
 	}
 	return cmd
-}
-
-func repoFlag(cmd *cobra.Command, p *string) {
-	cmd.Flags().StringVarP(p, "repo", "R", "", "Select a repository: [HOST/]OWNER/REPO")
 }
 
 // An issue URL selects both the instance and repository, including subpaths.
@@ -98,17 +90,6 @@ func webURL(f *app.Factory, ref reporef.Ref, path string) string {
 	}
 	return base + "/" + url.PathEscape(ref.Owner) + "/" + url.PathEscape(ref.Name) + "/" + path
 }
-func openBrowser(f *app.Factory, u string) error {
-	err := f.Browser(u)
-	if errors.Is(err, browser.ErrNoBrowser) {
-		_, err = fmt.Fprintln(f.IO.Out, u)
-		return err
-	}
-	if err != nil {
-		return fjoerr.Wrap(fjoerr.KindGeneral, err, "cannot open the browser").WithHint("open " + u + " manually or set FJO_BROWSER")
-	}
-	return nil
-}
 func bodyRead(ctx context.Context, f *app.Factory, o *output.BodyOptions) (string, error) {
 	cfg, err := f.Config()
 	if err != nil {
@@ -116,18 +97,6 @@ func bodyRead(ctx context.Context, f *app.Factory, o *output.BodyOptions) (strin
 	}
 	return o.Read(ctx, output.BodyContext{Stdin: f.IO.In, Getenv: f.Getenv, ConfigEditor: cfg.Defaults.Editor, CanPrompt: f.IO.CanPrompt()})
 }
-func page(ctx context.Context, f *app.Factory, disabled bool, fn func(io.Writer) error) error {
-	cfg, err := f.Config()
-	if err != nil {
-		return err
-	}
-	return output.ResolvePager(f.Getenv, cfg.Defaults.Pager).Run(ctx, f.IO.Out, f.IO.ErrOut, output.PagerOptions{Disabled: disabled}, fn)
-}
-func jsonOptions(f *app.Factory) output.WriteOptions {
-	return output.WriteOptions{TTY: f.IO.IsStdoutTTY(), Color: f.IO.ColorEnabled(), Width: f.IO.TerminalWidth()}
-}
-func line(s string) string { return output.Sanitize(strings.Join(strings.Fields(s), " ")) }
-
 func milestoneID(ctx context.Context, c *api.Client, ref reporef.Ref, name string) (int64, error) {
 	items, err := c.ListMilestones(ctx, ref.Owner, ref.Name)
 	if err != nil {

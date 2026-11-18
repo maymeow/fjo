@@ -58,11 +58,6 @@ func repoArgWithFlag(ctx context.Context, f *app.Factory, flag string, args []st
 	return f.ResolveRepo(ctx, "")
 }
 
-// addRepoFlag registers -R/--repo on commands that operate on one repository.
-func addRepoFlag(cmd *cobra.Command, p *string) {
-	cmd.Flags().StringVarP(p, "repo", "R", "", "Select a repository: [HOST/]OWNER/REPO")
-}
-
 // webURL builds a browser URL for a path on the repository's instance.
 func webURL(f *app.Factory, ref reporef.Ref, path ...string) string {
 	scheme := "https"

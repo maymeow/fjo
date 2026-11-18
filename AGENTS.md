@@ -29,6 +29,12 @@ Instructions for AI coding agents working on `fjo`.
 - Before making any change, check the current branch (`git branch --show-current`). If it is `main`, create a new branch first (e.g. `git switch -c phase-3d-pr-write`).
 - Changes reach `main` only through a reviewed pull request.
 
+## Shared helpers
+
+- Helpers used by more than one command package live in `internal/cli/cmdutil` (`AddRepoFlag`, `JSONOptions`, `TableOptions`, `Page`, `OpenBrowser`, `OneLine`, ...); formatting helpers live in `internal/output`. Check both before writing a new helper.
+- Do not create a new command package by copying an existing one. Start from the shared helpers and add only what is specific to the new commands.
+- `TestNoDuplicateFunctions` (`internal/cli/duplicates_test.go`) fails when two functions in `internal/` have identical bodies. Move the helper to a shared package instead. Only when the functions must stay separate, add them to `allowedDuplicates` with a comment giving the reason.
+
 ## Writing output and data
 
 - **CLI output** goes through `f.IO.Out` / `f.IO.ErrOut` (`internal/iostreams`). `fmt.Fprint*` is fine there; errcheck ignores `fmt.Fprint*` on purpose.

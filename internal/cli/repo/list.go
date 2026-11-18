@@ -11,6 +11,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
 )
@@ -154,7 +155,7 @@ func runList(ctx context.Context, f *app.Factory, o listOptions, owner string) e
 		}
 		rows[i] = []output.Cell{
 			output.Text(r.FullName),
-			output.Text(oneLine(r.Description)),
+			output.Text(cmdutil.OneLine(r.Description)),
 			output.Text(info(r)),
 			output.Text(updated),
 		}
@@ -194,8 +195,4 @@ func info(r *api.Repository) string {
 		parts = append(parts, "archived")
 	}
 	return strings.Join(parts, ", ")
-}
-
-func oneLine(s string) string {
-	return strings.Join(strings.Fields(s), " ")
 }

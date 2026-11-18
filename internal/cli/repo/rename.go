@@ -8,6 +8,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 )
 
@@ -33,7 +34,7 @@ form 'rename <repository> <new-name>' selects it explicitly.`,
 			return runRename(cmd.Context(), f, o, args)
 		},
 	}
-	addRepoFlag(cmd, &o.repo)
+	cmdutil.AddRepoFlag(cmd, &o.repo)
 	cmd.Flags().BoolVar(&o.yes, "yes", false, "Confirm the rename without prompting")
 	return cmd
 }

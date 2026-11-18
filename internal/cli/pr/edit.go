@@ -10,6 +10,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
 )
@@ -24,7 +25,7 @@ type editOptions struct {
 func newEditCmd(f *app.Factory) *cobra.Command {
 	var opts editOptions
 	cmd := &cobra.Command{Use: "edit <number|url>", Short: "Edit a pull request", Args: cobra.ExactArgs(1)}
-	repoFlag(cmd, &opts.repo)
+	cmdutil.AddRepoFlag(cmd, &opts.repo)
 	output.AddBodyFlags(cmd, &opts.body)
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.title, "title", "t", "", "Set the title")

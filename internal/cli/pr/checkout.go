@@ -11,6 +11,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/git"
 	"github.com/maymeow/fjo/internal/reporef"
@@ -20,7 +21,7 @@ func newCheckoutCmd(f *app.Factory) *cobra.Command {
 	var repo, branch string
 	var force bool
 	cmd := &cobra.Command{Use: "checkout <number|url>", Short: "Check out a pull request locally", Args: cobra.ExactArgs(1)}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Name of the local branch")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Allow replacing a diverged local branch")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -186,6 +187,6 @@ func deleteLocalHead(ctx context.Context, f *app.Factory, base reporef.Ref, pull
 		return
 	}
 	if _, err := g.Run(ctx, "branch", "-d", "--", pull.Head.Ref); err != nil {
-		fmt.Fprintf(f.IO.ErrOut, "Could not delete local branch %s: %s\n", oneLine(pull.Head.Ref), oneLine(err.Error()))
+		fmt.Fprintf(f.IO.ErrOut, "Could not delete local branch %s: %s\n", cmdutil.OneLine(pull.Head.Ref), cmdutil.OneLine(err.Error()))
 	}
 }

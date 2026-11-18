@@ -8,6 +8,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 )
 
@@ -35,7 +36,7 @@ is added as the "upstream" remote.`,
 			return runFork(cmd.Context(), f, o, args)
 		},
 	}
-	addRepoFlag(cmd, &o.repo)
+	cmdutil.AddRepoFlag(cmd, &o.repo)
 	cmd.Flags().StringVar(&o.org, "org", "", "Organization to fork into (default: your account)")
 	cmd.Flags().StringVar(&o.name, "name", "", "Name of the fork (default: the source name)")
 	cmd.Flags().BoolVar(&o.clone, "clone", false, "Clone the fork and add the source as the upstream remote")

@@ -11,6 +11,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
 )
@@ -23,7 +24,7 @@ func newMergeCmd(f *app.Factory) *cobra.Command {
 	var body output.BodyOptions
 	var methods [5]bool
 	cmd := &cobra.Command{Use: "merge [<number|url|branch>]", Short: "Merge a pull request", Args: cobra.MaximumNArgs(1)}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	flags := cmd.Flags()
 	for i, method := range mergeMethods {
 		flags.BoolVar(&methods[i], method, false, "Merge using "+method)

@@ -3,9 +3,6 @@ package pr
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"io"
 	"net/url"
 	"strconv"
 	"strings"
@@ -14,10 +11,8 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
-	"github.com/maymeow/fjo/internal/browser"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/git"
-	"github.com/maymeow/fjo/internal/output"
 	"github.com/maymeow/fjo/internal/reporef"
 )
 
@@ -30,37 +25,8 @@ func NewCmd(f *app.Factory) *cobra.Command {
 	return cmd
 }
 
-func repoFlag(cmd *cobra.Command, repo *string) {
-	cmd.Flags().StringVarP(repo, "repo", "R", "", "Select a repository: [HOST/]OWNER/REPO")
-}
-
-func jsonOptions(f *app.Factory) output.WriteOptions {
-	return output.WriteOptions{TTY: f.IO.IsStdoutTTY(), Color: f.IO.ColorEnabled(), Width: f.IO.TerminalWidth()}
-}
-
-func page(ctx context.Context, f *app.Factory, disabled bool, write func(io.Writer) error) error {
-	cfg, err := f.Config()
-	if err != nil {
-		return err
-	}
-	pager := output.ResolvePager(f.Getenv, cfg.Defaults.Pager)
-	return pager.Run(ctx, f.IO.Out, f.IO.ErrOut, output.PagerOptions{Disabled: disabled}, write)
-}
-
 func pullURL(c *api.Client, ref reporef.Ref) string {
 	return c.InstanceURL() + url.PathEscape(ref.Owner) + "/" + url.PathEscape(ref.Name) + "/pulls"
-}
-
-func openBrowser(f *app.Factory, target string) error {
-	err := f.Browser(target)
-	if errors.Is(err, browser.ErrNoBrowser) {
-		_, err = fmt.Fprintln(f.IO.Out, target)
-	}
-	return err
-}
-
-func oneLine(s string) string {
-	return output.Sanitize(strings.Join(strings.Fields(s), " "))
 }
 
 type pullTarget struct {

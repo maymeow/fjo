@@ -5,6 +5,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
 )
@@ -13,7 +14,7 @@ func newChecksCmd(f *app.Factory) *cobra.Command {
 	var repo string
 	cmd := &cobra.Command{Use: "checks [<number|url|branch>]", Short: "Show checks for a pull request", Args: cobra.MaximumNArgs(1)}
 	j := output.AddJSONFlags(cmd, output.CheckFields)
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		target, err := resolve(ctx, f, repo, firstArg(args))
@@ -41,17 +42,17 @@ func newChecksCmd(f *app.Factory) *cobra.Command {
 			failed = failed || check.Bucket == "fail"
 			pending = pending || check.Bucket == "pending"
 			table.Rows = append(table.Rows, []output.Cell{
-				output.Text(oneLine(check.Name)), output.Text(oneLine(check.State)),
-				output.Text(oneLine(check.Description)), output.Text(oneLine(check.URL)),
+				output.Text(cmdutil.OneLine(check.Name)), output.Text(cmdutil.OneLine(check.State)),
+				output.Text(cmdutil.OneLine(check.Description)), output.Text(cmdutil.OneLine(check.URL)),
 			})
 		}
 		switch {
 		case j.Changed():
-			err = j.Write(ctx, f.IO.Out, checks, jsonOptions(f))
+			err = j.Write(ctx, f.IO.Out, checks, cmdutil.JSONOptions(f))
 		case len(checks) == 0:
 			return fjoerr.New(fjoerr.KindGeneral, "no checks reported for pull request #%d", target.number)
 		default:
-			err = table.Print(f.IO.Out, tableOptions(f))
+			err = table.Print(f.IO.Out, cmdutil.TableOptions(f))
 		}
 		if err != nil {
 			return err

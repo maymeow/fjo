@@ -115,7 +115,9 @@ func TestDraftFallbackPaginatesAndMatchesExactTag(t *testing.T) {
 }
 
 func TestReleaseListFiltersAndOrdersBeforeLimit(t *testing.T) {
+	var requests int
 	handler := func(w http.ResponseWriter, r *http.Request) {
+		requests++
 		q := r.URL.Query()
 		if r.URL.Path == endpoint+"/latest" {
 			io.WriteString(w, `{"tag_name":"new"}`)
@@ -129,21 +131,25 @@ func TestReleaseListFiltersAndOrdersBeforeLimit(t *testing.T) {
 		if q.Get("page") == "" {
 			w.Header().Set("Link", "<"+endpoint+`?draft=false&pre-release=false&page=2>; rel="next"`)
 			io.WriteString(w, `[
-				{"id":3,"tag_name":"pre","prerelease":true,"published_at":"2026-11-18T00:00:00Z"},
-				{"id":4,"tag_name":"draft","draft":true,"created_at":"2024-11-18T00:00:00Z"},
-				{"id":5,"tag_name":"new","published_at":"2026-11-17T00:00:00Z"}
+				{"id":3,"tag_name":"pre","prerelease":true,"created_at":"2026-11-18T00:00:00Z"},
+				{"id":4,"tag_name":"draft","draft":true,"created_at":"2026-11-17T12:00:00Z"},
+				{"id":5,"tag_name":"new","created_at":"2026-11-17T00:00:00Z","published_at":"2026-11-17T00:00:00Z"}
 			]`)
 			return
 		}
-		io.WriteString(w, `[{"id":2,"tag_name":"old","published_at":"2025-11-18T00:00:00Z"}]`)
+		io.WriteString(w, `[{"id":2,"tag_name":"old","created_at":"2025-11-18T00:00:00Z","published_at":"2025-11-18T00:00:00Z"}]`)
 	}
 	got := run(t, handler, false, "list", "--exclude-drafts", "--exclude-pre-releases", "-O", "asc", "-L", "1", "--json", "tagName", "--jq", ".[0].tagName")
 	if got.code != 0 || got.stdout != "old\n" {
 		t.Fatalf("%+v", got)
 	}
+	requests = 0
 	got = run(t, handler, false, "list", "--exclude-drafts", "--exclude-pre-releases", "-L", "1")
 	if got.code != 0 || got.stdout != "new\tLatest\tnew\t2026-11-17T00:00:00Z\n" {
 		t.Fatalf("%+v", got)
+	}
+	if requests != 2 {
+		t.Errorf("descending list with a limit made %d requests, want 2 (first page + latest)", requests)
 	}
 	got = run(t, handler, true, "list", "--exclude-drafts", "--exclude-pre-releases", "-L", "1")
 	if got.code != 0 || !strings.Contains(got.stdout, "TITLE") || !strings.Contains(got.stdout, "Latest") {

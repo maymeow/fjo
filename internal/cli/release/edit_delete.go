@@ -9,6 +9,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 )
 
@@ -17,7 +18,7 @@ func newEditCmd(f *app.Factory) *cobra.Command {
 	var draft, prerelease bool
 	var notes notesOptions
 	cmd := &cobra.Command{Use: "edit <tag>", Short: "Edit a release", Args: cobra.ExactArgs(1)}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	flags := cmd.Flags()
 	flags.StringVar(&tag, "tag", "", "Change the release tag")
 	flags.StringVarP(&title, "title", "t", "", "Change the title")
@@ -96,7 +97,7 @@ func editRelease(ctx context.Context, f *app.Factory, repo, tag string, payload 
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintln(f.IO.Out, tableText(release.HTMLURL))
+	_, err = fmt.Fprintln(f.IO.Out, cmdutil.OneLine(release.HTMLURL))
 	return err
 }
 
@@ -104,7 +105,7 @@ func newDeleteCmd(f *app.Factory) *cobra.Command {
 	var repo string
 	var cleanup, yes bool
 	cmd := &cobra.Command{Use: "delete <tag>", Short: "Delete a release", Args: cobra.ExactArgs(1)}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Confirm deletion without prompting")
 	cmd.Flags().BoolVar(&cleanup, "cleanup-tag", false, "Also delete the Git tag from Forgejo")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {

@@ -57,7 +57,7 @@ func TestReleaseCreateRejectsInvalidInputBeforeRequests(t *testing.T) {
 		{[]string{"create", "../v1"}, fjoerr.ExitUsage},
 		{[]string{"create", "v1", "--notes-from-tag", "-n", "note"}, fjoerr.ExitUsage},
 		{[]string{"create", "v1", "--target="}, fjoerr.ExitUsage},
-		{[]string{"create", "v1", "app.tar.gz"}, fjoerr.ExitUnsupported},
+		{[]string{"create", "v1", "app.tar.gz"}, fjoerr.ExitUsage},
 		{[]string{"edit", "v1"}, fjoerr.ExitUsage},
 		{[]string{"delete", "v1"}, fjoerr.ExitUsage},
 	} {

@@ -570,10 +570,10 @@ fjo release list -O asc -L 5 --json tagName,publishedAt
 
 Lists visible releases, including drafts the token can read. Use
 `--exclude-drafts` or `--exclude-pre-releases` to filter the list.
-`-O, --order` sorts by publication time, using creation time for drafts
-or releases without a publication date. Use `asc` for oldest first or
-`desc` for newest first (the default). `-L, --limit` caps the ordered
-results and defaults to 30.
+`-O, --order` sorts by creation time, as gh does: `desc` for newest
+first (the default) or `asc` for oldest first. `-L, --limit` caps the
+results and defaults to 30. In the default order fjo fetches only as many
+releases as it shows; `asc` has to read the whole list first.
 
 ### `fjo release view [<tag>]`
 

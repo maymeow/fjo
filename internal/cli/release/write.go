@@ -10,6 +10,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
 )
@@ -73,8 +74,8 @@ type createOptions struct {
 
 func newCreateCmd(f *app.Factory) *cobra.Command {
 	var opts createOptions
-	cmd := &cobra.Command{Use: "create [<tag>]", Short: "Create a release", Args: cobra.ArbitraryArgs}
-	repoFlag(cmd, &opts.repo)
+	cmd := &cobra.Command{Use: "create [<tag>]", Short: "Create a release", Args: cobra.MaximumNArgs(1)}
+	cmdutil.AddRepoFlag(cmd, &opts.repo)
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.payload.Name, "title", "t", "", "Release title")
 	flags.StringVar(&opts.payload.TargetCommitish, "target", "", "Commit or branch to tag (defaults to the repository default branch)")
@@ -85,9 +86,6 @@ func newCreateCmd(f *app.Factory) *cobra.Command {
 	flags.BoolVar(&opts.notesFromTag, "notes-from-tag", false, "Read notes from the local annotated Git tag")
 	opts.notes.addFlags(flags)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		if len(args) > 1 {
-			return fjoerr.New(fjoerr.KindUnsupported, "release asset upload is planned for phase 4c")
-		}
 		if err := opts.notes.validate(); err != nil {
 			return err
 		}
@@ -163,7 +161,7 @@ func createRelease(ctx context.Context, f *app.Factory, opts createOptions, args
 		}
 		return err
 	}
-	_, err = fmt.Fprintln(f.IO.Out, tableText(release.HTMLURL))
+	_, err = fmt.Fprintln(f.IO.Out, cmdutil.OneLine(release.HTMLURL))
 	return err
 }
 
@@ -176,7 +174,7 @@ func checkDuplicate(ctx context.Context, c *api.Client, owner, repo, tag string)
 		if existing.HTMLURL == "" {
 			return fjoerr.New(fjoerr.KindConflict, "release for tag %q already exists", tag)
 		}
-		return fjoerr.New(fjoerr.KindConflict, "release for tag %q already exists: %s", tag, tableText(existing.HTMLURL))
+		return fjoerr.New(fjoerr.KindConflict, "release for tag %q already exists: %s", tag, cmdutil.OneLine(existing.HTMLURL))
 	default:
 		return err
 	}
