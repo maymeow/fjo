@@ -54,3 +54,8 @@ Security:
 
 Runner registration: see the Forgejo runner documentation for your instance version
 (`forgejo-runner register --labels fjo-linux-amd64:host ...`).
+
+The same jobs (test matrix on Linux, Windows and macOS, Forgejo integration
+tests, lint and govulncheck) also run on GitHub Actions with GitHub-hosted
+runners (`.github/workflows/ci.yaml`). Keep both workflow files in sync when
+you change CI.
