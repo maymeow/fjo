@@ -23,6 +23,12 @@ Instructions for AI coding agents working on `fjo`.
 - `make lint` builds `bin/golangci-lint-fjo` (golangci-lint v2.15.0 with project plugins, see `.custom-gcl.yml`) and runs it. Do not run plain `golangci-lint run`; it does not know the `fmtwrite` linter and fails.
 - Run `make fmt`, `make test` and `make lint` before you call a change done.
 
+## Git workflow
+
+- **Never work on `main`.** Do not commit to `main` and never push to it directly.
+- Before making any change, check the current branch (`git branch --show-current`). If it is `main`, create a new branch first (e.g. `git switch -c phase-3d-pr-write`).
+- Changes reach `main` only through a reviewed pull request.
+
 ## Writing output and data
 
 - **CLI output** goes through `f.IO.Out` / `f.IO.ErrOut` (`internal/iostreams`). `fmt.Fprint*` is fine there; errcheck ignores `fmt.Fprint*` on purpose.
