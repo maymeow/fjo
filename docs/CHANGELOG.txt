@@ -15,13 +15,12 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 - Phase:            Phase 3 - Issues and pull requests (COMPLETE, 3a-3e)
 - Next target:      tag v0.1.0; then Phase 4 - Release management (v0.2.0)
 - Last updated:     2026-11-18
-- Repo:             https://github.com/kukolos/fjo (private), branch main
+- Repo:             https://github.com/maymeow/fjo (public), branch main
 - Phase 0 open:     self-hosted Forgejo runners; race tests (B-35);
                     GitHub Actions CI added (first run on PR)
 - Phase 3 open:     none; deferred after Phase 3: B-38, B-39, B-45, B-47,
                     B-49, B-50
-- Blockers:         none for code; B-33 (license), B-34 (module path vs.
-                    repo at github.com/kukolos/fjo) before a public release
+- Blockers:         none (B-33 license and B-34 module path decided)
 
 Update this block whenever an entry below changes the status.
 
@@ -65,6 +64,11 @@ Added:
   test, race and build; Forgejo 15/17 integration tests; make lint with the
   fmtwrite plugin; govulncheck). Read-only token, PR runs cancel superseded ones.
 - docs/development.md: notes that both workflows exist and must stay in sync.
+- .gitattributes forcing LF (Windows checkouts broke the gofmt check).
+- LICENSE (MIT, "The fjo contributors"); B-33 decided.
+- Repository moves to github.com/maymeow/fjo and goes public, matching the
+  module path; B-34 decided. CODEOWNERS points to @maymeow and covers the
+  workflow directories (it listed a non-existent .gitlabci.yml).
 Deviations from spec:
 - §13.5 names the project's Forgejo instance; GitHub Actions is an additional
   CI while the repository lives on GitHub and self-hosted runners are not set up.
