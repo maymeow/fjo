@@ -69,3 +69,22 @@ func TestErrorMessageAndUnwrap(t *testing.T) {
 		t.Error("empty error should fall back to kind")
 	}
 }
+
+func TestJoinCleanup(t *testing.T) {
+	primary := errors.New("primary")
+	cleanup := errors.New("cleanup")
+
+	if got := JoinCleanup(nil, nil); got != nil {
+		t.Errorf("JoinCleanup(nil, nil) = %v, want nil", got)
+	}
+	if got := JoinCleanup(primary, nil); got != primary { //nolint:errorlint // identity is the contract under test
+		t.Errorf("JoinCleanup(primary, nil) = %v, want primary unchanged", got)
+	}
+	if got := JoinCleanup(nil, cleanup); got != cleanup { //nolint:errorlint // identity is the contract under test
+		t.Errorf("JoinCleanup(nil, cleanup) = %v, want cleanup unchanged", got)
+	}
+	got := JoinCleanup(primary, cleanup)
+	if !errors.Is(got, primary) || !errors.Is(got, cleanup) {
+		t.Errorf("JoinCleanup(primary, cleanup) = %v, want both errors in the chain", got)
+	}
+}

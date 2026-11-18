@@ -188,10 +188,8 @@ func run(ctx context.Context, f *app.Factory, o options, endpoint string) error 
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-
 	data, err := io.ReadAll(resp.Body)
-	if err != nil {
+	if err = fjoerr.JoinCleanup(err, resp.Body.Close()); err != nil {
 		return fjoerr.Wrap(fjoerr.KindUnavailable, err, "reading response from %s", client.Host())
 	}
 	w := f.IO.Out
@@ -199,7 +197,9 @@ func run(ctx context.Context, f *app.Factory, o options, endpoint string) error 
 		printHead(w, resp)
 	}
 	if !o.silent {
-		writeBody(f, w, resp.Header, data)
+		if err := writeBody(f, w, resp.Header, data); err != nil {
+			return err
+		}
 	}
 	if resp.StatusCode >= 400 {
 		return api.ErrorFromBody(resp, data)
@@ -277,8 +277,9 @@ func runPaginated(ctx context.Context, f *app.Factory, client *api.Client, o opt
 	}
 	if !o.silent && pageNum > 0 {
 		if !array {
-			writeBody(f, w, lastHdr, single)
-		} else if pageErrs == nil {
+			return fjoerr.JoinCleanup(pageErrs, writeBody(f, w, lastHdr, single))
+		}
+		if pageErrs == nil {
 			if items == nil {
 				items = []json.RawMessage{}
 			}
@@ -287,7 +288,7 @@ func runPaginated(ctx context.Context, f *app.Factory, client *api.Client, o opt
 				return fmt.Errorf("encode merged pages: %w", merr)
 			}
 			hdr := http.Header{"Content-Type": {"application/json"}}
-			writeBody(f, w, hdr, merged)
+			return writeBody(f, w, hdr, merged)
 		}
 	}
 	return pageErrs
@@ -295,22 +296,26 @@ func runPaginated(ctx context.Context, f *app.Factory, client *api.Client, o opt
 
 // writeBody prints a response body. JSON is indented when stdout is a
 // terminal; everything else is copied verbatim.
-func writeBody(f *app.Factory, w io.Writer, h http.Header, data []byte) {
+func writeBody(f *app.Factory, w io.Writer, h http.Header, data []byte) error {
 	if len(data) == 0 {
-		return
+		return nil
 	}
 	if f.IO.IsStdoutTTY() && isJSON(h) {
 		var buf bytes.Buffer
 		if json.Indent(&buf, data, "", "  ") == nil {
 			buf.WriteByte('\n')
-			_, _ = w.Write(buf.Bytes())
-			return
+			_, err := w.Write(buf.Bytes())
+			return err
 		}
 	}
-	_, _ = w.Write(data)
-	if f.IO.IsStdoutTTY() && data[len(data)-1] != '\n' {
-		_, _ = io.WriteString(w, "\n")
+	if _, err := w.Write(data); err != nil {
+		return err
 	}
+	if f.IO.IsStdoutTTY() && data[len(data)-1] != '\n' {
+		_, err := io.WriteString(w, "\n")
+		return err
+	}
+	return nil
 }
 
 func isJSON(h http.Header) bool {
@@ -354,7 +359,7 @@ func readInput(f *app.Factory, name string) ([]byte, error) {
 		}
 		return b, nil
 	}
-	b, err := os.ReadFile(name)
+	b, err := os.ReadFile(name) //nolint:gosec // G304: --input names a file the user chose
 	if err != nil {
 		return nil, fjoerr.Wrap(fjoerr.KindUsage, err, "read --input file")
 	}

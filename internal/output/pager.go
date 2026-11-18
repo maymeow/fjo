@@ -2,11 +2,13 @@ package output
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
 
+	"github.com/maymeow/fjo/internal/fjoerr"
 	"golang.org/x/term"
 )
 
@@ -74,14 +76,16 @@ func (p Pager) Run(ctx context.Context, out, errOut io.Writer, o PagerOptions, f
 		return fn(out)
 	}
 	if err := cmd.Start(); err != nil {
-		_ = stdin.Close()
-		return fn(out)
+		return fjoerr.JoinCleanup(fn(out), closePipe(stdin))
 	}
 	writeErr := fn(stdin)
-	_ = stdin.Close()
+	closeErr := closePipe(stdin)
 	waitErr := cmd.Wait()
 	if writeErr != nil && !isBrokenPipe(writeErr) {
 		return writeErr
+	}
+	if closeErr != nil && !isBrokenPipe(closeErr) {
+		return closeErr
 	}
 	if ctx.Err() != nil {
 		return ctx.Err()
@@ -89,6 +93,15 @@ func (p Pager) Run(ctx context.Context, out, errOut io.Writer, o PagerOptions, f
 	// A pager that exits non-zero (for example, because the user quit) is
 	// not a failure of the command that produced the output.
 	_ = waitErr
+	return nil
+}
+
+// closePipe closes the pager's stdin. os/exec may already have closed it (for
+// example after a failed Start), which is not an error.
+func closePipe(c io.Closer) error {
+	if err := c.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+		return err
+	}
 	return nil
 }
 

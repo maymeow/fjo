@@ -73,14 +73,16 @@ func (m *Manager) Set(host, user, token string, insecure bool) (Source, error) {
 		if err := m.File.Set(host, user, token); err != nil {
 			return "", err
 		}
-		_ = m.Keyring.Delete(host, user)
+		m.Keyring.Delete(host, user) //nolint:errcheck,gosec // --insecure-storage exists for hosts without a working keyring; failing here would block it
 		return SourceFile, nil
 	}
 	if err := m.Keyring.Set(host, user, token); err != nil {
 		return "", fmt.Errorf("store token in OS credential store: %w", err)
 	}
 	if m.File != nil {
-		_ = m.File.Delete(host, user)
+		if err := m.File.Delete(host, user); err != nil && !errors.Is(err, ErrNotFound) {
+			return SourceKeyring, fmt.Errorf("remove plain-text token copy: %w", err)
+		}
 	}
 	return SourceKeyring, nil
 }

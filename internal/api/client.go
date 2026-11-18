@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -165,7 +166,7 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 		resp, err := c.http.Do(req)
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			if resp != nil {
-				_ = resp.Body.Close()
+				return nil, fjoerr.JoinCleanup(ctxErr, resp.Body.Close())
 			}
 			return nil, ctxErr
 		}
@@ -189,8 +190,9 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 			"request_id", firstHeader(resp.Header, "X-Request-Id", "X-Gitea-Request-Id", "X-Forgejo-Request-Id"))
 		if retryable && isRetryableStatus(resp.StatusCode) {
 			after := retryAfter(resp.Header.Get("Retry-After"))
-			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxErrorBody))
-			_ = resp.Body.Close()
+			if derr := drainAndClose(resp.Body); derr != nil {
+				c.log.Debug("discard response body before retry", "err", derr.Error())
+			}
 			if werr := c.wait(ctx, attempt, after); werr != nil {
 				return nil, werr
 			}
@@ -209,9 +211,16 @@ func CheckResponse(resp *http.Response) error {
 	if resp.StatusCode < 400 {
 		return nil
 	}
-	body := readLimited(resp.Body, maxErrorBody)
-	_ = resp.Body.Close()
-	return classifyStatus(newAPIError(resp, body))
+	body, readErr := readLimited(resp.Body, maxErrorBody)
+	apiErr := classifyStatus(newAPIError(resp, body))
+	return fjoerr.JoinCleanup(apiErr, errors.Join(readErr, resp.Body.Close()))
+}
+
+// drainAndClose reads (a bounded part of) body so the connection can be
+// reused, then closes it.
+func drainAndClose(body io.ReadCloser) error {
+	_, err := io.Copy(io.Discard, io.LimitReader(body, maxErrorBody))
+	return errors.Join(err, body.Close())
 }
 
 // ErrorFromBody classifies an error response whose body the caller already
@@ -221,39 +230,41 @@ func ErrorFromBody(resp *http.Response, body []byte) error {
 }
 
 // JSON performs a request with an optional JSON body and decodes a JSON
-// response into out (if non-nil).
-func (c *Client) JSON(ctx context.Context, method, path string, in, out any) (*http.Response, error) {
+// response into out (if non-nil). The response body is always closed.
+func (c *Client) JSON(ctx context.Context, method, path string, in, out any) (err error) {
 	var body io.Reader
 	if in != nil {
 		b, err := json.Marshal(in)
 		if err != nil {
-			return nil, fmt.Errorf("encode request: %w", err)
+			return fmt.Errorf("encode request: %w", err)
 		}
 		body = bytes.NewReader(b)
 	}
 	req, err := c.NewRequest(ctx, method, path, body)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if in != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	resp, err := c.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if err := CheckResponse(resp); err != nil {
-		return resp, err
+		return err
 	}
-	defer resp.Body.Close()
+	defer func() { err = fjoerr.JoinCleanup(err, resp.Body.Close()) }()
 	if out == nil {
-		_, _ = io.Copy(io.Discard, resp.Body)
-		return resp, nil
+		if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+			return fjoerr.Wrap(fjoerr.KindUnavailable, err, "reading response from %s %s", method, SanitizeURL(req.URL))
+		}
+		return nil
 	}
 	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
-		return resp, fjoerr.Wrap(fjoerr.KindGeneral, err, "invalid response from %s %s", method, SanitizeURL(req.URL))
+		return fjoerr.Wrap(fjoerr.KindGeneral, err, "invalid response from %s %s", method, SanitizeURL(req.URL))
 	}
-	return resp, nil
+	return nil
 }
 
 func (c *Client) wait(ctx context.Context, attempt int, min time.Duration) error {

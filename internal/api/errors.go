@@ -158,7 +158,6 @@ func firstHeader(h http.Header, names ...string) string {
 	return ""
 }
 
-func readLimited(r io.Reader, n int64) []byte {
-	b, _ := io.ReadAll(io.LimitReader(r, n))
-	return b
+func readLimited(r io.Reader, n int64) ([]byte, error) {
+	return io.ReadAll(io.LimitReader(r, n))
 }

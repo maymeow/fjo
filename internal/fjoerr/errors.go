@@ -117,6 +117,19 @@ func IsSilent(err error) bool {
 	return errors.As(err, &fe) && fe.Silent
 }
 
+// JoinCleanup attaches cleanupErr (from Close, Remove, ...) to err. It returns
+// err unchanged when cleanupErr is nil, so the primary error keeps its
+// identity, and cleanupErr alone when err is nil.
+func JoinCleanup(err, cleanupErr error) error {
+	if cleanupErr == nil {
+		return err
+	}
+	if err == nil {
+		return cleanupErr
+	}
+	return errors.Join(err, cleanupErr)
+}
+
 // WithHint returns e with an actionable hint attached.
 func (e *Error) WithHint(hint string) *Error {
 	e.Hint = hint

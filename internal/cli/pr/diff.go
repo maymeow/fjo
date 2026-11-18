@@ -2,6 +2,7 @@ package pr
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -22,7 +23,7 @@ func newDiffCmd(f *app.Factory) *cobra.Command {
 	cmd.Flags().BoolVar(&names, "name-only", false, "Show only changed file names")
 	cmd.Flags().BoolVar(&patch, "patch", false, "Show the changes in patch format")
 	cmd.Flags().BoolVar(&noPager, "no-pager", false, "Disable the pager")
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+	cmd.RunE = func(cmd *cobra.Command, args []string) (err error) {
 		if names && patch {
 			return fjoerr.Usage("--name-only and --patch cannot be combined")
 		}
@@ -53,7 +54,7 @@ func newDiffCmd(f *app.Factory) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		defer stream.Close()
+		defer func() { err = fjoerr.JoinCleanup(err, stream.Close()) }()
 		return page(ctx, f, noPager, func(w io.Writer) error {
 			color := f.IO.ColorEnabled()
 			if color || f.IO.IsStdoutTTY() {
@@ -101,7 +102,7 @@ func printDiff(w io.Writer, stream io.Reader, color bool) error {
 			chunk = append(tail, chunk...)
 			tail = nil
 		}
-		if err == bufio.ErrBufferFull {
+		if errors.Is(err, bufio.ErrBufferFull) {
 			// Keep an incomplete UTF-8 rune for the next chunk.
 			for i := len(chunk) - 1; i >= len(chunk)-utf8.UTFMax+1; i-- {
 				if utf8.RuneStart(chunk[i]) {
@@ -124,9 +125,9 @@ func printDiff(w io.Writer, stream io.Reader, color bool) error {
 			}
 			start = chunk[len(chunk)-1] == '\n'
 		}
-		switch err {
-		case nil, bufio.ErrBufferFull:
-		case io.EOF:
+		switch {
+		case err == nil, errors.Is(err, bufio.ErrBufferFull):
+		case errors.Is(err, io.EOF):
 			return nil
 		default:
 			return err

@@ -26,9 +26,7 @@ func WriteFileAtomic(path string, data []byte) error {
 	}
 	tmpName := tmp.Name()
 	fail := func(err error) error {
-		_ = tmp.Close()
-		_ = os.Remove(tmpName)
-		return err
+		return errors.Join(err, tmp.Close(), os.Remove(tmpName))
 	}
 
 	if err := tmp.Chmod(0o600); err != nil && !errors.Is(err, errors.ErrUnsupported) {
@@ -41,12 +39,10 @@ func WriteFileAtomic(path string, data []byte) error {
 		return fail(fmt.Errorf("sync temp file: %w", err))
 	}
 	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmpName)
-		return fmt.Errorf("close temp file: %w", err)
+		return errors.Join(fmt.Errorf("close temp file: %w", err), os.Remove(tmpName))
 	}
 	if err := os.Rename(tmpName, path); err != nil {
-		_ = os.Remove(tmpName)
-		return fmt.Errorf("replace file: %w", err)
+		return errors.Join(fmt.Errorf("replace file: %w", err), os.Remove(tmpName))
 	}
 	return nil
 }

@@ -37,7 +37,7 @@ func Dir(getenv func(string) string) (string, error) {
 // Load reads the configuration from path. A missing file yields an empty
 // default configuration; any other read, parse or validation error is returned.
 func Load(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304: the config path comes from FJO_CONFIG_DIR/XDG_CONFIG_HOME or the user config dir
 	if errors.Is(err, fs.ErrNotExist) {
 		return New(), nil
 	}

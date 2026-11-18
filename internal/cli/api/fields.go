@@ -80,7 +80,7 @@ func typedValue(f *app.Factory, v string, stdinUsed *bool) (any, error) {
 			*stdinUsed = true
 			b, err = io.ReadAll(f.IO.In)
 		} else {
-			b, err = os.ReadFile(name)
+			b, err = os.ReadFile(name) //nolint:gosec // G304: @file field values name files the user chose
 		}
 		if err != nil {
 			return nil, fjoerr.Wrap(fjoerr.KindUsage, err, "read field value from %s", v)

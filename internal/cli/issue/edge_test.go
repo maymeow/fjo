@@ -89,7 +89,7 @@ func TestFailures(t *testing.T) {
 	for _, action := range []string{"view", "close", "reopen", "comment", "edit", "delete", "pin", "unpin"} {
 		t.Run(action, func(t *testing.T) {
 			h := newHarness(t, func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(403)
+				w.WriteHeader(http.StatusForbidden)
 				io.WriteString(w, `{"message":"forbidden"}`)
 			})
 			args := []string{"issue", action, "42", "-R", "org/project"}
@@ -171,8 +171,8 @@ func TestSubpathURL(t *testing.T) {
 
 func TestPartialFailure(t *testing.T) {
 	h := newHarness(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "PATCH" {
-			w.WriteHeader(403)
+		if r.Method == http.MethodPatch {
+			w.WriteHeader(http.StatusForbidden)
 			io.WriteString(w, `{"message":"forbidden"}`)
 			return
 		}
@@ -188,7 +188,7 @@ func TestPartialFailure(t *testing.T) {
 // file that does not exist, so reading it first would fail with a different error.
 func TestEditMissingIssueSkipsBodyRead(t *testing.T) {
 	h := newHarness(t, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 		io.WriteString(w, `{"message":"not found"}`)
 	})
 	r := h.run(nil, false, "", "issue", "edit", "99", "-R", "org/project", "--body-file", filepath.Join(t.TempDir(), "missing.txt"))

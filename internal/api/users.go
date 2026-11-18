@@ -22,7 +22,7 @@ type User struct {
 // minimal login verification request of §7.3.
 func (c *Client) CurrentUser(ctx context.Context) (*User, error) {
 	var u User
-	if _, err := c.JSON(ctx, http.MethodGet, epCurrentUser.Expand(), nil, &u); err != nil {
+	if err := c.JSON(ctx, http.MethodGet, epCurrentUser.Expand(), nil, &u); err != nil {
 		return nil, err
 	}
 	return &u, nil
@@ -34,7 +34,7 @@ func (c *Client) ServerVersion(ctx context.Context) (string, error) {
 	var v struct {
 		Version string `json:"version"`
 	}
-	if _, err := c.JSON(ctx, http.MethodGet, epServerVersion.Expand(), nil, &v); err != nil {
+	if err := c.JSON(ctx, http.MethodGet, epServerVersion.Expand(), nil, &v); err != nil {
 		return "", err
 	}
 	return v.Version, nil

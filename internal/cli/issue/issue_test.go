@@ -35,7 +35,7 @@ type harness struct {
 func issueHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/api/v1/repos/org/project/issues":
-		if r.Method == "GET" {
+		if r.Method == http.MethodGet {
 			io.WriteString(w, "["+issueJSON+"]")
 		} else {
 			io.WriteString(w, issueJSON)
@@ -43,7 +43,7 @@ func issueHandler(w http.ResponseWriter, r *http.Request) {
 	case "/api/v1/repos/org/project/issues/42":
 		io.WriteString(w, issueJSON)
 	case "/api/v1/repos/org/project/issues/42/comments":
-		if r.Method == "GET" {
+		if r.Method == http.MethodGet {
 			io.WriteString(w, `[{"body":"A comment","user":{"login":"bob"}}]`)
 		} else {
 			io.WriteString(w, `{"html_url":"https://forge/comment"}`)
@@ -53,11 +53,11 @@ func issueHandler(w http.ResponseWriter, r *http.Request) {
 	case "/api/v1/repos/org/project/milestones":
 		io.WriteString(w, `[{"id":12,"title":"v1"}]`)
 	case "/api/v1/repos/org/project/issues/42/labels", "/api/v1/repos/org/project/issues/42/labels/8", "/api/v1/repos/org/project/issues/42/pin":
-		w.WriteHeader(204)
+		w.WriteHeader(http.StatusNoContent)
 	case "/api/v1/user":
 		io.WriteString(w, `{"login":"me","id":5}`)
 	default:
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 		io.WriteString(w, `{"message":"not found"}`)
 	}
 }
