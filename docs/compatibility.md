@@ -132,7 +132,8 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | `gh pr list/view/diff/checks` | same | done (Phase 3c), with differences below |
 | `gh pr create/checkout/merge/close/reopen/ready/edit/comment` | same | done (Phase 3d), with differences below |
 | `gh pr review` | same | done (Phase 3e), with differences below |
-| `gh release ...` | same | planned (Phase 4) |
+| `gh release list/view` | same | done (Phase 4a) |
+| `gh release create/edit/delete/upload/delete-asset/download` | same | planned (Phases 4b–4d) |
 | `gh run`, `gh workflow` | same | planned (Phase 5), scope depends on Forgejo Actions API (BACKLOG B-10) |
 | `gh org`, `gh ssh-key`, `gh secret`, `gh variable` | same | planned (Phase 6) |
 | `gh label` | same | idea (BACKLOG B-22) |
@@ -213,3 +214,18 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
   use `--editor` or `--body-file` for longer reviews. Support for the review
   API is probed before submitting (exit 15 if missing). Self-reviews that
   Forgejo rejects return exit 13 with the server message.
+
+## Release command differences
+
+- Forgejo uses the release tag on the command line. The JSON `id` field
+  contains Forgejo's numeric release ID.
+- `release view` without a tag uses Forgejo's latest stable release.
+  Explicit tag lookup can also find visible drafts through the release list
+  when Forgejo's direct tag endpoint returns 404.
+- JSON fields are `assets`, `author`, `body`, `createdAt`, `id`,
+  `isDraft`, `isPrerelease`, `name`, `publishedAt`, `tagName`,
+  `tarballUrl`, `targetCommitish`, `url` and `zipballUrl`.
+  `author` contains `login`, and each asset contains `name`, `size`
+  in bytes, `url`, `downloadCount` and `createdAt`.
+  `assets` is an empty array when there are no attachments. `publishedAt`
+  is null for drafts and releases without a publication date.

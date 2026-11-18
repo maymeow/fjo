@@ -76,3 +76,9 @@ var (
 	epPullFiles      = endpoint("GET", "/repos/{owner}/{repo}/pulls/{index}/files")
 	epCommitStatuses = endpoint("GET", "/repos/{owner}/{repo}/statuses/{sha}")
 )
+
+var (
+	epListReleases  = endpoint("GET", "/repos/{owner}/{repo}/releases")
+	epLatestRelease = endpoint("GET", "/repos/{owner}/{repo}/releases/latest")
+	epReleaseByTag  = endpoint("GET", "/repos/{owner}/{repo}/releases/tags/{tag}")
+)

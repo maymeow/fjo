@@ -1611,12 +1611,12 @@ Acceptance criteria:
 **Target: v0.2.0** — planned (2026-11-18); split into 4a (API, list/view),
 4b (create/edit/delete), 4c (asset upload), 4d (download) and 4e (fjo binary
 releases, documentation, closing). Checklist: docs/PHASE4.txt. Open
-decisions: B-51 .. B-56.
+decisions: B-52 .. B-56. Milestone 4a implemented 2026-11-18.
 
 Tasks:
 
-- [ ] Implement release listing.
-- [ ] Implement release viewing.
+- [x] Implement release listing.
+- [x] Implement release viewing.
 - [ ] Implement release creation.
 - [ ] Implement release asset upload.
 - [ ] Implement release download.
