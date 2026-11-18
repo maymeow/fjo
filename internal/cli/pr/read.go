@@ -11,6 +11,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
 )
@@ -87,7 +88,7 @@ func newListCmd(f *app.Factory) *cobra.Command {
 				}
 				q.Set(key, strconv.FormatInt(user.ID, 10))
 			}
-			return openBrowser(f, pullURL(client, ref)+"?"+q.Encode())
+			return cmdutil.OpenBrowser(f, pullURL(client, ref)+"?"+q.Encode())
 		}
 		pulls, err := client.ListPulls(ctx, ref.Owner, ref.Name, s, limit)
 		if err != nil {
@@ -98,7 +99,7 @@ func newListCmd(f *app.Factory) *cobra.Command {
 			for i := range pulls {
 				data[i] = output.NewPullRequest(&pulls[i])
 			}
-			return j.Write(ctx, f.IO.Out, data, jsonOptions(f))
+			return j.Write(ctx, f.IO.Out, data, cmdutil.JSONOptions(f))
 		}
 		if len(pulls) == 0 {
 			_, err := fmt.Fprintf(f.IO.ErrOut, "no pull requests matching the filters in %s\n", ref.FullName())
@@ -120,15 +121,15 @@ func newListCmd(f *app.Factory) *cobra.Command {
 				updated = output.TimeAgo(pull.UpdatedAt)
 			}
 			table.Rows = append(table.Rows, []output.Cell{
-				output.Text(fmt.Sprintf("#%d", pull.Number)), output.Text(oneLine(pull.Title)),
-				output.Text(oneLine(branch)), output.Text(state), output.Text(updated),
+				output.Text(fmt.Sprintf("#%d", pull.Number)), output.Text(cmdutil.OneLine(pull.Title)),
+				output.Text(cmdutil.OneLine(branch)), output.Text(state), output.Text(updated),
 			})
 		}
-		return page(ctx, f, noPager, func(w io.Writer) error {
-			return table.Print(w, tableOptions(f))
+		return cmdutil.Page(ctx, f, noPager, func(w io.Writer) error {
+			return table.Print(w, cmdutil.TableOptions(f))
 		})
 	}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	flags := cmd.Flags()
 	flags.StringVarP(&search.State, "state", "s", "open", "Filter by state: open, closed, merged or all")
 	flags.StringVarP(&search.Author, "author", "A", "", "Filter by author (or @me)")
@@ -141,10 +142,6 @@ func newListCmd(f *app.Factory) *cobra.Command {
 	flags.BoolVarP(&web, "web", "w", false, "Open the pull request list in the browser")
 	flags.BoolVar(&noPager, "no-pager", false, "Disable the pager")
 	return cmd
-}
-
-func tableOptions(f *app.Factory) output.TableOptions {
-	return output.TableOptions{TTY: f.IO.IsStdoutTTY(), Width: f.IO.TerminalWidth(), Color: f.IO.ColorEnabled()}
 }
 
 func newViewCmd(f *app.Factory) *cobra.Command {
@@ -167,7 +164,7 @@ func newViewCmd(f *app.Factory) *cobra.Command {
 			return err
 		}
 		if web {
-			return openBrowser(f, fmt.Sprintf("%s/%d", pullURL(target.client, target.repo), target.number))
+			return cmdutil.OpenBrowser(f, fmt.Sprintf("%s/%d", pullURL(target.client, target.repo), target.number))
 		}
 		pull, err := target.read(ctx)
 		if err != nil {
@@ -175,7 +172,7 @@ func newViewCmd(f *app.Factory) *cobra.Command {
 		}
 		data := output.NewPullRequest(pull)
 		if j.Changed() {
-			return j.Write(ctx, f.IO.Out, data, jsonOptions(f))
+			return j.Write(ctx, f.IO.Out, data, cmdutil.JSONOptions(f))
 		}
 		var items []api.Comment
 		if comments {
@@ -184,14 +181,14 @@ func newViewCmd(f *app.Factory) *cobra.Command {
 				return err
 			}
 		}
-		return page(ctx, f, noPager, func(w io.Writer) error {
+		return cmdutil.Page(ctx, f, noPager, func(w io.Writer) error {
 			if _, err := fmt.Fprintf(w, "%s (#%d)\n%s · %s · %s → %s\n\n%s\n\n%s\n",
-				oneLine(data.Title), data.Number, oneLine(data.State), oneLine(data.Author.Login),
-				oneLine(data.HeadRefName), oneLine(data.BaseRefName), output.Sanitize(data.Body), oneLine(data.URL)); err != nil {
+				cmdutil.OneLine(data.Title), data.Number, cmdutil.OneLine(data.State), cmdutil.OneLine(data.Author.Login),
+				cmdutil.OneLine(data.HeadRefName), cmdutil.OneLine(data.BaseRefName), output.Sanitize(data.Body), cmdutil.OneLine(data.URL)); err != nil {
 				return err
 			}
 			for _, item := range items {
-				if _, err := fmt.Fprintf(w, "\n%s · %s\n%s\n", oneLine(item.User.Login),
+				if _, err := fmt.Fprintf(w, "\n%s · %s\n%s\n", cmdutil.OneLine(item.User.Login),
 					item.CreatedAt.Format("2006-01-02 15:04 MST"), output.Sanitize(item.Body)); err != nil {
 					return err
 				}
@@ -199,7 +196,7 @@ func newViewCmd(f *app.Factory) *cobra.Command {
 			return nil
 		})
 	}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	cmd.Flags().BoolVarP(&comments, "comments", "c", false, "Include discussion comments")
 	cmd.Flags().BoolVarP(&web, "web", "w", false, "Open the pull request in the browser")
 	cmd.Flags().BoolVar(&noPager, "no-pager", false, "Disable the pager")

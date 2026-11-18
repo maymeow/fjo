@@ -110,7 +110,7 @@ func TestWriteReleasesAgainstForgejo(t *testing.T) {
 		t.Fatal(err)
 	}
 	invoke(fjoerr.ExitNotFound, "", "create", "absent", "--verify-tag")
-	invoke(fjoerr.ExitUnsupported, "", "create", "assets-later", "bundle.bin")
+	invoke(fjoerr.ExitUsage, "", "create", "assets-later", "bundle.bin")
 	const draft = "preview/start"
 	const published = "preview/published"
 	invoke(0, "Original notes\n", "create", draft, "--title", "Preview", "--draft", "--prerelease",

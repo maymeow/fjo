@@ -9,6 +9,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
 	"github.com/spf13/cobra"
@@ -64,7 +65,7 @@ func newCreateCmd(f *app.Factory) *cobra.Command {
 			if len(q) > 0 {
 				u += "?" + q.Encode()
 			}
-			return openBrowser(f, u)
+			return cmdutil.OpenBrowser(f, u)
 		}
 		c, _, err := f.ClientFor(ref.Host)
 		if err != nil {
@@ -89,10 +90,10 @@ func newCreateCmd(f *app.Factory) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		_, err = fmt.Fprintln(f.IO.Out, line(v.HTMLURL))
+		_, err = fmt.Fprintln(f.IO.Out, cmdutil.OneLine(v.HTMLURL))
 		return err
 	}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	fl := cmd.Flags()
 	fl.StringVarP(&title, "title", "t", "", "Issue title")
 	output.AddBodyFlags(cmd, &body)
@@ -161,7 +162,7 @@ func newActionCmd(f *app.Factory, action string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_, err = fmt.Fprintln(f.IO.Out, line(v.HTMLURL))
+			_, err = fmt.Fprintln(f.IO.Out, cmdutil.OneLine(v.HTMLURL))
 			return err
 		case "close", "reopen":
 			if cmd.Flags().Changed("comment") {
@@ -191,7 +192,7 @@ func newActionCmd(f *app.Factory, action string) *cobra.Command {
 		fmt.Fprintf(f.IO.ErrOut, "Issue %s#%d: %s\n", ref.FullName(), n, action)
 		return nil
 	}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	switch action {
 	case "close", "reopen":
 		cmd.Flags().StringVarP(&comment, "comment", "c", "", "Add a comment before changing state")
@@ -318,7 +319,7 @@ func newEditCmd(f *app.Factory) *cobra.Command {
 		fmt.Fprintf(f.IO.ErrOut, "Updated issue %s#%d\n", ref.FullName(), n)
 		return nil
 	}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	fl := cmd.Flags()
 	fl.StringVarP(&title, "title", "t", "", "Set the title")
 	output.AddBodyFlags(cmd, &body)

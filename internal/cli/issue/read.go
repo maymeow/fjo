@@ -9,6 +9,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
 	"github.com/spf13/cobra"
@@ -88,7 +89,7 @@ func newListCmd(f *app.Factory) *cobra.Command {
 					q.Set(k, strconv.FormatInt(u.ID, 10))
 				}
 			}
-			return openBrowser(f, webURL(f, ref, "issues")+"?"+q.Encode())
+			return cmdutil.OpenBrowser(f, webURL(f, ref, "issues")+"?"+q.Encode())
 		}
 		items, err := c.ListIssues(ctx, ref.Owner, ref.Name, s, limit)
 		if err != nil {
@@ -99,7 +100,7 @@ func newListCmd(f *app.Factory) *cobra.Command {
 			for i := range items {
 				out[i] = output.NewIssue(&items[i])
 			}
-			return j.Write(ctx, f.IO.Out, out, jsonOptions(f))
+			return j.Write(ctx, f.IO.Out, out, cmdutil.JSONOptions(f))
 		}
 		if len(items) == 0 {
 			fmt.Fprintf(f.IO.ErrOut, "no %s issues in %s\n", s.State, ref.FullName())
@@ -115,13 +116,13 @@ func newListCmd(f *app.Factory) *cobra.Command {
 			if f.IO.IsStdoutTTY() {
 				updated = output.TimeAgo(v.UpdatedAt)
 			}
-			table.Rows = append(table.Rows, []output.Cell{output.Text(fmt.Sprintf("#%d", v.Number)), output.Text(line(v.Title)), output.Text(line(strings.Join(labels, ", "))), output.Text(updated)})
+			table.Rows = append(table.Rows, []output.Cell{output.Text(fmt.Sprintf("#%d", v.Number)), output.Text(cmdutil.OneLine(v.Title)), output.Text(cmdutil.OneLine(strings.Join(labels, ", "))), output.Text(updated)})
 		}
-		return page(ctx, f, noPager, func(w io.Writer) error {
-			return table.Print(w, output.TableOptions{TTY: f.IO.IsStdoutTTY(), Width: f.IO.TerminalWidth(), Color: f.IO.ColorEnabled()})
+		return cmdutil.Page(ctx, f, noPager, func(w io.Writer) error {
+			return table.Print(w, cmdutil.TableOptions(f))
 		})
 	}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	fl := cmd.Flags()
 	fl.StringVarP(&s.State, "state", "s", "open", "Filter by state: open, closed or all")
 	fl.StringVar(&s.Author, "author", "", "Filter by author (or @me)")
@@ -148,7 +149,7 @@ func newViewCmd(f *app.Factory) *cobra.Command {
 			return err
 		}
 		if web {
-			return openBrowser(f, webURL(f, ref, "issues/"+strconv.Itoa(n)))
+			return cmdutil.OpenBrowser(f, webURL(f, ref, "issues/"+strconv.Itoa(n)))
 		}
 		c, _, err := f.ClientFor(ref.Host)
 		if err != nil {
@@ -162,7 +163,7 @@ func newViewCmd(f *app.Factory) *cobra.Command {
 			if comments {
 				return fjoerr.Usage("--comments cannot be combined with --json; the comments JSON field is a count")
 			}
-			return j.Write(ctx, f.IO.Out, output.NewIssue(v), jsonOptions(f))
+			return j.Write(ctx, f.IO.Out, output.NewIssue(v), cmdutil.JSONOptions(f))
 		}
 		var discussion []api.Comment
 		if comments {
@@ -171,15 +172,15 @@ func newViewCmd(f *app.Factory) *cobra.Command {
 				return err
 			}
 		}
-		return page(ctx, f, noPager, func(w io.Writer) error {
-			fmt.Fprintf(w, "%s #%d\n%s • %s\n\n%s\n\n%s\n", line(v.Title), v.Number, line(strings.ToUpper(v.State)), line(v.User.Login), output.Sanitize(v.Body), line(v.HTMLURL))
+		return cmdutil.Page(ctx, f, noPager, func(w io.Writer) error {
+			fmt.Fprintf(w, "%s #%d\n%s • %s\n\n%s\n\n%s\n", cmdutil.OneLine(v.Title), v.Number, cmdutil.OneLine(strings.ToUpper(v.State)), cmdutil.OneLine(v.User.Login), output.Sanitize(v.Body), cmdutil.OneLine(v.HTMLURL))
 			for _, comment := range discussion {
-				fmt.Fprintf(w, "\n%s • %s\n%s\n", line(comment.User.Login), comment.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"), output.Sanitize(comment.Body))
+				fmt.Fprintf(w, "\n%s • %s\n%s\n", cmdutil.OneLine(comment.User.Login), comment.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"), output.Sanitize(comment.Body))
 			}
 			return nil
 		})
 	}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	cmd.Flags().BoolVarP(&comments, "comments", "c", false, "Show comments")
 	cmd.Flags().BoolVarP(&web, "web", "w", false, "Open in the browser")
 	cmd.Flags().BoolVar(&noPager, "no-pager", false, "Disable the pager")

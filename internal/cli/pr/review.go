@@ -9,6 +9,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
 )
@@ -41,7 +42,7 @@ fjo asks for one in a terminal and fails otherwise.`,
   fjo pr review --comment --body-file review.md`,
 		Args: cobra.MaximumNArgs(1),
 	}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	for i, kind := range reviewKinds {
 		cmd.Flags().BoolVarP(&selected[i], kind.flag, kind.short, false, kind.label+" the pull request")
 	}

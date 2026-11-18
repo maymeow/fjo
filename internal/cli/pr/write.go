@@ -9,6 +9,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
 	"github.com/maymeow/fjo/internal/reporef"
@@ -65,7 +66,7 @@ func newCloseCmd(f *app.Factory) *cobra.Command {
 	var repo, comment string
 	var deleteBranch bool
 	cmd := &cobra.Command{Use: "close <number|url>", Short: "Close a pull request", Args: cobra.ExactArgs(1)}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	cmd.Flags().StringVarP(&comment, "comment", "c", "", "Add a comment after closing")
 	cmd.Flags().BoolVar(&deleteBranch, "delete-branch", false, "Delete the head branch after closing")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -108,7 +109,7 @@ func newCloseCmd(f *app.Factory) *cobra.Command {
 func newReopenCmd(f *app.Factory) *cobra.Command {
 	var repo string
 	cmd := &cobra.Command{Use: "reopen <number|url>", Short: "Reopen a pull request", Args: cobra.ExactArgs(1)}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		target, pull, err := readTarget(ctx, f, repo, args[0])
@@ -127,7 +128,7 @@ func newReadyCmd(f *app.Factory) *cobra.Command {
 	var repo string
 	var undo bool
 	cmd := &cobra.Command{Use: "ready [<number|url|branch>]", Short: "Mark a pull request ready for review", Args: cobra.MaximumNArgs(1)}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	cmd.Flags().BoolVar(&undo, "undo", false, "Mark the pull request as a draft")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
@@ -168,7 +169,7 @@ func newCommentCmd(f *app.Factory) *cobra.Command {
 	var repo string
 	var body output.BodyOptions
 	cmd := &cobra.Command{Use: "comment <number|url>", Short: "Comment on a pull request", Args: cobra.ExactArgs(1)}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	output.AddBodyFlags(cmd, &body)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		if !body.Provided() && !f.IO.CanPrompt() {
@@ -196,7 +197,7 @@ func newCommentCmd(f *app.Factory) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		_, err = fmt.Fprintln(f.IO.Out, oneLine(comment.HTMLURL))
+		_, err = fmt.Fprintln(f.IO.Out, cmdutil.OneLine(comment.HTMLURL))
 		return err
 	}
 	return cmd

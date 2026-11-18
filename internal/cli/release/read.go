@@ -2,7 +2,6 @@ package release
 
 import (
 	"cmp"
-	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -14,7 +13,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
-	"github.com/maymeow/fjo/internal/browser"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
 )
@@ -25,10 +24,10 @@ func newListCmd(f *app.Factory) *cobra.Command {
 	var noPager bool
 	var options api.ReleaseListOptions
 	cmd := &cobra.Command{Use: "list", Aliases: []string{"ls"}, Short: "List releases in a repository", Args: cobra.NoArgs}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	flags := cmd.Flags()
 	flags.IntVarP(&limit, "limit", "L", 30, "Maximum number of releases to list")
-	flags.StringVarP(&order, "order", "O", "desc", "Sort by publication time: asc or desc")
+	flags.StringVarP(&order, "order", "O", "desc", "Order of releases by creation time: asc or desc")
 	flags.BoolVar(&options.ExcludeDrafts, "exclude-drafts", false, "Exclude draft releases")
 	flags.BoolVar(&options.ExcludePrereleases, "exclude-pre-releases", false, "Exclude pre-releases")
 	flags.BoolVar(&noPager, "no-pager", false, "Disable the pager")
@@ -45,7 +44,7 @@ func newListCmd(f *app.Factory) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		items, err := client.ListReleases(ctx, ref.Owner, ref.Name, options, 0)
+		items, err := client.ListReleases(ctx, ref.Owner, ref.Name, options, serverLimit(order, limit))
 		if err != nil {
 			return err
 		}
@@ -56,7 +55,7 @@ func newListCmd(f *app.Factory) *cobra.Command {
 		sortReleases(releases, order)
 		releases = releases[:min(limit, len(releases))]
 		if jsonFlags.Changed() {
-			return jsonFlags.Write(ctx, f.IO.Out, releases, jsonOptions(f))
+			return jsonFlags.Write(ctx, f.IO.Out, releases, cmdutil.JSONOptions(f))
 		}
 		if len(releases) == 0 {
 			_, err := fmt.Fprintf(f.IO.ErrOut, "no releases found in %s\n", ref.FullName())
@@ -70,16 +69,26 @@ func newListCmd(f *app.Factory) *cobra.Command {
 			}
 		}
 		table := releaseTable(releases, latest)
-		return page(ctx, f, noPager, func(w io.Writer) error {
-			return table.Print(w, output.TableOptions{TTY: f.IO.IsStdoutTTY(), Color: f.IO.ColorEnabled(), Width: f.IO.TerminalWidth()})
+		return cmdutil.Page(ctx, f, noPager, func(w io.Writer) error {
+			return table.Print(w, cmdutil.TableOptions(f))
 		})
 	}
 	return cmd
 }
 
+// serverLimit returns how many releases to fetch. Forgejo lists releases
+// newest first by creation time, so descending order needs only the first
+// limit entries; ascending order needs all of them.
+func serverLimit(order string, limit int) int {
+	if order == "desc" {
+		return limit
+	}
+	return 0
+}
+
 func sortReleases(items []output.Release, order string) {
 	slices.SortStableFunc(items, func(a, b output.Release) int {
-		result := releaseTime(a).Compare(releaseTime(b))
+		result := a.CreatedAt.Compare(b.CreatedAt)
 		if result == 0 {
 			result = cmp.Compare(a.ID, b.ID)
 		}
@@ -88,13 +97,6 @@ func sortReleases(items []output.Release, order string) {
 		}
 		return result
 	})
-}
-
-func releaseTime(r output.Release) time.Time {
-	if r.PublishedAt != nil {
-		return *r.PublishedAt
-	}
-	return r.CreatedAt
 }
 
 func releaseTable(releases []output.Release, latest *api.Release) output.Table {
@@ -118,21 +120,17 @@ func releaseTable(releases []output.Release, latest *api.Release) output.Table {
 			kind = "Latest"
 		}
 		table.Rows = append(table.Rows, []output.Cell{
-			output.Text(tableText(title)), output.Text(kind), output.Text(tableText(r.TagName)), output.Text(published),
+			output.Text(cmdutil.OneLine(title)), output.Text(kind), output.Text(cmdutil.OneLine(r.TagName)), output.Text(published),
 		})
 	}
 	return table
-}
-
-func tableText(value string) string {
-	return output.Sanitize(strings.NewReplacer("\t", " ", "\n", " ", "\r", " ").Replace(value))
 }
 
 func newViewCmd(f *app.Factory) *cobra.Command {
 	var repo string
 	var web, noPager bool
 	cmd := &cobra.Command{Use: "view [<tag>]", Short: "View a release", Args: cobra.MaximumNArgs(1)}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	cmd.Flags().BoolVarP(&web, "web", "w", false, "Open the release in a browser")
 	cmd.Flags().BoolVar(&noPager, "no-pager", false, "Disable the pager")
 	jsonFlags := output.AddJSONFlags(cmd, output.ReleaseFields)
@@ -159,12 +157,12 @@ func newViewCmd(f *app.Factory) *cobra.Command {
 		}
 		r := output.NewRelease(*item)
 		if web {
-			return openBrowser(f, r.URL)
+			return openReleaseURL(f, r.URL)
 		}
 		if jsonFlags.Changed() {
-			return jsonFlags.Write(ctx, f.IO.Out, r, jsonOptions(f))
+			return jsonFlags.Write(ctx, f.IO.Out, r, cmdutil.JSONOptions(f))
 		}
-		return page(ctx, f, noPager, func(w io.Writer) error {
+		return cmdutil.Page(ctx, f, noPager, func(w io.Writer) error {
 			return printRelease(w, r)
 		})
 	}
@@ -177,7 +175,7 @@ func printRelease(w io.Writer, r output.Release) error {
 		title = r.TagName
 	}
 	var text strings.Builder
-	fmt.Fprintf(&text, "%s\nTag: %s\n", tableText(title), tableText(r.TagName))
+	fmt.Fprintf(&text, "%s\nTag: %s\n", cmdutil.OneLine(title), cmdutil.OneLine(r.TagName))
 	if r.IsDraft {
 		text.WriteString("Draft\n")
 	} else if r.IsPrerelease {
@@ -192,24 +190,22 @@ func printRelease(w io.Writer, r output.Release) error {
 	if len(r.Assets) > 0 {
 		text.WriteString("\nAssets\n")
 		for _, a := range r.Assets {
-			fmt.Fprintf(&text, "  %s (%d bytes)\n", tableText(a.Name), a.Size)
+			fmt.Fprintf(&text, "  %s (%d bytes)\n", cmdutil.OneLine(a.Name), a.Size)
 		}
 	}
 	if r.URL != "" {
-		fmt.Fprintf(&text, "\n%s\n", tableText(r.URL))
+		fmt.Fprintf(&text, "\n%s\n", cmdutil.OneLine(r.URL))
 	}
 	_, err := io.WriteString(w, text.String())
 	return err
 }
 
-func openBrowser(f *app.Factory, link string) error {
+// openReleaseURL opens the html_url Forgejo returned, refusing anything that
+// is not a plain http(s) URL because the value comes from the server.
+func openReleaseURL(f *app.Factory, link string) error {
 	u, err := url.Parse(link)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil {
 		return fjoerr.New(fjoerr.KindGeneral, "Forgejo did not return a valid browser URL for the release")
 	}
-	err = f.Browser(u.String())
-	if errors.Is(err, browser.ErrNoBrowser) {
-		_, err = fmt.Fprintln(f.IO.Out, u.String())
-	}
-	return err
+	return cmdutil.OpenBrowser(f, u.String())
 }

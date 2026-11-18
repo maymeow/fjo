@@ -12,6 +12,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/git"
 	"github.com/maymeow/fjo/internal/output"
@@ -28,7 +29,7 @@ type createOptions struct {
 func newCreateCmd(f *app.Factory) *cobra.Command {
 	var opts createOptions
 	cmd := &cobra.Command{Use: "create", Short: "Create a pull request", Args: cobra.NoArgs}
-	repoFlag(cmd, &opts.repo)
+	cmdutil.AddRepoFlag(cmd, &opts.repo)
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.base, "base", "B", "", "Target branch (defaults to the repository default)")
 	flags.StringVarP(&opts.head, "head", "H", "", "Head branch, optionally OWNER:BRANCH")
@@ -116,7 +117,7 @@ func createPull(ctx context.Context, f *app.Factory, opts *createOptions) error 
 	if opts.web {
 		query := url.Values{"title": {payload.Title}, "body": {payload.Body}}
 		path := strings.TrimSuffix(pullURL(client, ref), "/pulls") + "/compare/" + url.PathEscape(base) + "..." + url.PathEscape(payload.Head)
-		return openBrowser(f, path+"?"+query.Encode())
+		return cmdutil.OpenBrowser(f, path+"?"+query.Encode())
 	}
 	created, err := client.CreatePull(ctx, ref.Owner, ref.Name, payload)
 	if err != nil {
@@ -127,10 +128,10 @@ func createPull(ctx context.Context, f *app.Factory, opts *createOptions) error 
 		}
 		return err
 	}
-	fmt.Fprintln(f.IO.Out, oneLine(created.HTMLURL))
+	fmt.Fprintln(f.IO.Out, cmdutil.OneLine(created.HTMLURL))
 	if len(reviewers) > 0 {
 		if err := client.ChangePullReviewers(ctx, ref.Owner, ref.Name, created.Number, reviewers, false); err != nil {
-			return fjoerr.Wrap(fjoerr.KindOf(err), err, "created %s but requesting reviewers failed", oneLine(created.HTMLURL))
+			return fjoerr.Wrap(fjoerr.KindOf(err), err, "created %s but requesting reviewers failed", cmdutil.OneLine(created.HTMLURL))
 		}
 	}
 	return nil
@@ -240,7 +241,7 @@ func rejectDuplicate(ctx context.Context, target pullTarget, head reporef.Ref, s
 	}
 	for _, pull := range pulls {
 		if pull.Head.Repo == nil || strings.EqualFold(pull.Head.Repo.FullName, head.FullName()) {
-			return fjoerr.New(fjoerr.KindConflict, "an open pull request already exists: %s", oneLine(pull.HTMLURL))
+			return fjoerr.New(fjoerr.KindConflict, "an open pull request already exists: %s", cmdutil.OneLine(pull.HTMLURL))
 		}
 	}
 	return nil

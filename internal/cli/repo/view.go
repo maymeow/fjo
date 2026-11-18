@@ -2,7 +2,6 @@ package repo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -12,7 +11,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
-	"github.com/maymeow/fjo/internal/browser"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
 )
@@ -62,7 +61,7 @@ func runView(ctx context.Context, f *app.Factory, o viewOptions, args []string) 
 		if o.branch != "" {
 			path = append(path, "src", "branch", url.PathEscape(o.branch))
 		}
-		return openInBrowser(f, webURL(f, ref, path...))
+		return cmdutil.OpenBrowser(f, webURL(f, ref, path...))
 	}
 
 	client, _, err := f.ClientFor(ref.Host)
@@ -96,22 +95,6 @@ func runView(ctx context.Context, f *app.Factory, o viewOptions, args []string) 
 	}
 	pager := output.ResolvePager(f.Getenv, configPager(f))
 	return pager.Run(ctx, f.IO.Out, f.IO.ErrOut, output.PagerOptions{Disabled: o.noPager}, write)
-}
-
-func openInBrowser(f *app.Factory, u string) error {
-	if f.IO.IsStderrTTY() {
-		fmt.Fprintf(f.IO.ErrOut, "Opening %s in your browser.\n", u)
-	}
-	err := f.Browser(u)
-	if errors.Is(err, browser.ErrNoBrowser) {
-		fmt.Fprintln(f.IO.Out, u)
-		return nil
-	}
-	if err != nil {
-		return fjoerr.Wrap(fjoerr.KindGeneral, err, "cannot open the browser").
-			WithHint("open " + u + " manually or set FJO_BROWSER")
-	}
-	return nil
 }
 
 func visibility(r *api.Repository) string {
@@ -181,15 +164,15 @@ func sanitizeRepo(r *api.Repository) *api.Repository {
 		&c.FullName, &c.Description, &c.DefaultBranch, &c.Language,
 		&c.Website, &c.HTMLURL, &c.CloneURL, &c.SSHURL,
 	} {
-		*p = output.Sanitize(oneLine(*p))
+		*p = (cmdutil.OneLine(*p))
 	}
 	c.Topics = make([]string, len(r.Topics))
 	for i, t := range r.Topics {
-		c.Topics[i] = output.Sanitize(oneLine(t))
+		c.Topics[i] = (cmdutil.OneLine(t))
 	}
 	if r.Parent != nil {
 		parent := *r.Parent
-		parent.FullName = output.Sanitize(oneLine(parent.FullName))
+		parent.FullName = (cmdutil.OneLine(parent.FullName))
 		c.Parent = &parent
 	}
 	return &c

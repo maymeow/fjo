@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
 )
@@ -19,7 +20,7 @@ func newDiffCmd(f *app.Factory) *cobra.Command {
 	var repo string
 	var names, patch, noPager bool
 	cmd := &cobra.Command{Use: "diff [<number|url|branch>]", Short: "View pull request changes", Args: cobra.MaximumNArgs(1)}
-	repoFlag(cmd, &repo)
+	cmdutil.AddRepoFlag(cmd, &repo)
 	cmd.Flags().BoolVar(&names, "name-only", false, "Show only changed file names")
 	cmd.Flags().BoolVar(&patch, "patch", false, "Show the changes in patch format")
 	cmd.Flags().BoolVar(&noPager, "no-pager", false, "Disable the pager")
@@ -37,7 +38,7 @@ func newDiffCmd(f *app.Factory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return page(ctx, f, noPager, func(w io.Writer) error {
+			return cmdutil.Page(ctx, f, noPager, func(w io.Writer) error {
 				for _, file := range files {
 					name := file.Name
 					if f.IO.IsStdoutTTY() {
@@ -55,7 +56,7 @@ func newDiffCmd(f *app.Factory) *cobra.Command {
 			return err
 		}
 		defer func() { err = fjoerr.JoinCleanup(err, stream.Close()) }()
-		return page(ctx, f, noPager, func(w io.Writer) error {
+		return cmdutil.Page(ctx, f, noPager, func(w io.Writer) error {
 			color := f.IO.ColorEnabled()
 			if color || f.IO.IsStdoutTTY() {
 				return printDiff(w, stream, color)

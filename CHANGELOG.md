@@ -14,6 +14,10 @@ Development progress is tracked in [docs/CHANGELOG.txt](docs/CHANGELOG.txt).
 
 - `fjo release list` and `fjo release view` show release notes, assets and metadata, with structured output for scripts.
 
+### Changed
+
+- `--web` on `issue` and `pr` commands now says which URL it opens and, when the browser fails to start, suggests opening the URL manually or setting `FJO_BROWSER`, as `repo view --web` already did.
+
 ## [0.1.0] - 2026-11-18
 
 First release. Supports Forgejo 15 and 17.

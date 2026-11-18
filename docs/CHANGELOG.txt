@@ -55,6 +55,27 @@ when a task is done and verified.
 
 ---
 
+## 2026-11-18 — Review fixes for Phase 4a/4b
+Phase: 4 / v0.2.0
+Spec:  §5.6, §17.3
+
+Changed:
+- `release list` sorts by creation time (as gh) and, in the default desc
+  order, asks Forgejo for only --limit releases instead of reading them all.
+- `release create` with more than one argument is a usage error (exit 10)
+  until asset arguments arrive in 4c; it was exit 15 with a phase name.
+- Shared command helpers moved to internal/cli/cmdutil (AddRepoFlag,
+  JSONOptions, TableOptions, Page, OpenBrowser, OneLine). issue, pr,
+  release and repo had their own copies with diverging --web behaviour;
+  all now announce the URL on a terminal and give the FJO_BROWSER hint.
+Tests:
+- make check, make lint, integration on Forgejo 15.0.11 and 17.0.1.
+Notes / next steps:
+- B-51 draft fallback mirrors gh's workaround for GitHub, which hides drafts
+  on /releases/tags/{tag}; Forgejo does not. Removal still open.
+
+---
+
 ## 2026-11-18 — Release creation, editing and deletion
 Phase: 4b / v0.2.0
 Spec:  IMPLEMENTATION.txt §5.6; PHASE4.txt milestone 4b
