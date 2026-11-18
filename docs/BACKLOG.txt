@@ -900,3 +900,137 @@ Phase:    after Phase 3
   choice (§2.1 dependency rules) and a plain fallback without a TTY.
 Decision:
 -
+
+---
+
+Source of B-51 .. B-56: Phase 4 planning, 2026-11-18 (swagger 15.0.11 and
+17.0.1 have identical release endpoints and models).
+
+### B-51 — How a release is addressed
+
+Type:     decision
+Status:   open
+Added:    2026-11-18
+Phase:    Phase 4 (4a)
+
+Context:
+- gh addresses releases by tag. Forgejo has GET/DELETE /releases/tags/{tag},
+  but every other operation (PATCH, assets) needs the numeric release id.
+- It is unverified whether /releases/tags/{tag} returns draft releases.
+Proposal:
+- Tag on the command line, id only internally. Resolve tag -> release via
+  /releases/tags/{tag}; if that is 404, fall back to the list with
+  draft=true and match tag_name. `release view` without a tag shows
+  /releases/latest (same as gh). Verify draft behaviour in integration tests.
+Decision:
+-
+
+### B-52 — Asset upload encoding
+
+Type:     decision
+Status:   open
+Added:    2026-11-18
+Phase:    Phase 4 (4c)
+
+Context:
+- POST /releases/{id}/assets accepts multipart/form-data (field
+  `attachment`) and application/octet-stream with `?name=` in both 15 and 17.
+  B-31 assumed multipart only.
+- The size limit comes from GET /settings/attachment (max_size, max_files,
+  allowed_types, enabled); the server answers 413 when it is exceeded.
+Proposal / options:
+- A) application/octet-stream: the request body is the *os.File itself,
+  Content-Length is known, no io.Pipe and no goroutine. (recommended)
+- B) multipart via io.Pipe + multipart.Writer (chunked, more moving parts).
+- In both cases check size and allowed types against /settings/attachment
+  before uploading and map 413 to a clear error naming the limit.
+Decision:
+-
+
+### B-53 — Download integrity and interrupted transfers
+
+Type:     decision
+Status:   open
+Added:    2026-11-18
+Phase:    Phase 4 (4d)
+
+Context:
+- §16 Phase 4: "download integrity checks where metadata allows". The
+  Attachment model has `size` but no digest.
+Proposal:
+- Always: stream into a temp file in the target directory, compare the
+  byte count with `size`, fsync, then rename. Any error, Ctrl-C or context
+  cancellation removes the temp file, so no partial file ever has the final
+  name.
+- When the release has a checksum manifest asset (`checksums.txt`,
+  `*_checksums.txt`, `SHA256SUMS`), verify SHA-256 of every downloaded asset
+  listed in it; mismatch = exit 1 and the file is removed. `--skip-verify`
+  turns it off.
+- No resume of partial downloads in Phase 4.
+Decision:
+-
+
+### B-54 — Overwrite behaviour for upload and download
+
+Type:     decision
+Status:   open
+Added:    2026-11-18
+Phase:    Phase 4 (4c, 4d)
+
+Context:
+- §5.6: "Avoid overwriting existing files without confirmation".
+Proposal (same as gh):
+- `release download`: an existing file is an error unless `--clobber` or
+  `--skip-existing`.
+- `release upload`: an existing asset with the same name is an error
+  (exit 13) unless `--clobber` (delete the old asset after the new one is
+  uploaded under a temporary name, then rename it; if rename is not
+  possible, delete then upload and say so).
+Decision:
+-
+
+### B-55 — gh release flags without a Forgejo equivalent
+
+Type:     compatibility
+Status:   open
+Added:    2026-11-18
+Phase:    Phase 4
+
+Context:
+- No Forgejo API for: `--generate-notes`, `--notes-start-tag`,
+  `--discussion-category`, `--latest` (Forgejo's latest is always the
+  newest published release), asset labels (`file#label`),
+  `--fail-on-no-commits`.
+- Available in Forgejo but not in gh: `hide_archive_links`, external
+  assets (`external_url`), delete by tag.
+Proposal:
+- Leave the gh-only flags out (cobra reports unknown flags as usage
+  errors, exit 10) and list them in docs/compatibility.md.
+- `--verify-tag` and `delete --cleanup-tag` are implemented
+  (GET/DELETE /repos/{o}/{r}/tags/{tag}).
+- `--hide-archive-links` is added as a Forgejo-only flag; external assets
+  are left for later.
+Decision:
+-
+
+### B-56 — Binary releases of fjo itself
+
+Type:     decision
+Status:   open
+Added:    2026-11-18
+Phase:    Phase 4 (4e)
+
+Context:
+- The v0.1.0 release notes promise prebuilt binaries with v0.2.0. §15:
+  GoReleaser, Windows amd64/arm64, Linux amd64/arm64/armv7, macOS
+  amd64/arm64, zip/tar.gz, SHA-256 manifest, SBOM, signatures.
+- The repository is now github.com/maymeow/fjo (B-34).
+Proposal:
+- GoReleaser in a tag-triggered GitHub Actions workflow publishing to
+  GitHub Releases; version, commit and date via ldflags into internal/build
+  (fixes `commit: unknown`). Checksums and SBOM (syft) in v0.2.0; signing
+  stays with B-17 (Phase 8) unless decided earlier. Package managers later.
+- The checksum manifest name matches B-53, so `fjo release download` can
+  verify fjo's own releases.
+Decision:
+-
