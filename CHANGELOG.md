@@ -22,3 +22,11 @@ Development progress is tracked in [docs/CHANGELOG.txt](docs/CHANGELOG.txt).
 - User configuration file (`config.yaml`) with validation; location overridable by
   `FJO_CONFIG_DIR` or `XDG_CONFIG_HOME`.
 - gh-compatible exit codes (see docs/compatibility.md).
+
+### Fixed
+
+- `fjo auth login` reports an error when a leftover plain-text token copy cannot be removed
+  after storing the token in the OS credential store.
+- `fjo api` reports errors while writing the response body to stdout.
+- Failures while closing or reading HTTP responses and removing temporary files are no
+  longer silently ignored.

@@ -54,6 +54,27 @@ when a task is done and verified.
 
 ---
 
+## 2026-11-18 — Lint cleanup: golangci-lint phases 1 and 2
+Phase: tooling / v0.1.0
+Spec:  IMPLEMENTATION.txt §13.6
+
+Added:
+- golangci-lint v2 config (.golangci.yml), custom build with the fmtwrite
+  plugin (.custom-gcl.yml, tools/fmtwrite); `make lint` and CI use it.
+- fjoerr.JoinCleanup for attaching Close/Remove errors to a primary error.
+Fixed:
+- Phase 1: goimports, usestdlibvars in tests, De Morgan in prompt,
+  errors.Is in pr diff.
+- Phase 2: all errcheck findings (check-blank on). Response bodies, temp
+  files and the pager pipe now report cleanup errors; `fjo api` reports
+  stdout write errors; credentials.Set fails when the plain-text copy
+  cannot be removed. The keyring delete in insecure mode stays ignored
+  (nolint with reason) so --insecure-storage works without a keyring.
+Tests:
+- go build, go vet, go test ./... pass; lint down from 72 to 32 findings.
+Notes / next steps:
+- Remaining: bodyclose (21), gosec (6), noctx (5).
+
 ## 2026-11-17 — Read-only pull requests
 Phase: 3c / v0.1.0
 Spec:  IMPLEMENTATION.txt §5.5, §9, §10; PHASE3.txt milestone 3c

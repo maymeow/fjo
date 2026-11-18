@@ -103,9 +103,11 @@ func (c *Client) Pages(ctx context.Context, path string, header http.Header, max
 			return err
 		}
 		stop, ferr := fn(resp)
-		_ = resp.Body.Close()
-		if ferr != nil || stop {
-			return ferr
+		if err := fjoerr.JoinCleanup(ferr, resp.Body.Close()); err != nil {
+			return err
+		}
+		if stop {
+			return nil
 		}
 
 		next = ""

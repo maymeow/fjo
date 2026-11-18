@@ -72,7 +72,11 @@ func checkRedirect(req *http.Request, via []*http.Request) error {
 // newBaseTransport clones the default transport, which keeps proxy support
 // (HTTP_PROXY, HTTPS_PROXY, NO_PROXY), and hardens TLS.
 func newBaseTransport(caFile string) (http.RoundTripper, error) {
-	t := http.DefaultTransport.(*http.Transport).Clone()
+	base, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return nil, fmt.Errorf("http.DefaultTransport is %T, not *http.Transport", http.DefaultTransport)
+	}
+	t := base.Clone()
 	t.ResponseHeaderTimeout = 60 * time.Second
 	tlsCfg := &tls.Config{MinVersion: tls.VersionTLS12}
 	if caFile != "" {

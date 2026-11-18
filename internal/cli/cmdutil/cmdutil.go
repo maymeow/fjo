@@ -22,5 +22,7 @@ func AddHostnameFlag(cmd *cobra.Command, p *string, short bool) {
 		cmd.Flags().StringVar(p, "hostname", "", usage)
 	}
 	cmd.Flags().StringVar(p, "host", "", "Alias for --hostname")
-	_ = cmd.Flags().MarkHidden("host")
+	if err := cmd.Flags().MarkHidden("host"); err != nil {
+		panic(err)
+	}
 }

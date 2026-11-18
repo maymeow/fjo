@@ -2,6 +2,7 @@ package output
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -60,7 +61,7 @@ type EditorOptions struct {
 
 // Edit opens the editor on a private temporary file and returns its contents.
 // An editor that leaves the file empty cancels the operation (exit 2).
-func (e Editor) Edit(ctx context.Context, initial string, o EditorOptions) (string, error) {
+func (e Editor) Edit(ctx context.Context, initial string, o EditorOptions) (edited string, err error) {
 	if e.Command == "" {
 		return "", fjoerr.New(fjoerr.KindGeneral, "no editor configured").
 			WithHint("set FJO_EDITOR, VISUAL or EDITOR")
@@ -70,14 +71,16 @@ func (e Editor) Edit(ctx context.Context, initial string, o EditorOptions) (stri
 		return "", fjoerr.Wrap(fjoerr.KindGeneral, err, "create temporary file")
 	}
 	path := f.Name()
-	defer os.Remove(path)
+	defer func() {
+		if rmErr := os.Remove(path); rmErr != nil {
+			err = fjoerr.JoinCleanup(err, fjoerr.Wrap(fjoerr.KindGeneral, rmErr, "remove temporary file"))
+		}
+	}()
 	if err := f.Chmod(0o600); err != nil {
-		_ = f.Close()
-		return "", fjoerr.Wrap(fjoerr.KindGeneral, err, "secure temporary file")
+		return "", fjoerr.Wrap(fjoerr.KindGeneral, errors.Join(err, f.Close()), "secure temporary file")
 	}
 	if _, err := io.WriteString(f, initial); err != nil {
-		_ = f.Close()
-		return "", fjoerr.Wrap(fjoerr.KindGeneral, err, "write temporary file")
+		return "", fjoerr.Wrap(fjoerr.KindGeneral, errors.Join(err, f.Close()), "write temporary file")
 	}
 	if err := f.Close(); err != nil {
 		return "", fjoerr.Wrap(fjoerr.KindGeneral, err, "close temporary file")

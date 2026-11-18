@@ -23,7 +23,7 @@ func newDiffCmd(f *app.Factory) *cobra.Command {
 	cmd.Flags().BoolVar(&names, "name-only", false, "Show only changed file names")
 	cmd.Flags().BoolVar(&patch, "patch", false, "Show the changes in patch format")
 	cmd.Flags().BoolVar(&noPager, "no-pager", false, "Disable the pager")
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+	cmd.RunE = func(cmd *cobra.Command, args []string) (err error) {
 		if names && patch {
 			return fjoerr.Usage("--name-only and --patch cannot be combined")
 		}
@@ -54,7 +54,7 @@ func newDiffCmd(f *app.Factory) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		defer stream.Close()
+		defer func() { err = fjoerr.JoinCleanup(err, stream.Close()) }()
 		return page(ctx, f, noPager, func(w io.Writer) error {
 			color := f.IO.ColorEnabled()
 			if color || f.IO.IsStdoutTTY() {
