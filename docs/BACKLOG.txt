@@ -372,7 +372,7 @@ Decision:
 
 ### B-33 — License and copyright holder
 Type:     decision
-Status:   open
+Status:   decided (2026-11-18)
 Added:    2026-11-13
 Phase:    before first public push
 
@@ -380,11 +380,11 @@ Context:
 - Spec says "MIT (proposed)"; no LICENSE file was created in Phase 0 because
   the copyright holder line and final license choice are the owner's decision.
 Decision:
--
+- MIT, "Copyright (c) 2026 The fjo contributors". LICENSE added at the repo root.
 
 ### B-34 — Go module path vs. repository hosting
 Type:     decision
-Status:   open
+Status:   decided (2026-11-18)
 Added:    2026-11-13
 Phase:    before first public push
 
@@ -398,7 +398,10 @@ Proposal / options:
 - B) Switch to the Forgejo URL as module path.
 - C) Vanity import path (own domain with go-import meta tag).
 Decision:
--
+- A, as the primary repository: the repository moves from github.com/kukolos/fjo
+  to github.com/maymeow/fjo and becomes public, so the module path resolves and
+  `go install github.com/maymeow/fjo/cmd/fjo@latest` works. CI runs on GitHub
+  Actions; the Forgejo workflow stays for self-hosted runners.
 
 ### B-35 — Race tests on Windows need a C compiler
 Type:     tech-debt
