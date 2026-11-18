@@ -25,8 +25,15 @@ linters:
     - misspell
     - unconvert
     - usestdlibvars
+    - fmtwrite # Vlastný plugin: zákaz fmt.Fprint* do súborov a siete
 
   settings:
+    custom:
+      fmtwrite:
+        type: module
+        description: Zakazuje fmt.Fprint* do súborov a sieťových spojení.
+
+
     # 1. Kontrola ignorovania chýb (aj pri podčiarkovníku _ = fn())
     errcheck:
       check-type-assertions: true
@@ -80,6 +87,7 @@ linters:
           - gosec
           - errcheck
           - noctx
+          - fmtwrite # testovacie HTTP servery píšu cez fmt.Fprint(w, ...)
       # Zámerné spúšťanie externých príkazov (git, prehliadač, editor, pager)
       - path: internal/(git|browser|output)/
         linters:

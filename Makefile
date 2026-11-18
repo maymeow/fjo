@@ -38,8 +38,16 @@ fmt:
 fmt-check:
 	@out="$$(gofmt -l .)"; if [ -n "$$out" ]; then echo "gofmt needed:"; echo "$$out"; exit 1; fi
 
-lint:
-	staticcheck ./...
+# golangci-lint with project plugins (see .custom-gcl.yml); requires
+# golangci-lint v2.15.0 on PATH to build the custom binary.
+GOLANGCI ?= ./bin/golangci-lint-fjo
+
+$(GOLANGCI): .custom-gcl.yml $(wildcard tools/fmtwrite/*.go) tools/fmtwrite/go.mod
+	golangci-lint custom
+
+lint: $(GOLANGCI)
+	cd tools/fmtwrite && $(GO) test ./...
+	$(GOLANGCI) run ./...
 
 vuln:
 	govulncheck ./...

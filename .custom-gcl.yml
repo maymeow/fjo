@@ -1,0 +1,8 @@
+# Custom golangci-lint build with project plugins.
+# Build: golangci-lint custom  →  ./bin/golangci-lint-fjo
+version: v2.15.0
+name: golangci-lint-fjo
+destination: ./bin
+plugins:
+  - module: github.com/maymeow/fjo/tools/fmtwrite
+    path: ./tools/fmtwrite
