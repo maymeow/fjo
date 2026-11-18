@@ -16,7 +16,8 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 - Next target:      tag v0.1.0; then Phase 4 - Release management (v0.2.0)
 - Last updated:     2026-11-18
 - Repo:             https://github.com/kukolos/fjo (private), branch main
-- Phase 0 open:     self-hosted runners + first CI run; race tests (B-35)
+- Phase 0 open:     self-hosted Forgejo runners; race tests (B-35);
+                    GitHub Actions CI added (first run on PR)
 - Phase 3 open:     none; deferred after Phase 3: B-38, B-39, B-45, B-47,
                     B-49, B-50
 - Blockers:         none for code; B-33 (license), B-34 (module path vs.
@@ -51,6 +52,24 @@ Newest entries on top. One entry per working session / merged change set.
 
 Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
+
+---
+
+## 2026-11-18 — GitHub Actions CI
+Phase: 0 (CI), before v0.1.0
+Spec:  §13.5
+
+Added:
+- .github/workflows/ci.yaml: same jobs as .forgejo/workflows/ci.yaml on
+  GitHub-hosted runners (test matrix ubuntu/windows/macos with gofmt, vet,
+  test, race and build; Forgejo 15/17 integration tests; make lint with the
+  fmtwrite plugin; govulncheck). Read-only token, PR runs cancel superseded ones.
+- docs/development.md: notes that both workflows exist and must stay in sync.
+Deviations from spec:
+- §13.5 names the project's Forgejo instance; GitHub Actions is an additional
+  CI while the repository lives on GitHub and self-hosted runners are not set up.
+Tests:
+- Workflow YAML validated locally; first real run happens on the PR.
 
 ---
 
