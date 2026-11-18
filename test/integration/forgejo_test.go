@@ -285,15 +285,15 @@ func TestRepoMutationsAgainstForgejo(t *testing.T) {
 	suffix := fmt.Sprint(time.Now().UnixNano())
 	name := "fjo-mut-" + suffix
 	org := "fjo-mut-org-" + suffix
-	if _, err := client.JSON(ctx, http.MethodPost, "orgs", map[string]any{"username": org}, nil); err != nil {
+	if err := client.JSON(ctx, http.MethodPost, "orgs", map[string]any{"username": org}, nil); err != nil {
 		t.Fatalf("create org: %v", err)
 	}
 	t.Cleanup(func() {
 		bg := context.Background()
-		_, _ = client.JSON(bg, http.MethodDelete, "repos/"+org+"/fork", nil, nil)
-		_, _ = client.JSON(bg, http.MethodDelete, "repos/"+me.Login+"/"+name+"-renamed", nil, nil)
-		_, _ = client.JSON(bg, http.MethodDelete, "repos/"+me.Login+"/"+name, nil, nil)
-		_, _ = client.JSON(bg, http.MethodDelete, "orgs/"+org, nil, nil)
+		_ = client.JSON(bg, http.MethodDelete, "repos/"+org+"/fork", nil, nil)
+		_ = client.JSON(bg, http.MethodDelete, "repos/"+me.Login+"/"+name+"-renamed", nil, nil)
+		_ = client.JSON(bg, http.MethodDelete, "repos/"+me.Login+"/"+name, nil, nil)
+		_ = client.JSON(bg, http.MethodDelete, "orgs/"+org, nil, nil)
 	})
 
 	res := r.run(env, "", "repo", "create", name, "--private",
@@ -364,7 +364,7 @@ func TestRepoMutationsAgainstForgejo(t *testing.T) {
 
 	// The fork starts identical to its base; add a commit upstream so the
 	// server has something to sync.
-	if _, err := client.JSON(ctx, http.MethodPost, "repos/"+full+"/contents/sync-"+suffix+".txt", map[string]any{
+	if err := client.JSON(ctx, http.MethodPost, "repos/"+full+"/contents/sync-"+suffix+".txt", map[string]any{
 		"content": base64.StdEncoding.EncodeToString([]byte("sync " + suffix)),
 		"message": "integration: give the fork something to sync",
 		"branch":  created.DefaultBranch,
@@ -432,21 +432,21 @@ func TestRepositoriesAgainstForgejo(t *testing.T) {
 	suffix := fmt.Sprint(time.Now().UnixNano())
 	name := "fjo-it-" + suffix
 	org := "fjo-org-" + suffix
-	if _, err := client.JSON(ctx, http.MethodPost, "user/repos",
+	if err := client.JSON(ctx, http.MethodPost, "user/repos",
 		map[string]any{"name": name, "private": true, "description": "integration", "auto_init": true}, nil); err != nil {
 		t.Fatalf("create repo: %v", err)
 	}
-	if _, err := client.JSON(ctx, http.MethodPost, "orgs", map[string]any{"username": org}, nil); err != nil {
+	if err := client.JSON(ctx, http.MethodPost, "orgs", map[string]any{"username": org}, nil); err != nil {
 		t.Fatalf("create org: %v", err)
 	}
-	if _, err := client.JSON(ctx, http.MethodPost, "orgs/"+org+"/repos", map[string]any{"name": "shared", "auto_init": true}, nil); err != nil {
+	if err := client.JSON(ctx, http.MethodPost, "orgs/"+org+"/repos", map[string]any{"name": "shared", "auto_init": true}, nil); err != nil {
 		t.Fatalf("create org repo: %v", err)
 	}
 	t.Cleanup(func() {
 		bg := context.Background()
-		_, _ = client.JSON(bg, http.MethodDelete, "repos/"+me.Login+"/"+name, nil, nil)
-		_, _ = client.JSON(bg, http.MethodDelete, "repos/"+org+"/shared", nil, nil)
-		_, _ = client.JSON(bg, http.MethodDelete, "orgs/"+org, nil, nil)
+		_ = client.JSON(bg, http.MethodDelete, "repos/"+me.Login+"/"+name, nil, nil)
+		_ = client.JSON(bg, http.MethodDelete, "repos/"+org+"/shared", nil, nil)
+		_ = client.JSON(bg, http.MethodDelete, "orgs/"+org, nil, nil)
 	})
 
 	r, env := envRunner(t, inst)

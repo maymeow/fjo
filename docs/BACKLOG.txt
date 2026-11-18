@@ -565,7 +565,7 @@ Decision:
 
 ### B-43 — `pr create` when the head branch is not on the server
 Type:     decision
-Status:   accepted -> §5.5
+Status:   implemented in Phase 3d
 Added:    2026-11-16
 Phase:    Phase 3d
 
@@ -575,7 +575,7 @@ Context:
 Decision:
 - 2026-11-16: TTY -> prompt "Push branch X to remote Y?" (default yes);
   no TTY -> error with a hint, unless `--push` is given. `--push` pushes
-  with `git push --set-upstream -- <remote> <branch>`. The remote is the
+  with `git push --set-upstream` with an explicit head refspec. The remote is the
   configured push remote or the remote of the resolved repository.
 
 ### B-44 — `pr list --base/--head` on Forgejo 15

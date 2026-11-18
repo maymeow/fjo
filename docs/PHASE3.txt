@@ -164,54 +164,54 @@ Príkazy (`internal/cli/pr/`):
 
 ## 3d — PR, zápis
 
-- [ ] (*) `pr create`:
-  - [ ] Head = aktuálna vetva. Ak je detached HEAD, chyba.
-  - [ ] Push remote a upstream sa zisťujú z git configu.
-  - [ ] Base = `--base`, inak default vetva repa (§5.5: iba ak je to
+- [x] (*) `pr create`:
+  - [x] Head = aktuálna vetva. Ak je detached HEAD, chyba.
+  - [x] Push remote a upstream sa zisťujú z git configu.
+  - [x] Base = `--base`, inak default vetva repa (§5.5: iba ak je to
         jednoznačné).
-  - [ ] Head z forku vo formáte `owner:branch`.
-  - [ ] Ak vetva nie je na serveri, správanie podľa rozhodnutia z bodu 0
+  - [x] Head z forku vo formáte `owner:branch`.
+  - [x] Ak vetva nie je na serveri, správanie podľa rozhodnutia z bodu 0
         (push alebo chyba).
-  - [ ] `--fill` a `--fill-first`: titulok a telo z commitov `base..head`.
-  - [ ] `--draft` = prefix `WIP: ` v titulku (B-31).
-  - [ ] Ďalšie flagy: `--title`, `--body*`, `--label`, `--assignee`,
+  - [x] `--fill` a `--fill-first`: titulok a telo z commitov `base..head`.
+  - [x] `--draft` = prefix `WIP: ` v titulku (B-31).
+  - [x] Ďalšie flagy: `--title`, `--body*`, `--label`, `--assignee`,
         `--reviewer`, `--milestone`, `--web`.
-  - [ ] Existujúci otvorený PR pre rovnaký head/base je chyba s jeho URL
+  - [x] Existujúci otvorený PR pre rovnaký head/base je chyba s jeho URL
         (exit 13).
-  - [ ] Bez TTY: bez `--title` alebo `--fill` je to chyba.
-- [ ] (*) `pr checkout <num>`:
-  - [ ] Fetch `refs/pull/<n>/head` do lokálnej vetvy (meno = head branch,
+  - [x] Bez TTY: bez `--title` alebo `--fill` je to chyba.
+- [x] (*) `pr checkout <num>`:
+  - [x] Fetch `refs/pull/<n>/head` do lokálnej vetvy (meno = head branch,
         prípadne `--branch`).
-  - [ ] Nikdy neprepíše lokálne zmeny (§5.5): špinavý working tree = chyba.
-  - [ ] Ak vetva existuje a nedá sa fast-forwardovať, chyba. Prepísať ju
+  - [x] Nikdy neprepíše lokálne zmeny (§5.5): špinavý working tree = chyba.
+  - [x] Ak vetva existuje a nedá sa fast-forwardovať, chyba. Prepísať ju
         dovolí iba `--force`.
-  - [ ] Hodnoty zo servera ako argumenty pre git vždy za `--`, rovnaké
+  - [x] Hodnoty zo servera ako argumenty pre git vždy za `--`, rovnaké
         spevnenie ako v 5dffb4a.
-  - [ ] Pri PR z forku nastaviť upstream, ak sa dá. Inak iba lokálna vetva.
-- [ ] (*) `pr merge [<num>]`:
-  - [ ] `--merge|--squash|--rebase`, plus Forgejo `rebase-merge` a
+  - [x] Pri PR z forku nastaviť upstream, ak sa dá. Inak iba lokálna vetva.
+- [x] (*) `pr merge [<num>]`:
+  - [x] `--merge|--squash|--rebase`, plus Forgejo `rebase-merge` a
         `fast-forward-only`, ak ich swagger obsahuje.
-  - [ ] Povolené metódy sa zistia z nastavení repa
+  - [x] Povolené metódy sa zistia z nastavení repa
         (`allow_merge_commits`, `allow_squash_merge`, ...) (§5.5).
         Nepovolená metóda = exit 15 so zoznamom povolených.
-  - [ ] V TTY výber metódy, ak nie je zadaná. Bez TTY je flag povinný.
-  - [ ] `--delete-branch` maže vzdialenú vetvu cez API a lokálnu vetvu iba
+  - [x] V TTY výber metódy, ak nie je zadaná. Bez TTY je flag povinný.
+  - [x] `--delete-branch` maže vzdialenú vetvu cez API a lokálnu vetvu iba
         vtedy, keď na nej práve nie si.
-  - [ ] `--subject`, `--body*` pre merge commit.
-  - [ ] `--auto` cez `merge_when_checks_succeed`, ak to existuje vo verzii
+  - [x] `--subject`, `--body*` pre merge commit.
+  - [x] `--auto` cez `merge_when_checks_succeed`, ak to existuje vo verzii
         15 aj 17.
-  - [ ] Nemergeovateľný PR alebo konflikt = exit 13 s čitateľnou správou
+  - [x] Nemergeovateľný PR alebo konflikt = exit 13 s čitateľnou správou
         (SHA nesmie byť zredigované, B-37).
-- [ ] `pr close <num>`: flagy `--comment` a `--delete-branch`.
-- [ ] `pr reopen <num>`.
-- [ ] `pr ready <num>`: odstráni WIP prefix. `--undo` ho pridá späť.
-- [ ] `pr edit <num>`: rovnaké flagy ako `issue edit` a navyše `--base`
+- [x] `pr close <num>`: flagy `--comment` a `--delete-branch`.
+- [x] `pr reopen <num>`.
+- [x] `pr ready <num>`: odstráni WIP prefix. `--undo` ho pridá späť.
+- [x] `pr edit <num>`: rovnaké flagy ako `issue edit` a navyše `--base`
       a `--add-reviewer`/`--remove-reviewer`.
-- [ ] `pr comment <num>`.
-- [ ] Testy:
-  - [ ] Git integrácia (temp repo + bare remote): create detekcia, checkout
+- [x] `pr comment <num>`.
+- [x] Testy:
+  - [x] Git integrácia (temp repo + bare remote): create detekcia, checkout
         (čistý stav, špinavý stav, existujúca vetva, --force).
-  - [ ] Integrácia Forgejo 15 a 17: create, merge (každá povolená metóda),
+  - [x] Integrácia Forgejo 15 a 17: create, merge (každá povolená metóda),
         close, reopen, ready.
 
 ---

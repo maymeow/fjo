@@ -405,7 +405,7 @@ Generate shell completion scripts (bash, zsh, fish, powershell).
 
 ## Pull requests
 
-All four commands accept `-R, --repo [HOST/]OWNER/REPO`.
+All pull request commands accept `-R, --repo [HOST/]OWNER/REPO`.
 
 ### `fjo pr list`
 
@@ -465,3 +465,70 @@ branch.
 
 `pr list`, `pr view` and `pr checks` support `--json`, `--jq` and
 `--template`. Pass `--json` without a field list to see the available fields.
+
+### `fjo pr create`
+
+```bash
+fjo pr create --title "Add search" --body-file pr.md
+fjo pr create --base main --fill --draft --push
+fjo pr create --head alice:feature --title "Add search" --reviewer bob
+```
+
+The head defaults to the current Git branch. A configured push remote or
+tracking branch can select a fork and its branch name. The base defaults to
+the target repository's default branch. If an open pull request already
+matches those branches, the command exits with code 13 and its URL.
+
+`--fill` fills the title and body from commits in the base-to-head range.
+`--fill-first` uses only the first commit in that range. Explicit
+`--title` and body flags override commit-derived text. Without a terminal,
+provide `--title`, `--fill` or `--fill-first`.
+
+Use `--push` to publish a missing head branch. In a terminal, fjo asks
+before pushing if the flag is absent. `--draft` sets the `WIP:` title
+prefix. Support for metadata includes `--label`, `--assignee`,
+`--reviewer` and `--milestone`. `--web` opens the comparison on Forgejo
+so creation can be completed in the browser.
+
+### `fjo pr checkout <number|url>`
+
+```bash
+fjo pr checkout 42 --branch review-42
+```
+
+Fetches the pull request head via a matching Git remote. The local branch
+defaults to the PR head name. Existing local branches must be able to
+fast-forward. `--force` allows replacing a diverged branch. Checkout rejects
+a dirty working tree in both modes. For a fork, checkout sets an upstream
+when the fork's remote-tracking branch is available locally.
+
+### `fjo pr merge [<number|url|branch>]`
+
+```bash
+fjo pr merge 42 --squash --delete-branch
+fjo pr merge 42 --merge --auto
+```
+
+Select a repository-enabled method with `--merge`, `--squash`, `--rebase`,
+`--rebase-merge` or `--fast-forward-only`. With a terminal, fjo offers the
+enabled methods when none is specified. `--auto` asks Forgejo to merge
+when checks succeed. Use `--subject` and the body flags for the merge
+message. `--delete-branch` requests deletion of the remote head branch.
+After an immediate merge, local deletion requires a matching branch tip
+and Git's safe branch deletion checks.
+
+### `fjo pr close`, `reopen`, `ready`, `edit`, `comment`
+
+```bash
+fjo pr close 42 --comment "Superseded" --delete-branch
+fjo pr reopen 42
+fjo pr ready 42 --undo
+fjo pr edit 42 --base main --add-label bug --remove-assignee alice --add-reviewer bob
+fjo pr comment 42 --body-file notes.md
+```
+
+`ready` removes the WIP title prefix. `ready --undo` adds it.
+`edit` supports `--title`, `--base`, body flags, label, assignee and
+reviewer additions and removals, and `--milestone` or `--remove-milestone`.
+Body flags are `--body`, `--body-file` (use `-` for standard input) and
+`--editor`.
