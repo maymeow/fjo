@@ -8,6 +8,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 )
 
@@ -29,7 +30,7 @@ func newDeleteCmd(f *app.Factory) *cobra.Command {
 			return runDelete(cmd.Context(), f, o, args)
 		},
 	}
-	addRepoFlag(cmd, &o.repo)
+	cmdutil.AddRepoFlag(cmd, &o.repo)
 	cmd.Flags().BoolVar(&o.yes, "yes", false, "Confirm the deletion without prompting")
 	return cmd
 }
@@ -74,7 +75,7 @@ func newArchiveCmd(f *app.Factory) *cobra.Command {
 			return runArchive(cmd.Context(), f, o, args, true)
 		},
 	}
-	addRepoFlag(cmd, &o.repo)
+	cmdutil.AddRepoFlag(cmd, &o.repo)
 	cmd.Flags().BoolVar(&o.yes, "yes", false, "Confirm archiving without prompting")
 	return cmd
 }
@@ -91,7 +92,7 @@ func newUnarchiveCmd(f *app.Factory) *cobra.Command {
 			return runArchive(cmd.Context(), f, o, args, false)
 		},
 	}
-	addRepoFlag(cmd, &o.repo)
+	cmdutil.AddRepoFlag(cmd, &o.repo)
 	return cmd
 }
 
@@ -146,7 +147,7 @@ Without --branch only the default branch is synced.`,
 			return runSync(cmd.Context(), f, o, args)
 		},
 	}
-	addRepoFlag(cmd, &o.repo)
+	cmdutil.AddRepoFlag(cmd, &o.repo)
 	cmd.Flags().StringVarP(&o.branch, "branch", "b", "", "Branch to sync (default: the default branch)")
 	return cmd
 }

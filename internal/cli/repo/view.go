@@ -44,7 +44,7 @@ Without an argument the repository of the current directory is shown.`,
 	cmd.Flags().StringVarP(&o.branch, "branch", "b", "", "Show the given branch (with --web)")
 	cmd.Flags().BoolVar(&o.noPager, "no-pager", false, "Disable the pager")
 	o.json = output.AddJSONFlags(cmd, output.RepositoryFields)
-	addRepoFlag(cmd, &o.repo)
+	cmdutil.AddRepoFlag(cmd, &o.repo)
 	return cmd
 }
 

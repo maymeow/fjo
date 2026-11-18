@@ -68,6 +68,12 @@ Changed:
   JSONOptions, TableOptions, Page, OpenBrowser, OneLine). issue, pr,
   release and repo had their own copies with diverging --web behaviour;
   all now announce the URL on a terminal and give the FJO_BROWSER hint.
+  repo.addRepoFlag was a fifth copy and now uses cmdutil.AddRepoFlag.
+Added:
+- internal/cli/duplicates_test.go: TestNoDuplicateFunctions fails when two
+  functions in internal/ have identical bodies (gofmt-normalized, no
+  identifier normalization), with an allowedDuplicates map for justified
+  exceptions. AGENTS.md "Shared helpers" section describes the rule.
 Tests:
 - make check, make lint, integration on Forgejo 15.0.11 and 17.0.1.
 Notes / next steps:

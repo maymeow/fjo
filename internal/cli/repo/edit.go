@@ -7,6 +7,7 @@ import (
 
 	"github.com/maymeow/fjo/internal/api"
 	"github.com/maymeow/fjo/internal/app"
+	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 )
 
@@ -44,7 +45,7 @@ Only the flags you pass are changed.`,
 			return runEdit(cmd.Context(), f, o, args)
 		},
 	}
-	addRepoFlag(cmd, &o.repo)
+	cmdutil.AddRepoFlag(cmd, &o.repo)
 	fl := cmd.Flags()
 	fl.StringVar(&o.description, "description", "", "Repository description")
 	fl.StringVar(&o.homepage, "homepage", "", "Repository homepage URL")
