@@ -1,3 +1,4 @@
-.gitlabci.yml @kukolos
-/tools/ @kukolos
-AGENTS.md @kukolos
+/.github/ @maymeow
+/.forgejo/ @maymeow
+/tools/ @maymeow
+AGENTS.md @maymeow

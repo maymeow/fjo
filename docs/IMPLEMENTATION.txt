@@ -5,7 +5,7 @@
 **Working binary name:** `fjo`  
 **Language:** Go  
 **Architecture:** Modular monolith / layered CLI  
-**License:** MIT (proposed)  
+**License:** MIT  
 **Target:** Windows, Linux, macOS  
 **Status:** Proposed  
 **Document version:** 1.1
