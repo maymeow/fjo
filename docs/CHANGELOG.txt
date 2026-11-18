@@ -12,9 +12,9 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 
 ## Current status
 
-- Phase:            Phase 3 - Issues and pull requests (COMPLETE, 3a-3e)
-- Next target:      Phase 4 - Release management (v0.2.0), plan in
-                    docs/PHASE4.txt; decisions B-51 .. B-56 open
+- Phase:            Phase 4 - Release management (4a COMPLETE)
+- Next target:      Phase 4b - Release create/edit/delete (v0.2.0), plan in
+                    docs/PHASE4.txt; decisions B-52 .. B-56 open
 - Last updated:     2026-11-18
 - Repo:             https://github.com/maymeow/fjo (public), branch main
 - Phase 0 open:     self-hosted Forgejo runners; race tests (B-35);
@@ -54,6 +54,17 @@ Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
 
 ---
+
+## 2026-11-18 — Release listing and viewing
+Phase: 4a / v0.2.0
+Spec:  IMPLEMENTATION.txt §5.6, §10.2; PHASE4.txt milestone 4a
+
+- Added paginated release reads by list, latest and tag, with a draft
+  fallback on 404.
+- Added `release list` and `release view` with JSON, jq and template
+  output, as well as browser opening for a selected release.
+- Verified on Forgejo 15.0.11 and 17.0.1. Both return visible drafts
+  directly by tag and include them in unfiltered lists.
 
 ## 2026-11-18 — Phase 4 plan
 Phase: 4 / v0.2.0

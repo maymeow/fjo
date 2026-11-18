@@ -8,6 +8,10 @@ Development progress is tracked in [docs/CHANGELOG.txt](docs/CHANGELOG.txt).
 
 ## [Unreleased]
 
+### Added
+
+- `fjo release list` and `fjo release view` show release notes, assets and metadata, with structured output for scripts.
+
 ## [0.1.0] - 2026-11-18
 
 First release. Supports Forgejo 15 and 17.

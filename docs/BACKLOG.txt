@@ -909,21 +909,26 @@ Source of B-51 .. B-56: Phase 4 planning, 2026-11-18 (swagger 15.0.11 and
 ### B-51 — How a release is addressed
 
 Type:     decision
-Status:   open
+Status:   implemented in Phase 4a
 Added:    2026-11-18
 Phase:    Phase 4 (4a)
 
 Context:
 - gh addresses releases by tag. Forgejo has GET/DELETE /releases/tags/{tag},
   but every other operation (PATCH, assets) needs the numeric release id.
-- It is unverified whether /releases/tags/{tag} returns draft releases.
+- The Swagger fixtures do not specify whether /releases/tags/{tag} returns
+  draft releases.
 Proposal:
 - Tag on the command line, id only internally. Resolve tag -> release via
   /releases/tags/{tag}; if that is 404, fall back to the list with
   draft=true and match tag_name. `release view` without a tag shows
   /releases/latest (same as gh). Verify draft behaviour in integration tests.
 Decision:
--
+- CLI lookup uses the tag. Forgejo 15.0.11 and 17.0.1 both returned
+  visible drafts from the direct tag endpoint. Keep the fallback to a
+  paginated `draft=true` list after a 404.
+- Omitting `draft` lists both published releases and visible drafts.
+  `draft=true` selects drafts. `draft=false` excludes them.
 
 ### B-52 — Asset upload encoding
 

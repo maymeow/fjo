@@ -554,3 +554,35 @@ fjo pr comment 42 --body-file notes.md
 reviewer additions and removals, and `--milestone` or `--remove-milestone`.
 Body flags are `--body`, `--body-file` (use `-` for standard input) and
 `--editor`.
+
+## Releases
+
+Both commands accept `-R, --repo [HOST/]OWNER/REPO` and support
+`--json`, `--jq`, `--template` and `--no-pager`.
+
+### `fjo release list`
+
+```bash
+fjo release list --exclude-drafts --exclude-pre-releases
+fjo release list -O asc -L 5 --json tagName,publishedAt
+```
+
+Lists visible releases, including drafts the token can read. Use
+`--exclude-drafts` or `--exclude-pre-releases` to filter the list.
+`-O, --order` sorts by publication time, using creation time for drafts
+or releases without a publication date. Use `asc` for oldest first or
+`desc` for newest first (the default). `-L, --limit` caps the ordered
+results and defaults to 30.
+
+### `fjo release view [<tag>]`
+
+```bash
+fjo release view v1.2.0
+fjo release view --json tagName,assets --jq '.assets[].name'
+fjo release view v1.2.0 --web
+```
+
+Displays the release notes and asset names and sizes. Without a tag, it
+shows the latest stable published release. If Forgejo has no stable
+published release, the command exits with code 12. Supply a tag to view
+a draft or a pre-release. `-w, --web` opens the release in a browser.

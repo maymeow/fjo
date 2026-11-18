@@ -29,8 +29,8 @@ Endpointy a modely sú v swaggeri 15.0.11 a 17.0.1 zhodné:
 
 ## 0. Rozhodnutia pred začatím (BACKLOG)
 
-- [ ] B-51: release sa na príkazovom riadku určuje tagom, id sa používa iba
-      interne. Treba overiť, či `/releases/tags/{tag}` vracia aj drafty.
+- [x] B-51: release sa na príkazovom riadku určuje tagom. Forgejo 15.0.11
+      aj 17.0.1 vracajú viditeľné drafty priamo cez `/releases/tags/{tag}`.
 - [ ] B-52: upload cez `application/octet-stream` (odporúčané) alebo multipart.
 - [ ] B-53: integrita pri sťahovaní: veľkosť vždy, SHA-256 podľa manifestu
       kontrolných súčtov, ak ho release obsahuje. Bez obnovenia prerušeného
@@ -46,23 +46,23 @@ Endpointy a modely sú v swaggeri 15.0.11 a 17.0.1 zhodné:
 
 ## 4a — API vrstva, `release list`, `release view`
 
-- [ ] `internal/api/releases.go`: modely `Release`, `Attachment`,
+- [x] `internal/api/releases.go`: modely `Release`, `Attachment`,
       `CreateReleaseOptions`, `EditReleaseOptions`. Endpointy zaregistrovať
       v `endpoints.go`, aby ich overil swagger test.
-- [ ] `ReleaseByTag`: `/releases/tags/{tag}`, pri 404 záložne zoznam
+- [x] `ReleaseByTag`: `/releases/tags/{tag}`, pri 404 záložne zoznam
       s `draft=true` (B-51). `LatestRelease`, `ListReleases` so stránkovaním.
-- [ ] Normalizovaný JSON model (§10.2) s názvami polí podľa gh:
+- [x] Normalizovaný JSON model (§10.2) s názvami polí podľa gh:
       `tagName`, `name`, `body`, `isDraft`, `isPrerelease`, `createdAt`,
       `publishedAt`, `url`, `tarballUrl`, `zipballUrl`, `targetCommitish`,
       `author{login}`, `assets[{name,size,url,downloadCount,createdAt}]`, `id`.
       Golden testy na schému.
-- [ ] `release list`: `-L/--limit` (default 30), `--exclude-drafts`,
+- [x] `release list`: `-L/--limit` (default 30), `--exclude-drafts`,
       `--exclude-pre-releases`, `-O/--order asc|desc`, `--json/--jq/--template`.
       Tabuľka v TTY: Title, Type (Latest/Draft/Pre-release), Tag, Published.
       Bez TTY TSV. Prázdny výsledok hlási na stderr.
-- [ ] `release view [<tag>]`: bez tagu ukáže najnovší release. Flagy `-w/--web`
+- [x] `release view [<tag>]`: bez tagu ukáže najnovší release. Flagy `-w/--web`
       a `--json/--jq/--template`. Vypíše poznámky a prílohy (meno, veľkosť).
-- [ ] Testy: httptest (draft fallback, latest bez releasov = exit 12),
+- [x] Testy: httptest (draft fallback, latest bez releasov = exit 12),
       integrácia 15 a 17.
 
 ---
