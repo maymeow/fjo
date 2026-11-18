@@ -82,3 +82,11 @@ var (
 	epLatestRelease = endpoint("GET", "/repos/{owner}/{repo}/releases/latest")
 	epReleaseByTag  = endpoint("GET", "/repos/{owner}/{repo}/releases/tags/{tag}")
 )
+
+var (
+	epCreateRelease = endpoint("POST", "/repos/{owner}/{repo}/releases")
+	epEditRelease   = endpoint("PATCH", "/repos/{owner}/{repo}/releases/{id}")
+	epDeleteRelease = endpoint("DELETE", "/repos/{owner}/{repo}/releases/{id}")
+	epGetTag        = endpoint("GET", "/repos/{owner}/{repo}/tags/{tag}")
+	epDeleteTag     = endpoint("DELETE", "/repos/{owner}/{repo}/tags/{tag}")
+)

@@ -36,7 +36,7 @@ Endpointy a modely sú v swaggeri 15.0.11 a 17.0.1 zhodné:
       kontrolných súčtov, ak ho release obsahuje. Bez obnovenia prerušeného
       sťahovania.
 - [ ] B-54: prepisovanie ako v gh (`--clobber`, `--skip-existing`).
-- [ ] B-55: gh flagy bez ekvivalentu vo Forgejo vynechať a zdokumentovať.
+- [x] B-55: gh flagy bez ekvivalentu vo Forgejo vynechať a zdokumentovať.
       `--verify-tag` a `--cleanup-tag` implementovať.
 - [ ] B-56: binárky fjo cez GoReleaser na GitHub Releases v rámci v0.2.0.
       Podpisovanie (B-17) zostáva vo fáze 8, ak sa nerozhodne skôr.
@@ -69,24 +69,24 @@ Endpointy a modely sú v swaggeri 15.0.11 a 17.0.1 zhodné:
 
 ## 4b — `release create`, `release edit`, `release delete`
 
-- [ ] `release create [<tag>] [<files>...]`:
-  - [ ] Flagy `-t/--title`, `-n/--notes`, `-F/--notes-file` (`-` = stdin),
+- [x] `release create [<tag>]`:
+  - [x] Flagy `-t/--title`, `-n/--notes`, `-F/--notes-file` (`-` = stdin),
         `-d/--draft`, `-p/--prerelease`, `--target`, `--verify-tag`,
         `--notes-from-tag` (anotácia tagu cez git) a `--hide-archive-links`
         (iba vo Forgejo).
-  - [ ] Ak tag neexistuje, Forgejo ho vytvorí z `--target` (default vetva).
+  - [x] Ak tag neexistuje, Forgejo ho vytvorí z `--target` (default vetva).
         S `--verify-tag` je chýbajúci tag chyba (exit 12).
-  - [ ] Súbory uvedené za tagom sa nahrajú cez 4c. Ak upload zlyhá, release
+  - [ ] Súbory uvedené za tagom sa nahrajú vo fáze 4c. Ak upload zlyhá, release
         ostane ako draft a chyba povie, ako pokračovať (`release upload`).
-  - [ ] TTY bez tagu alebo titulku sa pýta. Bez TTY je tag povinný
+  - [x] TTY bez tagu alebo titulku sa pýta. Bez TTY je tag povinný
         (exit 10). Poznámky môžu byť prázdne.
-  - [ ] Release s existujúcim tagom = exit 13 s čitateľnou správou.
-- [ ] `release edit <tag>`: `--tag` (premenovanie), `--title`, `--notes*`,
+  - [x] Release s existujúcim tagom = exit 13 s čitateľnou správou.
+- [x] `release edit <tag>`: `--tag` (premenovanie), `--title`, `--notes*`,
       `--draft[=false]` (publikovanie), `--prerelease[=false]`, `--target`.
       Mení iba zadané polia.
-- [ ] `release delete <tag>`: potvrdenie v TTY, bez TTY povinné `--yes`.
+- [x] `release delete <tag>`: potvrdenie v TTY, bez TTY povinné `--yes`.
       `--cleanup-tag` zmaže aj git tag.
-- [ ] Testy: httptest pre každý flag, integrácia (create → edit → publish
+- [x] Testy: httptest pre každý flag, integrácia (create → edit → publish
       → delete s `--cleanup-tag`).
 
 ---

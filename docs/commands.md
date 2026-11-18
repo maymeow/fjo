@@ -557,8 +557,9 @@ Body flags are `--body`, `--body-file` (use `-` for standard input) and
 
 ## Releases
 
-Both commands accept `-R, --repo [HOST/]OWNER/REPO` and support
-`--json`, `--jq`, `--template` and `--no-pager`.
+All release commands accept `-R, --repo [HOST/]OWNER/REPO`.
+`release list` and `release view` support `--json`, `--jq`, `--template`
+and `--no-pager`.
 
 ### `fjo release list`
 
@@ -586,3 +587,47 @@ Displays the release notes and asset names and sizes. Without a tag, it
 shows the latest stable published release. If Forgejo has no stable
 published release, the command exits with code 12. Supply a tag to view
 a draft or a pre-release. `-w, --web` opens the release in a browser.
+
+### `fjo release create [<tag>]`
+
+```bash
+fjo release create v1.2.0 --title "Version 1.2.0" --notes-file notes.md
+fjo release create v1.2.0-rc.1 --draft --prerelease --target stable
+fjo release create v1.2.0 --verify-tag --notes-from-tag
+```
+
+Forgejo uses the repository's default branch when `--target` is omitted.
+Use `--verify-tag` to require an existing remote Git tag. A release that
+already uses the tag causes exit 13. In a terminal, fjo prompts for a missing
+tag or title. Without a terminal, supply a tag. The title defaults to the tag
+and notes can be empty.
+
+Use `-n, --notes` for inline notes, `-F, --notes-file` for a file or `-`
+for stdin, or `--notes-from-tag` for an annotation from the local Git
+repository. Use `--hide-archive-links` to hide Forgejo's source archive
+links. Asset arguments are planned for Phase 4c.
+
+### `fjo release edit <tag>`
+
+```bash
+fjo release edit v1.2.0-rc.1 --tag v1.2.0 --title "Version 1.2.0" --draft=false --prerelease=false
+fjo release edit v1.2.0 --notes-file notes.md
+```
+
+Updates the supplied fields. Use `--target` to change the release target,
+`--draft=false` to publish a draft and `--prerelease=false` to clear
+pre-release status. Forgejo ignores empty
+title and notes updates. fjo returns exit 15 when an empty value would
+otherwise leave existing text in place.
+
+### `fjo release delete <tag>`
+
+```bash
+fjo release delete v1.2.0-rc.1 --yes
+fjo release delete v1.2.0-rc.1 --yes --cleanup-tag
+```
+
+Type the release tag to confirm deletion in a terminal, or pass `--yes`.
+Without a terminal, `--yes` is required. `--cleanup-tag` deletes the remote
+Git tag after deleting the release. If the tag deletion fails, the command
+reports that the release was already deleted.

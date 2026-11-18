@@ -10,6 +10,8 @@ Development progress is tracked in [docs/CHANGELOG.txt](docs/CHANGELOG.txt).
 
 ### Added
 
+- `fjo release create`, `edit` and `delete` manage releases by tag, including draft publication and optional Git tag cleanup.
+
 - `fjo release list` and `fjo release view` show release notes, assets and metadata, with structured output for scripts.
 
 ## [0.1.0] - 2026-11-18
