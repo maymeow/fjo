@@ -1,0 +1,91 @@
+# .golangci.yml
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  default: none
+  enable:
+    # Základ – pri default: none sa musia zapnúť ručne
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - errcheck # Vynucuje ošetrenie chýb
+    - noctx # Kontroluje predávanie context.Context pri HTTP/exec
+    - bodyclose # Kontroluje uzatváranie res.Body
+    - depguard # Architektonické hranice
+    - godox # Zákaz TODO/FIXME
+    - gocritic # Detekcia anti-patternov
+    - gosec # Bezpečnostná analýza kódu
+    - errorlint # errors.Is/As namiesto == a type assertion
+    - nolintlint # //nolint musí byť konkrétny a zdôvodnený
+    - misspell
+    - unconvert
+    - usestdlibvars
+
+  settings:
+    # 1. Kontrola ignorovania chýb (aj pri podčiarkovníku _ = fn())
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    # 2. Blokovanie obchádzok, TODO a HACK komentárov
+    godox:
+      keywords:
+        - TODO
+        - FIXME
+        - HACK
+        - WORKAROUND
+        - TEMP
+
+    # 3. Kontrola nežiaducich komentárov a antipatternov
+    #    (exitAfterDefer je zapnutý v predvolených checkoch)
+    gocritic:
+      enabled-checks:
+        - commentedOutCode
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+
+    # 4. Architektonické obmedzenia a kontrola závislostí medzi balíčkami
+    depguard:
+      rules:
+        no-unsafe:
+          files:
+            - "$all"
+          deny:
+            - pkg: "unsafe"
+              desc: "Použitie unsafe nie je povolené."
+        api-layer:
+          files:
+            - "**/internal/api/**"
+          deny:
+            - pkg: "github.com/maymeow/fjo/internal/cli"
+              desc: "API klient nesmie závisieť od CLI vrstvy."
+
+  exclusions:
+    rules:
+      # Testy – menej prísne bezpečnostné a error kontroly
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck
+          - noctx
+      # Zámerné spúšťanie externých príkazov (git, prehliadač, editor, pager)
+      - path: internal/(git|browser|output)/
+        linters:
+          - gosec
+        text: G204
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
