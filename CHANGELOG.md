@@ -10,6 +10,9 @@ Development progress is tracked in [docs/CHANGELOG.txt](docs/CHANGELOG.txt).
 
 ### Added
 
+- Create, check out, merge, close, reopen, edit and comment on pull requests,
+  and change their draft status with `fjo pr ready`.
+
 - Read-only pull request commands `fjo pr list/view/diff/checks` for Forgejo 15 and 17.
 
 - `fjo issue list/view/create/edit/close/reopen/comment/delete/pin/unpin`,

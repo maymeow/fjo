@@ -34,11 +34,11 @@ func TestIssuesAgainstForgejo(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = c.DeleteRepository(context.Background(), me.Login, name) })
 	var label api.Label
-	if _, err = c.JSON(ctx, "POST", "repos/"+full+"/labels", map[string]string{"name": "bug", "color": "ff0000"}, &label); err != nil {
+	if err = c.JSON(ctx, "POST", "repos/"+full+"/labels", map[string]string{"name": "bug", "color": "ff0000"}, &label); err != nil {
 		t.Fatal(err)
 	}
 	var milestone api.Milestone
-	if _, err = c.JSON(ctx, "POST", "repos/"+full+"/milestones", map[string]string{"title": "v1"}, &milestone); err != nil {
+	if err = c.JSON(ctx, "POST", "repos/"+full+"/milestones", map[string]string{"title": "v1"}, &milestone); err != nil {
 		t.Fatal(err)
 	}
 	r, env := envRunner(t, inst)

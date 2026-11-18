@@ -1576,7 +1576,7 @@ Acceptance criteria:
 
 ### Phase 3 — Issues and pull requests
 
-Issue milestone 3b and read-only PR milestone 3c are implemented.
+Issue milestone 3b and pull request milestones 3c and 3d are implemented.
 
 **Target: v0.1.0**
 
@@ -1588,11 +1588,11 @@ Tasks:
 - [x] Implement issue closing and reopening.
 - [x] Implement PR listing.
 - [x] Implement PR viewing.
-- [ ] Implement PR creation.
+- [x] Implement PR creation.
 - [x] Implement PR diff.
 - [x] Implement PR checks.
-- [ ] Implement PR checkout.
-- [ ] Implement PR merge.
+- [x] Implement PR checkout.
+- [x] Implement PR merge.
 - [ ] Add human-readable tables.
 - [ ] Add JSON output.
 - [ ] Add non-interactive tests.

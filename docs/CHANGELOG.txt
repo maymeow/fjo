@@ -12,12 +12,12 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 
 ## Current status
 
-- Phase:            Phase 3 - Issues and pull requests (3a + 3b + 3c COMPLETE)
-- Next target:      v0.1.0 (Phase 3; next milestone 3d - PR write commands)
-- Last updated:     2026-11-17
+- Phase:            Phase 3 - Issues and pull requests (3a + 3b + 3c + 3d COMPLETE)
+- Next target:      v0.1.0 (Phase 3; next milestone 3e - PR review)
+- Last updated:     2026-11-18
 - Repo:             https://github.com/kukolos/fjo (private), branch main
 - Phase 0 open:     self-hosted runners + first CI run; race tests (B-35)
-- Phase 3 open:     PR write and review (3d and 3e); check polling (B-45)
+- Phase 3 open:     PR review (3e); check polling (B-45)
 - Phase 2 open:     B-38 (~/.ssh/config aliases), B-39 (rename remote)
 - Blockers:         none for code; B-33 (license), B-34 (module path vs.
                     repo at github.com/kukolos/fjo) before a public release
@@ -53,6 +53,16 @@ Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
 
 ---
+
+## 2026-11-18 — Pull request write commands
+Phase: 3d / v0.1.0
+Spec:  IMPLEMENTATION.txt §5.5; PHASE3.txt milestone 3d
+
+- Added pull request creation, checkout, merge, close, reopen, ready, edit
+  and comment. Implemented B-43 for unpublished branches.
+- Added bare-repository checkout tests and Forgejo integration tests for
+  the pull request lifecycle and five server-enabled merge methods.
+- Updated existing integration tests for the current API client signature.
 
 ## 2026-11-18 — Lint cleanup: golangci-lint clean (phases 1–4)
 Phase: tooling / v0.1.0

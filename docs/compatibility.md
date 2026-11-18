@@ -97,7 +97,8 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | `gh browse` | same | idea (BACKLOG B-21) |
 | `gh issue list/view/create/edit/close/reopen/comment/delete/pin/unpin` | same | done (Phase 3b); differences below |
 | `gh pr list/view/diff/checks` | same | done (Phase 3c), with differences below |
-| `gh pr create/checkout/merge/review/...` | same | planned (Phases 3d and 3e) |
+| `gh pr create/checkout/merge/close/reopen/ready/edit/comment` | same | done (Phase 3d), with differences below |
+| `gh pr review` | same | planned (Phase 3e) |
 | `gh release ...` | same | planned (Phase 4) |
 | `gh run`, `gh workflow` | same | planned (Phase 5), scope depends on Forgejo Actions API (BACKLOG B-10) |
 | `gh org`, `gh ssh-key`, `gh secret`, `gh variable` | same | planned (Phase 6) |
@@ -163,3 +164,10 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
   the target repository. Success maps to `pass`, failure, error and warning
   map to `fail`, and skipped maps to `skipping`. Pending checks use
   `pending` and leave `completedAt` null. Polling is tracked in B-45.
+
+- Forgejo drafts use the `WIP:` title prefix for creation and readiness changes.
+- Reviewer requests use a separate Forgejo endpoint. Creation prints the
+  new PR URL even if a subsequent reviewer request fails.
+- Interactive merge selection uses the repository's enabled Forgejo methods.
+  Automated merges and remote head deletion follow Forgejo's repository rules.
+  Local cleanup after an immediate merge uses Git's safe branch deletion.

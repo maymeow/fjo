@@ -58,34 +58,39 @@ type ForkRepoOptions struct {
 
 // Repository is the subset of Forgejo's Repository model fjo uses.
 type Repository struct {
-	ID            int64       `json:"id"`
-	Name          string      `json:"name"`
-	FullName      string      `json:"full_name"`
-	Owner         User        `json:"owner"`
-	Description   string      `json:"description"`
-	Website       string      `json:"website"`
-	Private       bool        `json:"private"`
-	Internal      bool        `json:"internal"`
-	Fork          bool        `json:"fork"`
-	Mirror        bool        `json:"mirror"`
-	Template      bool        `json:"template"`
-	Archived      bool        `json:"archived"`
-	Empty         bool        `json:"empty"`
-	Parent        *Repository `json:"parent"`
-	HTMLURL       string      `json:"html_url"`
-	CloneURL      string      `json:"clone_url"`
-	SSHURL        string      `json:"ssh_url"`
-	DefaultBranch string      `json:"default_branch"`
-	Language      string      `json:"language"`
-	Topics        []string    `json:"topics"`
-	Stars         int         `json:"stars_count"`
-	Forks         int         `json:"forks_count"`
-	Watchers      int         `json:"watchers_count"`
-	OpenIssues    int         `json:"open_issues_count"`
-	OpenPulls     int         `json:"open_pr_counter"`
-	Releases      int         `json:"release_counter"`
-	CreatedAt     time.Time   `json:"created_at"`
-	UpdatedAt     time.Time   `json:"updated_at"`
+	ID                   int64       `json:"id"`
+	Name                 string      `json:"name"`
+	FullName             string      `json:"full_name"`
+	Owner                User        `json:"owner"`
+	Description          string      `json:"description"`
+	Website              string      `json:"website"`
+	Private              bool        `json:"private"`
+	Internal             bool        `json:"internal"`
+	Fork                 bool        `json:"fork"`
+	Mirror               bool        `json:"mirror"`
+	Template             bool        `json:"template"`
+	Archived             bool        `json:"archived"`
+	Empty                bool        `json:"empty"`
+	Parent               *Repository `json:"parent"`
+	HTMLURL              string      `json:"html_url"`
+	CloneURL             string      `json:"clone_url"`
+	SSHURL               string      `json:"ssh_url"`
+	AllowMergeCommits    bool        `json:"allow_merge_commits"`
+	AllowSquashMerge     bool        `json:"allow_squash_merge"`
+	AllowRebase          bool        `json:"allow_rebase"`
+	AllowRebaseExplicit  bool        `json:"allow_rebase_explicit"`
+	AllowFastForwardOnly bool        `json:"allow_fast_forward_only_merge"`
+	DefaultBranch        string      `json:"default_branch"`
+	Language             string      `json:"language"`
+	Topics               []string    `json:"topics"`
+	Stars                int         `json:"stars_count"`
+	Forks                int         `json:"forks_count"`
+	Watchers             int         `json:"watchers_count"`
+	OpenIssues           int         `json:"open_issues_count"`
+	OpenPulls            int         `json:"open_pr_counter"`
+	Releases             int         `json:"release_counter"`
+	CreatedAt            time.Time   `json:"created_at"`
+	UpdatedAt            time.Time   `json:"updated_at"`
 }
 
 // GetUser returns a user or organization by name (GET /users/{username}).
