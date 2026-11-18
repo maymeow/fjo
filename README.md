@@ -5,7 +5,8 @@ alternative to GitHub CLI (`gh`) for Forgejo instances: same command style, flag
 JSON output and exit codes where Forgejo supports the feature, with Forgejo-native
 semantics where it differs.
 
-> **Status:** early development (Phase 0). Only `fjo --help` and `fjo version` work.
+> **Status:** v0.1.0, pre-1.0. Authentication, repositories, issues and pull requests
+> work against Forgejo 15 and 17; see [CHANGELOG.md](CHANGELOG.md).
 
 ## Goals
 
@@ -18,9 +19,9 @@ semantics where it differs.
 ## Quick start
 
 ```bash
-go build -o bin/ ./cmd/fjo
-bin/fjo --help
-bin/fjo version
+go install github.com/maymeow/fjo/cmd/fjo@latest
+fjo auth login --hostname forgejo.example.com
+fjo issue list
 ```
 
 See [INSTALL.md](INSTALL.md) for installation and [docs/](docs/) for details:
@@ -30,6 +31,10 @@ See [INSTALL.md](INSTALL.md) for installation and [docs/](docs/) for details:
 - [gh compatibility](docs/compatibility.md)
 - [Architecture](docs/architecture.md)
 - [Development](docs/development.md)
+
+## License
+
+[MIT](LICENSE).
 
 ## Contributing
 

@@ -13,7 +13,7 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 ## Current status
 
 - Phase:            Phase 3 - Issues and pull requests (COMPLETE, 3a-3e)
-- Next target:      tag v0.1.0; then Phase 4 - Release management (v0.2.0)
+- Next target:      Phase 4 - Release management (v0.2.0); v0.1.0 tagged
 - Last updated:     2026-11-18
 - Repo:             https://github.com/maymeow/fjo (public), branch main
 - Phase 0 open:     self-hosted Forgejo runners; race tests (B-35);
@@ -51,6 +51,20 @@ Newest entries on top. One entry per working session / merged change set.
 
 Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
+
+---
+
+## 2026-11-18 — Release v0.1.0
+Phase: 3 / v0.1.0
+Spec:  §14, §16 Phase 3
+
+Changed:
+- CHANGELOG.md: [Unreleased] became [0.1.0] - 2026-11-18, with compare links.
+- README.md: current status, `go install` quick start, license section.
+- INSTALL.md: `go install github.com/maymeow/fjo/cmd/fjo@latest`, real clone URL.
+- SECURITY.md: private reporting through GitHub security advisories.
+Notes / next steps:
+- Tag v0.1.0 on main after this change is merged.
 
 ---
 

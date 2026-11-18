@@ -4,7 +4,8 @@
 
 Please do not open public issues for security problems.
 
-Private reporting contact: **TBD** (to be defined before the first public release).
+Report it privately through GitHub:
+[Security → Report a vulnerability](https://github.com/maymeow/fjo/security/advisories/new).
 
 Include the fjo version (`fjo version`), platform, Forgejo version and steps to reproduce.
 Never include real access tokens in reports.

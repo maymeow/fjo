@@ -8,7 +8,9 @@ Development progress is tracked in [docs/CHANGELOG.txt](docs/CHANGELOG.txt).
 
 ## [Unreleased]
 
-First release, v0.1.0. Supports Forgejo 15 and 17.
+## [0.1.0] - 2026-11-18
+
+First release. Supports Forgejo 15 and 17.
 
 ### Added
 
@@ -33,3 +35,6 @@ First release, v0.1.0. Supports Forgejo 15 and 17.
 - User configuration file (`config.yaml`) with validation; location overridable by
   `FJO_CONFIG_DIR` or `XDG_CONFIG_HOME`.
 - gh-compatible exit codes, plus fjo codes 10–16 (see docs/compatibility.md).
+
+[Unreleased]: https://github.com/maymeow/fjo/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/maymeow/fjo/releases/tag/v0.1.0
