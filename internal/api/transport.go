@@ -80,7 +80,7 @@ func newBaseTransport(caFile string) (http.RoundTripper, error) {
 	t.ResponseHeaderTimeout = 60 * time.Second
 	tlsCfg := &tls.Config{MinVersion: tls.VersionTLS12}
 	if caFile != "" {
-		pem, err := os.ReadFile(caFile)
+		pem, err := os.ReadFile(caFile) //nolint:gosec // G304: ca_file is a path the user configured
 		if err != nil {
 			return nil, fmt.Errorf("read ca_file: %w", err)
 		}

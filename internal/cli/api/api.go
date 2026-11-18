@@ -359,7 +359,7 @@ func readInput(f *app.Factory, name string) ([]byte, error) {
 		}
 		return b, nil
 	}
-	b, err := os.ReadFile(name)
+	b, err := os.ReadFile(name) //nolint:gosec // G304: --input names a file the user chose
 	if err != nil {
 		return nil, fjoerr.Wrap(fjoerr.KindUsage, err, "read --input file")
 	}

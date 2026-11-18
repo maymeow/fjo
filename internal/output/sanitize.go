@@ -20,7 +20,7 @@ func Sanitize(s string) string {
 			b.WriteRune(r)
 		case r < 0x20:
 			b.WriteByte('^')
-			b.WriteByte(byte(r) + 0x40)
+			b.WriteRune(r + 0x40)
 		case r == 0x7f:
 			b.WriteString("^?")
 		case r >= 0x80 && r <= 0x9f:

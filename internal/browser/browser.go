@@ -26,20 +26,22 @@ func New(getenv func(string) string) Opener {
 		if err != nil || (u.Scheme != "https" && u.Scheme != "http") {
 			return errors.New("refusing to open a non-http(s) URL")
 		}
-		cmd := command(getenv, u.String())
-		if cmd == nil {
+		argv := command(getenv, u.String())
+		if argv == nil {
 			return ErrNoBrowser
 		}
-		return cmd.Start()
+		return exec.Command(argv[0], argv[1:]...).Start() //nolint:noctx // the launcher is started, never waited on, and must outlive fjo
 	}
 }
 
-func command(getenv func(string) string, u string) *exec.Cmd {
+// command returns the browser launcher's argument vector, or nil when no
+// browser can be launched.
+func command(getenv func(string) string, u string) []string {
 	for _, v := range []string{"FJO_BROWSER", "BROWSER"} {
 		if b := strings.TrimSpace(getenv(v)); b != "" {
 			fields := strings.Fields(b)
 			// Argument array, never a shell string (§8.3).
-			return exec.Command(fields[0], append(fields[1:], u)...)
+			return append(fields, u)
 		}
 	}
 	if getenv("SSH_CONNECTION") != "" || getenv("SSH_TTY") != "" {
@@ -47,18 +49,18 @@ func command(getenv func(string) string, u string) *exec.Cmd {
 	}
 	switch runtime.GOOS {
 	case "windows":
-		return exec.Command("rundll32", "url.dll,FileProtocolHandler", u)
+		return []string{"rundll32", "url.dll,FileProtocolHandler", u}
 	case "darwin":
-		return exec.Command("open", u)
+		return []string{"open", u}
 	default:
 		if getenv("WSL_DISTRO_NAME") != "" {
 			if p, err := exec.LookPath("wslview"); err == nil {
-				return exec.Command(p, u)
+				return []string{p, u}
 			}
 		}
 		if getenv("DISPLAY") == "" && getenv("WAYLAND_DISPLAY") == "" {
 			return nil
 		}
-		return exec.Command("xdg-open", u)
+		return []string{"xdg-open", u}
 	}
 }

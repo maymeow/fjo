@@ -110,7 +110,7 @@ func (e Editor) Edit(ctx context.Context, initial string, o EditorOptions) (edit
 		}
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304: path is the temporary file created above
 	if err != nil {
 		return "", fjoerr.Wrap(fjoerr.KindGeneral, err, "read edited file")
 	}

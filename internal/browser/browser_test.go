@@ -19,12 +19,12 @@ func TestCommandPrefersFJOBrowser(t *testing.T) {
 		t.Fatal("command = nil")
 	}
 	want := []string{"/usr/bin/fjo-browser", "--new-window", "https://example.com/x"}
-	if len(cmd.Args) != len(want) {
-		t.Fatalf("args = %q, want %q", cmd.Args, want)
+	if len(cmd) != len(want) {
+		t.Fatalf("args = %q, want %q", cmd, want)
 	}
 	for i := range want {
-		if cmd.Args[i] != want[i] {
-			t.Fatalf("args = %q, want %q", cmd.Args, want)
+		if cmd[i] != want[i] {
+			t.Fatalf("args = %q, want %q", cmd, want)
 		}
 	}
 }
@@ -34,7 +34,7 @@ func TestCommandFallsBackToBROWSER(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("command = nil")
 	}
-	if got, want := cmd.Args[0], "my-browser"; got != want {
+	if got, want := cmd[0], "my-browser"; got != want {
 		t.Errorf("args[0] = %q, want %q", got, want)
 	}
 }
@@ -43,7 +43,7 @@ func TestCommandNoLaunchOverSSH(t *testing.T) {
 	for _, key := range []string{"SSH_CONNECTION", "SSH_TTY"} {
 		cmd := command(env(map[string]string{key: "1"}), "https://example.com/x")
 		if cmd != nil {
-			t.Errorf("%s: command = %v, want nil", key, cmd.Args)
+			t.Errorf("%s: command = %v, want nil", key, cmd)
 		}
 	}
 }
@@ -64,14 +64,14 @@ func TestCommandLinuxDisplay(t *testing.T) {
 	}
 
 	if cmd := command(env(nil), "https://example.com/x"); cmd != nil {
-		t.Errorf("no DISPLAY: command = %v, want nil", cmd.Args)
+		t.Errorf("no DISPLAY: command = %v, want nil", cmd)
 	}
 	for _, key := range []string{"DISPLAY", "WAYLAND_DISPLAY"} {
 		cmd := command(env(map[string]string{key: "1"}), "https://example.com/x")
 		if cmd == nil {
 			t.Fatalf("%s: command = nil", key)
 		}
-		if got := cmd.Args[0]; got != "xdg-open" {
+		if got := cmd[0]; got != "xdg-open" {
 			t.Errorf("%s: args[0] = %q, want xdg-open", key, got)
 		}
 	}
