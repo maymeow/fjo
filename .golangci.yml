@@ -31,6 +31,11 @@ linters:
     errcheck:
       check-type-assertions: true
       check-blank: true
+      # Výpisy do stdout/stderr v CLI sa nekontrolujú
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
 
     # 2. Blokovanie obchádzok, TODO a HACK komentárov
     godox:
