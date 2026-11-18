@@ -80,8 +80,8 @@ Fixed:
   --input, @file fields, config, editor temp file) carry a per-site G304
   nolint with the reason instead of a global exclusion.
 Tests:
-- go build, go vet, go test ./..., govulncheck pass; make lint: 0 issues
-  (from 72). Race tests not run locally (no cgo/gcc on this machine).
+- make check passes (fmt-check, vet, lint with 0 issues from 72, test,
+  race, govulncheck).
 
 ## 2026-11-17 — Read-only pull requests
 Phase: 3c / v0.1.0
