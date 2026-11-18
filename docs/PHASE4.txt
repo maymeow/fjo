@@ -1,0 +1,176 @@
+# Phase 4 — Release management: postup a checklist
+
+Cieľ: v0.2.0 (IMPLEMENTATION.txt §16 Phase 4; špecifikácia §5.6, §7.4, §9.2,
+§10, §15). Fáza 3 je hotová a v0.1.0 je vydaná (2026-11-18).
+
+Fáza je rozdelená na míľniky. Každý skončí samostatným PR, ktorý prejde
+`make check`, lintom a integráciou na Forgejo 15 a 17 (§17.2, §18).
+
+  4a  API vrstva pre releasy + `release list`, `release view`
+  4b  `release create`, `release edit`, `release delete`
+  4c  Prílohy: `release upload`, `release delete-asset` (streamovanie)
+  4d  `release download` (streamovanie, integrita, prerušenie)
+  4e  Binárne vydania fjo (GoReleaser), dokumentácia, uzavretie fázy
+
+Endpointy a modely sú v swaggeri 15.0.11 a 17.0.1 zhodné:
+
+  GET    /repos/{o}/{r}/releases                 draft, pre-release, q, page, limit
+  POST   /repos/{o}/{r}/releases                 CreateReleaseOption
+  GET    /repos/{o}/{r}/releases/latest
+  GET    /repos/{o}/{r}/releases/tags/{tag}
+  DELETE /repos/{o}/{r}/releases/tags/{tag}
+  GET    /repos/{o}/{r}/releases/{id}            PATCH (EditReleaseOption), DELETE
+  GET    /repos/{o}/{r}/releases/{id}/assets     POST (multipart alebo octet-stream, ?name=)
+  GET    /repos/{o}/{r}/releases/{id}/assets/{attachment_id}   PATCH, DELETE
+  GET    /settings/attachment                    enabled, max_size, max_files, allowed_types
+  GET    /repos/{o}/{r}/tags/{tag}               DELETE (pre --verify-tag, --cleanup-tag)
+
+---
+
+## 0. Rozhodnutia pred začatím (BACKLOG)
+
+- [ ] B-51: release sa na príkazovom riadku určuje tagom, id sa používa iba
+      interne. Treba overiť, či `/releases/tags/{tag}` vracia aj drafty.
+- [ ] B-52: upload cez `application/octet-stream` (odporúčané) alebo multipart.
+- [ ] B-53: integrita pri sťahovaní: veľkosť vždy, SHA-256 podľa manifestu
+      kontrolných súčtov, ak ho release obsahuje. Bez obnovenia prerušeného
+      sťahovania.
+- [ ] B-54: prepisovanie ako v gh (`--clobber`, `--skip-existing`).
+- [ ] B-55: gh flagy bez ekvivalentu vo Forgejo vynechať a zdokumentovať.
+      `--verify-tag` a `--cleanup-tag` implementovať.
+- [ ] B-56: binárky fjo cez GoReleaser na GitHub Releases v rámci v0.2.0.
+      Podpisovanie (B-17) zostáva vo fáze 8, ak sa nerozhodne skôr.
+- [ ] B-31: časť o releasoch uzavrieť podľa výsledkov B-51 a B-52.
+
+---
+
+## 4a — API vrstva, `release list`, `release view`
+
+- [ ] `internal/api/releases.go`: modely `Release`, `Attachment`,
+      `CreateReleaseOptions`, `EditReleaseOptions`. Endpointy zaregistrovať
+      v `endpoints.go`, aby ich overil swagger test.
+- [ ] `ReleaseByTag`: `/releases/tags/{tag}`, pri 404 záložne zoznam
+      s `draft=true` (B-51). `LatestRelease`, `ListReleases` so stránkovaním.
+- [ ] Normalizovaný JSON model (§10.2) s názvami polí podľa gh:
+      `tagName`, `name`, `body`, `isDraft`, `isPrerelease`, `createdAt`,
+      `publishedAt`, `url`, `tarballUrl`, `zipballUrl`, `targetCommitish`,
+      `author{login}`, `assets[{name,size,url,downloadCount,createdAt}]`, `id`.
+      Golden testy na schému.
+- [ ] `release list`: `-L/--limit` (default 30), `--exclude-drafts`,
+      `--exclude-pre-releases`, `-O/--order asc|desc`, `--json/--jq/--template`.
+      Tabuľka v TTY: Title, Type (Latest/Draft/Pre-release), Tag, Published.
+      Bez TTY TSV. Prázdny výsledok hlási na stderr.
+- [ ] `release view [<tag>]`: bez tagu ukáže najnovší release. Flagy `-w/--web`
+      a `--json/--jq/--template`. Vypíše poznámky a prílohy (meno, veľkosť).
+- [ ] Testy: httptest (draft fallback, latest bez releasov = exit 12),
+      integrácia 15 a 17.
+
+---
+
+## 4b — `release create`, `release edit`, `release delete`
+
+- [ ] `release create [<tag>] [<files>...]`:
+  - [ ] Flagy `-t/--title`, `-n/--notes`, `-F/--notes-file` (`-` = stdin),
+        `-d/--draft`, `-p/--prerelease`, `--target`, `--verify-tag`,
+        `--notes-from-tag` (anotácia tagu cez git) a `--hide-archive-links`
+        (iba vo Forgejo).
+  - [ ] Ak tag neexistuje, Forgejo ho vytvorí z `--target` (default vetva).
+        S `--verify-tag` je chýbajúci tag chyba (exit 12).
+  - [ ] Súbory uvedené za tagom sa nahrajú cez 4c. Ak upload zlyhá, release
+        ostane ako draft a chyba povie, ako pokračovať (`release upload`).
+  - [ ] TTY bez tagu alebo titulku sa pýta. Bez TTY je tag povinný
+        (exit 10). Poznámky môžu byť prázdne.
+  - [ ] Release s existujúcim tagom = exit 13 s čitateľnou správou.
+- [ ] `release edit <tag>`: `--tag` (premenovanie), `--title`, `--notes*`,
+      `--draft[=false]` (publikovanie), `--prerelease[=false]`, `--target`.
+      Mení iba zadané polia.
+- [ ] `release delete <tag>`: potvrdenie v TTY, bez TTY povinné `--yes`.
+      `--cleanup-tag` zmaže aj git tag.
+- [ ] Testy: httptest pre každý flag, integrácia (create → edit → publish
+      → delete s `--cleanup-tag`).
+
+---
+
+## 4c — Prílohy: `release upload`, `release delete-asset`
+
+- [ ] `release upload <tag> <files>...` (`--clobber`):
+  - [ ] Telo požiadavky je priamo otvorený súbor (B-52), takže sa súbor
+        nikdy nenačíta celý do pamäte. Content-Length je známa.
+  - [ ] Pred uploadom načítať `/settings/attachment`. Ak sú prílohy vypnuté,
+        exit 15. Prekročený `max_size` alebo `max_files` a nepovolený typ
+        oznámiť ešte pred odoslaním. HTTP 413 namapovať na rovnakú správu.
+  - [ ] Upload sa nikdy neopakuje automaticky, telo sa nedá prehrať znova
+        (`isReplayable`). HTTP klient nesmie mať celkový timeout, ktorý by
+        ukončil veľký prenos (iba ResponseHeaderTimeout).
+  - [ ] Existujúca príloha s rovnakým menom = exit 13. `--clobber` ju
+        nahradí podľa B-54.
+  - [ ] Priebeh na stderr iba v TTY, bez TTY nič.
+  - [ ] Viac súborov: postupne, pri chybe zastaviť a vypísať, čo sa nahralo.
+- [ ] `release delete-asset <tag> <name>`: potvrdenie, bez TTY `--yes`.
+- [ ] Testy: veľký súbor (napr. 64 MiB generovaný v teste) s meraním
+      alokácií, aby sa preukázalo, že sa nebufferuje. Ďalej 413, vypnuté
+      prílohy, clobber, integrácia 15 a 17.
+
+---
+
+## 4d — `release download`
+
+- [ ] `release download [<tag>]`: bez tagu najnovší release.
+  - [ ] Flagy `-p/--pattern` (glob, opakovateľný), `-A/--archive zip|tar.gz`,
+        `-D/--dir`, `-O/--output` (`-` = stdout), `--clobber`, `--skip-existing`,
+        `--skip-verify`.
+  - [ ] Bez `--pattern` a `--archive` stiahne všetky prílohy (ako gh).
+  - [ ] Streamovanie do dočasného súboru v cieľovom adresári, potom kontrola
+        veľkosti, fsync a rename (B-53). Pri chybe, Ctrl-C alebo zrušení
+        kontextu sa dočasný súbor zmaže. Exit 130 pri prerušení.
+  - [ ] SHA-256 podľa manifestu kontrolných súčtov, ak je v release (B-53).
+        Nesúlad = exit 1 a súbor sa zmaže.
+  - [ ] Token sa posiela iba na vlastný host (§7.4). Pri presmerovaní na iný
+        host (externé prílohy, CDN) sa hlavička Authorization nesmie
+        preniesť. Overiť testom.
+  - [ ] Mená príloh zo servera sú nedôveryhodné: odmietnuť `..`, cesty,
+        absolútne mená a na Windows rezervované mená. Výsledná cesta musí
+        ležať v `--dir`.
+  - [ ] Existujúci súbor = chyba, pokiaľ nie je `--clobber` alebo
+        `--skip-existing` (B-54).
+- [ ] Testy: prerušený prenos nenechá súbor, nesúlad veľkosti aj
+      kontrolného súčtu, path traversal v mene prílohy, presmerovanie bez
+      tokenu, integrácia 15 a 17 (upload → download → porovnanie).
+
+---
+
+## 4e — Binárne vydania fjo, dokumentácia, uzavretie fázy
+
+- [ ] `.goreleaser.yaml` (§15): Windows amd64/arm64 (zip), Linux
+      amd64/arm64/armv7 a macOS amd64/arm64 (tar.gz). Ldflags pre
+      `internal/build` (Version, Commit, Date), `-trimpath`, CGO vypnuté.
+- [ ] `checksums.txt` (SHA-256) a SBOM pre každý archív (syft).
+- [ ] `.github/workflows/release.yaml`: spúšťa sa pri tagu `v*`, práva iba
+      `contents: write` pre tento job, predtým beží `make check`.
+- [ ] `goreleaser check` a `goreleaser release --snapshot --clean` v CI na PR,
+      aby sa konfigurácia overila pred prvým tagom.
+- [ ] Dokumentácia:
+  - [ ] `docs/commands.md`: všetky `release` príkazy, flagy, príklady.
+  - [ ] `docs/compatibility.md`: parity tabuľka `release`, odchýlky (B-55),
+        JSON polia releasu.
+  - [ ] `INSTALL.md`: binárky z GitHub Releases a overenie checksumu.
+  - [ ] `CHANGELOG.md` `[Unreleased]` → `[0.2.0]`.
+  - [ ] IMPLEMENTATION.txt §16 Phase 4: odškrtnúť úlohy a zapísať dátum.
+  - [ ] BACKLOG: rozhodnutia B-51 až B-56, B-31.
+
+---
+
+## Kontrola pred uzavretím (acceptance criteria, Phase 4)
+
+- [ ] Releasy sa dajú spravovať bez prehliadača: list, view, create, edit,
+      delete, upload, delete-asset, download (integrácia 15 a 17).
+- [ ] Veľké prílohy sa pri uploade ani downloade nenačítajú celé do pamäte
+      (test s meraním alokácií).
+- [ ] Prerušené operácie so súbormi zlyhajú bezpečne: žiadny čiastočný súbor
+      s finálnym menom, žiadna polovičná príloha bez chybovej správy.
+- [ ] Všetky `list` a `view` príkazy majú `--json/--jq/--template`.
+- [ ] Bez TTY nič nečaká na vstup. Deštruktívne príkazy vyžadujú `--yes`.
+- [ ] Token sa nikdy nedostane na iný host ani do `--debug` výstupu.
+- [ ] `make check`, lint (vrátane fmtwrite), race a integrácia prechádzajú
+      na Linuxe, Windowse a macOS.
+- [ ] Tag v0.2.0 vytvorí cez GoReleaser release s binárkami, checksumami a SBOM.

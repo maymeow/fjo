@@ -1608,7 +1608,10 @@ Acceptance criteria:
 
 ### Phase 4 — Release management
 
-**Target: v0.2.0**
+**Target: v0.2.0** — planned (2026-11-18); split into 4a (API, list/view),
+4b (create/edit/delete), 4c (asset upload), 4d (download) and 4e (fjo binary
+releases, documentation, closing). Checklist: docs/PHASE4.txt. Open
+decisions: B-51 .. B-56.
 
 Tasks:
 
