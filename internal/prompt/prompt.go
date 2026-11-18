@@ -45,7 +45,7 @@ func (t *Terminal) reader() *bufio.Reader {
 
 func (t *Terminal) readLine() (string, error) {
 	line, err := t.reader().ReadString('\n')
-	if err != nil && !(errors.Is(err, io.EOF) && line != "") {
+	if err != nil && (!errors.Is(err, io.EOF) || line == "") {
 		if errors.Is(err, io.EOF) {
 			return "", fjoerr.New(fjoerr.KindCancelled, "input cancelled")
 		}

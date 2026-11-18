@@ -2,6 +2,7 @@ package pr
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -101,7 +102,7 @@ func printDiff(w io.Writer, stream io.Reader, color bool) error {
 			chunk = append(tail, chunk...)
 			tail = nil
 		}
-		if err == bufio.ErrBufferFull {
+		if errors.Is(err, bufio.ErrBufferFull) {
 			// Keep an incomplete UTF-8 rune for the next chunk.
 			for i := len(chunk) - 1; i >= len(chunk)-utf8.UTFMax+1; i-- {
 				if utf8.RuneStart(chunk[i]) {
@@ -124,9 +125,9 @@ func printDiff(w io.Writer, stream io.Reader, color bool) error {
 			}
 			start = chunk[len(chunk)-1] == '\n'
 		}
-		switch err {
-		case nil, bufio.ErrBufferFull:
-		case io.EOF:
+		switch {
+		case err == nil, errors.Is(err, bufio.ErrBufferFull):
+		case errors.Is(err, io.EOF):
 			return nil
 		default:
 			return err

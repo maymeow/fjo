@@ -198,7 +198,7 @@ func TestErrorClassification(t *testing.T) {
 			t.Errorf("%d: message %q does not contain %q", tc.status, err.Error(), tc.msg)
 		}
 		var ae *APIError
-		if !errors.As(err, &ae) || ae.StatusCode != tc.status || ae.RequestID != "req-1" || ae.Method != "GET" {
+		if !errors.As(err, &ae) || ae.StatusCode != tc.status || ae.RequestID != "req-1" || ae.Method != http.MethodGet {
 			t.Errorf("%d: APIError = %+v", tc.status, ae)
 		}
 	}
@@ -206,7 +206,7 @@ func TestErrorClassification(t *testing.T) {
 
 func TestErrorURLIsSanitized(t *testing.T) {
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer srv.Close()
 	c := newTestClient(t, srv, "/api/v1")

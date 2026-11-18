@@ -1,8 +1,9 @@
 package output
 
 import (
-	"github.com/maymeow/fjo/internal/api"
 	"strings"
+
+	"github.com/maymeow/fjo/internal/api"
 )
 
 // NewIssue converts an API issue into the stable JSON schema.
