@@ -34,24 +34,33 @@ Instructions for AI coding agents working on `fjo`.
 
 ## Lint rules to keep in mind
 
-- Lint rules must pass
+- `make lint` must report no new issues in code you added or changed. Fix the cause; do not add `//nolint` just to make it pass.
 - Check every returned error, including `Close`, `os.Remove` and `_ = fn()` (errcheck with `check-blank`). Do not silence errors without a reason.
 - Every `//nolint` must name the linter and give a reason: `//nolint:gosec // reason`.
-- No `TODO`, `FIXME`, `HACK`, `WORKAROUND` or `TEMP` comments (godox). Finish the work or record it elsewhere.
-- No commented-out code.
 - Pass a `context.Context` to HTTP requests and external commands (noctx); always close `resp.Body` (bodyclose).
 - Compare errors with `errors.Is` / `errors.As`, not `==` or type assertions (errorlint).
 - Use `http.MethodGet`, `http.StatusNotFound`, etc. instead of string and number literals (usestdlibvars).
 - `unsafe` is forbidden; `internal/api` must not import `internal/cli` (depguard).
 
-## Docummentation
+## Documentation
 
-- documentation is in docs/*
+- User documentation lives in `docs/` (`commands.md`, `authentication.md`, `compatibility.md`, `architecture.md`, `development.md`). When you change a command's behaviour, flags or output, update the relevant page in the same change.
+- `docs/IMPLEMENTATION.txt` is the specification; follow it.
+- **`CHANGELOG.md`** (user-facing, [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)): add every user-visible change under `## [Unreleased]` in the matching section (`### Added`, `### Changed`, `### Fixed`, `### Removed`). Write it from the user's point of view; internal refactors and lint fixes do not belong here.
+- **`docs/CHANGELOG.txt`** (internal development log): record what was actually implemented and update its "Current status" block.
+- **`docs/BACKLOG.txt`**: new ideas, scope changes, open decisions and unfinished work go here, never into code comments.
 
 ## Code Commenting & Clean Code Rules
 
-- **No Inline Comments:** Do not write inline comments inside function bodies explaining what the code is doing. Code must be self-explanatory.
-- **Refactor Instead of Explaining:** If you feel the need to write a comment explaining complex logic, refactor the code instead: extract smaller functions with descriptive names and use clear variable identifiers.
-- **No Workaround or "Slop" Comments:** Never leave `// TODO`, `// FIXME`, `// HACK`, or workaround comments attempting to justify anti-patterns, temporary fixes, or race conditions. Fix the root cause or handle errors properly.
-- **No Commented-Out Code:** Never leave dead or commented-out blocks of code in any file.
-- **Allowed Comments Only:** The ONLY allowed comments are GoDoc comments directly above exported types, constants, interfaces, and functions (e.g., `// PackageName handles...`).
+- **No "what" comments:** Do not write comments inside function bodies explaining what the code is doing. Code must be self-explanatory.
+- **Refactor instead of explaining:** If you feel the need to explain complex logic, refactor instead: extract smaller functions with descriptive names and use clear variable identifiers.
+- **Short "why" comments are allowed:** A one-line comment inside a function body is allowed only when it explains a non-obvious reason the code cannot express (e.g. why an error is deliberately ignored, why an external command is safe).
+- **No workaround or "slop" comments:** Never leave `TODO`, `FIXME`, `HACK`, `WORKAROUND` or `TEMP` comments (enforced by godox), nor comments justifying anti-patterns, temporary fixes or race conditions. Fix the root cause or handle errors properly; record unfinished work in `docs/BACKLOG.txt`.
+- **No commented-out code:** Never leave dead or commented-out code in any file (enforced by gocritic `commentedOutCode`).
+- **Allowed comments:** Apart from the "why" comments above, only these are allowed:
+  - GoDoc comments directly above exported types, constants, variables, interfaces and functions, starting with the name (`// Client talks to ...`); required for every exported identifier,
+  - doc comments above unexported functions and types when their contract is not obvious from the name and signature (same `// name ...` form),
+  - package comments above the `package` clause (`// Package api implements ...`),
+  - compiler directives (`//go:build`, `//go:generate`, `//go:embed`),
+  - `//nolint:<linter> // <reason>`,
+  - `// want ...` annotations in analyzer testdata (`tools/*/testdata`).
