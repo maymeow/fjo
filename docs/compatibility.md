@@ -133,7 +133,8 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | `gh pr create/checkout/merge/close/reopen/ready/edit/comment` | same | done (Phase 3d), with differences below |
 | `gh pr review` | same | done (Phase 3e), with differences below |
 | `gh release list/view` | same | done (Phase 4a) |
-| `gh release create/edit/delete/upload/delete-asset/download` | same | planned (Phases 4b–4d) |
+| `gh release create/edit/delete` | same | done (Phase 4b) |
+| `gh release upload/delete-asset/download` | same | planned (Phases 4c–4d) |
 | `gh run`, `gh workflow` | same | planned (Phase 5), scope depends on Forgejo Actions API (BACKLOG B-10) |
 | `gh org`, `gh ssh-key`, `gh secret`, `gh variable` | same | planned (Phase 6) |
 | `gh label` | same | idea (BACKLOG B-22) |
@@ -229,3 +230,13 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
   in bytes, `url`, `downloadCount` and `createdAt`.
   `assets` is an empty array when there are no attachments. `publishedAt`
   is null for drafts and releases without a publication date.
+
+- Forgejo creates a missing Git tag when a release is published.
+  `--verify-tag` requires it to exist before release creation and
+  `--cleanup-tag` requests remote Git tag deletion after release deletion.
+- Forgejo 15 and 17 leave the existing title or body in place when a release
+  edit sends an empty string. fjo reports exit 15 for an attempt to clear
+  existing text.
+- Forgejo has no equivalent for `--generate-notes`, `--notes-start-tag`,
+  `--discussion-category`, `--latest` or `--fail-on-no-commits`.
+  `--hide-archive-links` is specific to Forgejo.

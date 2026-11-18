@@ -35,17 +35,24 @@ type result struct {
 
 func run(t *testing.T, handler http.HandlerFunc, tty bool, args ...string) result {
 	t.Helper()
+	return runWith(t, handler, tty, "", "", args...)
+}
+
+func runWith(t *testing.T, handler http.HandlerFunc, tty bool, input, gitDir string, args ...string) result {
+	t.Helper()
 	server := httptest.NewTLSServer(handler)
 	t.Cleanup(server.Close)
 	env := map[string]string{
 		"FJO_CONFIG_DIR": t.TempDir(), "FJO_HOST": strings.TrimPrefix(server.URL, "https://"), "FJO_TOKEN": "test-token",
 	}
 	getenv := func(key string) string { return env[key] }
-	streams, _, stdout, stderr := iostreams.Test()
+	streams, stdin, stdout, stderr := iostreams.Test()
+	stdin.WriteString(input)
 	streams.SetGetenv(getenv)
 	streams.SetTTY(tty, tty, tty)
 	f := app.New(streams, getenv, build.Info{Version: "test"})
 	f.HTTPTransport = server.Client().Transport
+	f.GitDir = gitDir
 	f.Browser = func(string) error { return browser.ErrNoBrowser }
 	command := append(append([]string{"release"}, args...), "-R", "org/project")
 	code := cli.Run(t.Context(), f, command)

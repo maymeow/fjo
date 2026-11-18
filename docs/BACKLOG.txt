@@ -997,7 +997,7 @@ Decision:
 ### B-55 — gh release flags without a Forgejo equivalent
 
 Type:     compatibility
-Status:   open
+Status:   accepted in Phase 4b
 Added:    2026-11-18
 Phase:    Phase 4
 
@@ -1016,7 +1016,10 @@ Proposal:
 - `--hide-archive-links` is added as a Forgejo-only flag; external assets
   are left for later.
 Decision:
--
+- Phase 4b implements `--verify-tag`, `--cleanup-tag` and the
+  Forgejo-specific `--hide-archive-links` creation flag.
+- Omit the flags without a Forgejo equivalent. Attachment arguments to
+  `release create` are deferred to 4c.
 
 ### B-56 — Binary releases of fjo itself
 

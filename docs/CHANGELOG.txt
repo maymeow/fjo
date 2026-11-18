@@ -12,9 +12,9 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 
 ## Current status
 
-- Phase:            Phase 4 - Release management (4a COMPLETE)
-- Next target:      Phase 4b - Release create/edit/delete (v0.2.0), plan in
-                    docs/PHASE4.txt; decisions B-52 .. B-56 open
+- Phase:            Phase 4 - Release management (4a and 4b COMPLETE)
+- Next target:      Phase 4c - Release assets (v0.2.0), plan in
+                    docs/PHASE4.txt; decisions B-52 to B-54 and B-56 open
 - Last updated:     2026-11-18
 - Repo:             https://github.com/maymeow/fjo (public), branch main
 - Phase 0 open:     self-hosted Forgejo runners; race tests (B-35);
@@ -54,6 +54,16 @@ Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
 
 ---
+
+## 2026-11-18 — Release creation, editing and deletion
+Phase: 4b / v0.2.0
+Spec:  IMPLEMENTATION.txt §5.6; PHASE4.txt milestone 4b
+
+- Added `release create`, `release edit` and `release delete`.
+- Added remote tag verification and cleanup, and release notes from a
+  local annotated Git tag.
+- Verified the release lifecycle on Forgejo 15.0.11 and 17.0.1.
+- Attachment arguments in release creation remain part of Phase 4c.
 
 ## 2026-11-18 — Release listing and viewing
 Phase: 4a / v0.2.0
