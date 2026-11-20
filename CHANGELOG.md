@@ -18,6 +18,8 @@ Development progress is tracked in [docs/CHANGELOG.txt](docs/CHANGELOG.txt).
 
 - `fjo release delete-asset` deletes a release asset after confirmation (`--yes` without a terminal).
 
+- `fjo release download` downloads release assets or the source archive, verifies sizes and SHA-256 checksums from a checksum manifest in the release, never leaves a partial file behind, and refuses unsafe asset names.
+
 - `fjo release create <tag> <files>...` uploads the files as assets and publishes the release only after all uploads succeeded.
 
 ### Changed

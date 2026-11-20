@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -153,16 +152,9 @@ func (u *uploader) send(ctx context.Context, file assetFile, name string) (asset
 	if err != nil {
 		return nil, fjoerr.Wrap(fjoerr.KindGeneral, err, "read %s", file.path)
 	}
-	var body io.Reader = fh
-	progress := &progressReader{r: fh, w: u.f.IO.ErrOut, name: output.Sanitize(file.name), total: info.Size(), last: -1}
-	if u.f.IO.IsStderrTTY() {
-		body = progress
-		progress.report()
-	}
-	asset, err = u.client.UploadReleaseAsset(ctx, u.owner, u.repo, u.release.ID, name, body, info.Size())
-	if body == progress {
-		progress.finish(err == nil)
-	}
+	progress := newProgress(u.f, fh, "Uploading", "Uploaded", file.name, info.Size())
+	asset, err = u.client.UploadReleaseAsset(ctx, u.owner, u.repo, u.release.ID, name, progress.reader(), info.Size())
+	progress.finish(err == nil, "")
 	if err != nil {
 		return nil, uploadError(err, file.name)
 	}
@@ -183,58 +175,6 @@ func temporaryAssetName(name string) (string, error) {
 		return "", fjoerr.Wrap(fjoerr.KindGeneral, err, "generate a temporary asset name")
 	}
 	return "fjo-upload-" + hex.EncodeToString(random) + "-" + name, nil
-}
-
-// progressReader reports upload progress on a terminal whenever the
-// completed percentage changes.
-type progressReader struct {
-	r           io.Reader
-	w           io.Writer
-	name        string
-	done, total int64
-	last        int64
-}
-
-func (p *progressReader) Read(b []byte) (int, error) {
-	n, err := p.r.Read(b)
-	p.done += int64(n)
-	p.report()
-	return n, err
-}
-
-func (p *progressReader) percent() int64 {
-	if p.total <= 0 {
-		return 100
-	}
-	return p.done * 100 / p.total
-}
-
-func (p *progressReader) report() {
-	if percent := p.percent(); percent != p.last {
-		p.last = percent
-		fmt.Fprintf(p.w, "\rUploading %s %3d%% (%s / %s)", p.name, percent, formatBytes(p.done), formatBytes(p.total))
-	}
-}
-
-func (p *progressReader) finish(ok bool) {
-	if ok {
-		fmt.Fprintf(p.w, "\rUploaded %s (%s)%s\n", p.name, formatBytes(p.total), strings.Repeat(" ", 24))
-		return
-	}
-	fmt.Fprintln(p.w)
-}
-
-func formatBytes(n int64) string {
-	const unit = 1024
-	if n < unit {
-		return fmt.Sprintf("%d B", n)
-	}
-	div, exp := int64(unit), 0
-	for m := n / unit; m >= unit; m /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
 }
 
 func newUploadCmd(f *app.Factory) *cobra.Command {

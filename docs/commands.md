@@ -669,3 +669,39 @@ fjo release delete-asset v1.2.0 fjo_linux_amd64.tar.gz --yes
 
 Type the asset name to confirm deletion in a terminal, or pass `--yes`.
 Without a terminal, `--yes` is required. A missing asset causes exit 12.
+
+### `fjo release download [<tag>]`
+
+```bash
+fjo release download v1.2.0 -D dist
+fjo release download -p '*linux_amd64*' -p '*checksums.txt'
+fjo release download v1.2.0 -p fjo_linux_amd64.tar.gz -O - | tar -xz
+fjo release download v1.2.0 -A zip
+```
+
+Downloads release assets into the current directory or `-D, --dir`
+(created when missing). Without a tag, it uses the latest stable published
+release. Without `--pattern` or `--archive`, every asset is downloaded.
+
+- `-p, --pattern` selects assets by glob (`*`, `?`, `[...]`); repeat it
+  to match several patterns. No match causes exit 12.
+- `-A, --archive zip|tar.gz` downloads the source archive as
+  `<repo>-<tag>.<ext>` instead of assets.
+- `-O, --output` writes the single selected file to a path, or to
+  stdout with `-`.
+- An existing file causes exit 13. `--clobber` overwrites it and
+  `--skip-existing` keeps it.
+
+Each file is streamed into a temporary file in the target directory and
+gets its final name only after the transfer is complete, the byte count
+matches the size Forgejo reported and, when the release contains a checksum
+manifest (`checksums.txt`, `*_checksums.txt`, `SHA256SUMS`), the SHA-256
+digest matches. A mismatch exits 1 and leaves no file; `--skip-verify`
+turns the checksum check off. An interrupted download (Ctrl-C) exits 130 and
+removes the temporary file. Partial downloads are not resumed.
+
+Asset names come from the server and must be plain file names: names with
+path separators, `..` or control characters are refused, and on Windows
+also reserved device names such as `CON` or `NUL`. The token is sent only to
+the Forgejo instance; downloads from other hosts, including redirects to
+external storage, go without it. Progress is shown on stderr in a terminal.

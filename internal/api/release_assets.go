@@ -74,3 +74,30 @@ func (c *Client) DeleteReleaseAsset(ctx context.Context, owner, repo string, rel
 	path := epDeleteReleaseAsset.Expand(owner, repo, strconv.FormatInt(releaseID, 10), strconv.FormatInt(assetID, 10))
 	return c.JSON(ctx, epDeleteReleaseAsset.Method, path, nil, nil)
 }
+
+// Download starts a GET request for a release asset or source archive and
+// returns the response with a 2xx status; the caller closes the body.
+// Links outside the instance are allowed because Forgejo supports external
+// assets; authTransport attaches the token only inside the instance root,
+// also across redirects (§7.4).
+func (c *Client) Download(ctx context.Context, link string) (*http.Response, error) {
+	u, err := url.Parse(link)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil {
+		return nil, fjoerr.New(fjoerr.KindGeneral, "Forgejo returned an invalid download URL")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, fjoerr.Usage("invalid request: %v", err)
+	}
+	if c.ua != "" {
+		req.Header.Set("User-Agent", c.ua)
+	}
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if err := CheckResponse(resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}

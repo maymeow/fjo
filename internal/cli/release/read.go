@@ -2,6 +2,7 @@ package release
 
 import (
 	"cmp"
+	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -16,6 +17,7 @@ import (
 	"github.com/maymeow/fjo/internal/cli/cmdutil"
 	"github.com/maymeow/fjo/internal/fjoerr"
 	"github.com/maymeow/fjo/internal/output"
+	"github.com/maymeow/fjo/internal/reporef"
 )
 
 func newListCmd(f *app.Factory) *cobra.Command {
@@ -143,15 +145,7 @@ func newViewCmd(f *app.Factory) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		var item *api.Release
-		if len(args) == 0 {
-			item, err = client.LatestRelease(ctx, ref.Owner, ref.Name)
-			if fjoerr.KindOf(err) == fjoerr.KindNotFound {
-				return fjoerr.Wrap(fjoerr.KindNotFound, err, "no published stable release found in %s", ref.FullName())
-			}
-		} else {
-			item, err = client.ReleaseByTag(ctx, ref.Owner, ref.Name, args[0])
-		}
+		item, err := findRelease(ctx, client, ref, args)
 		if err != nil {
 			return err
 		}
@@ -167,6 +161,19 @@ func newViewCmd(f *app.Factory) *cobra.Command {
 		})
 	}
 	return cmd
+}
+
+// findRelease returns the release for the tag in args, or the latest stable
+// published release when no tag is given.
+func findRelease(ctx context.Context, client *api.Client, ref reporef.Ref, args []string) (*api.Release, error) {
+	if len(args) > 0 {
+		return client.ReleaseByTag(ctx, ref.Owner, ref.Name, args[0])
+	}
+	release, err := client.LatestRelease(ctx, ref.Owner, ref.Name)
+	if fjoerr.KindOf(err) == fjoerr.KindNotFound {
+		return nil, fjoerr.Wrap(fjoerr.KindNotFound, err, "no published stable release found in %s", ref.FullName())
+	}
+	return release, err
 }
 
 func printRelease(w io.Writer, r output.Release) error {

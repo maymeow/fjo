@@ -5,6 +5,8 @@ package integration_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -258,4 +260,81 @@ func downloadAsset(t *testing.T, client *api.Client, link string) []byte {
 		t.Fatal(err)
 	}
 	return body
+}
+
+func TestReleaseDownloadAgainstForgejo(t *testing.T) {
+	inst := configured(t)
+	ctx := t.Context()
+	client, err := api.New(api.Options{BaseURL: apiURL(inst.url), Token: inst.token})
+	if err != nil {
+		t.Fatal(err)
+	}
+	me, err := client.CurrentUser(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := fmt.Sprintf("fjo-release-download-%d", time.Now().UnixNano())
+	private := true
+	if _, err := client.CreateRepository(ctx, "", api.CreateRepoOptions{Name: name, AutoInit: true, Private: &private}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := client.DeleteRepository(context.Background(), me.Login, name); err != nil {
+			t.Errorf("clean up test repository: %v", err)
+		}
+	})
+	full := me.Login + "/" + name
+	r, env := envRunner(t, inst)
+	invoke := func(code fjoerr.ExitCode, args ...string) result {
+		t.Helper()
+		res := r.run(env, "", append(append([]string{"release"}, args...), "-R", full)...)
+		if res.code != code {
+			t.Fatalf("release %v: exit %d, stdout %q, stderr %q", args, res.code, res.stdout, res.stderr)
+		}
+		return res
+	}
+	src := t.TempDir()
+	payload := make([]byte, 3<<20+17)
+	for i := range payload {
+		payload[i] = byte(i * 13)
+	}
+	sum := sha256.Sum256(payload)
+	files := map[string][]byte{
+		"app.bin":       payload,
+		"checksums.txt": []byte(hex.EncodeToString(sum[:]) + "  app.bin\n"),
+		"bad.bin":       []byte("bad"),
+		"SHA256SUMS":    []byte(strings.Repeat("00", 32) + "  bad.bin\n"),
+	}
+	for file, content := range files {
+		if err := os.WriteFile(filepath.Join(src, file), content, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	invoke(0, "create", "v1", filepath.Join(src, "app.bin"), filepath.Join(src, "checksums.txt"), "--title", "One")
+	dst := t.TempDir()
+	invoke(0, "download", "-D", dst)
+	for _, file := range []string{"app.bin", "checksums.txt"} {
+		got, err := os.ReadFile(filepath.Join(dst, file))
+		if err != nil || !bytes.Equal(got, files[file]) {
+			t.Fatalf("%s differs after download (%d bytes): %v", file, len(got), err)
+		}
+	}
+	invoke(fjoerr.ExitConflict, "download", "v1", "-D", dst, "-p", "*.bin")
+	invoke(0, "download", "v1", "-D", dst, "-p", "*.bin", "--skip-existing")
+	if res := invoke(0, "download", "v1", "-p", "checksums.txt", "-O", "-"); res.stdout != string(files["checksums.txt"]) {
+		t.Fatalf("stdout download: %q", res.stdout)
+	}
+	archive := invoke(0, "download", "v1", "-A", "tar.gz", "-D", dst)
+	info, err := os.Stat(filepath.Join(dst, name+"-v1.tar.gz"))
+	if err != nil || info.Size() == 0 {
+		t.Fatalf("archive download: %v, %+v", err, archive)
+	}
+
+	invoke(0, "create", "v2", filepath.Join(src, "bad.bin"), filepath.Join(src, "SHA256SUMS"), "--prerelease")
+	bad := t.TempDir()
+	invoke(fjoerr.ExitError, "download", "v2", "-D", bad, "-p", "bad.bin")
+	if entries, err := os.ReadDir(bad); err != nil || len(entries) != 0 {
+		t.Fatalf("checksum mismatch left files: %v %v", entries, err)
+	}
+	invoke(0, "download", "v2", "-D", bad, "-p", "bad.bin", "--skip-verify")
 }
