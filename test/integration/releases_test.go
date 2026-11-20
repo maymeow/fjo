@@ -3,9 +3,13 @@
 package integration_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -154,4 +158,104 @@ func TestWriteReleasesAgainstForgejo(t *testing.T) {
 	if _, err := client.ReleaseByTag(ctx, me.Login, name, publishedTag); fjoerr.KindOf(err) != fjoerr.KindNotFound {
 		t.Fatalf("release survived deletion: %v", err)
 	}
+}
+
+func TestReleaseAssetsAgainstForgejo(t *testing.T) {
+	inst := configured(t)
+	ctx := t.Context()
+	client, err := api.New(api.Options{BaseURL: apiURL(inst.url), Token: inst.token})
+	if err != nil {
+		t.Fatal(err)
+	}
+	me, err := client.CurrentUser(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := fmt.Sprintf("fjo-release-assets-%d", time.Now().UnixNano())
+	if _, err := client.CreateRepository(ctx, "", api.CreateRepoOptions{Name: name, AutoInit: true}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := client.DeleteRepository(context.Background(), me.Login, name); err != nil {
+			t.Errorf("clean up test repository: %v", err)
+		}
+	})
+	full := me.Login + "/" + name
+	r, env := envRunner(t, inst)
+	invoke := func(code fjoerr.ExitCode, args ...string) {
+		t.Helper()
+		res := r.run(env, "", append(append([]string{"release"}, args...), "-R", full)...)
+		if res.code != code {
+			t.Fatalf("release %v: exit %d, stdout %q, stderr %q", args, res.code, res.stdout, res.stderr)
+		}
+	}
+	dir := t.TempDir()
+	write := func(file string, content []byte) string {
+		t.Helper()
+		path := filepath.Join(dir, file)
+		if err := os.WriteFile(path, content, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	notes := write("notes.txt", []byte("first"))
+	invoke(0, "create", "v1", notes, "--title", "One")
+	release, err := client.ReleaseByTag(ctx, me.Login, name, "v1")
+	if err != nil || release.Draft || len(release.Assets) != 1 || release.Assets[0].Name != "notes.txt" {
+		t.Fatalf("release created with an asset: %+v, %v", release, err)
+	}
+	large := make([]byte, 3<<20)
+	for i := range large {
+		large[i] = byte(i * 7)
+	}
+	bundle := write("bundle.bin", large)
+	invoke(0, "upload", "v1", bundle)
+	invoke(fjoerr.ExitConflict, "upload", "v1", notes)
+	replaced := []byte("replaced content")
+	write("notes.txt", replaced)
+	invoke(0, "upload", "v1", notes, "--clobber")
+	release, err = client.ReleaseByTag(ctx, me.Login, name, "v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assets := map[string]api.Attachment{}
+	for _, asset := range release.Assets {
+		assets[asset.Name] = asset
+	}
+	if len(assets) != 2 || assets["notes.txt"].Size != int64(len(replaced)) || assets["bundle.bin"].Size != int64(len(large)) {
+		t.Fatalf("unexpected assets after clobber: %+v", release.Assets)
+	}
+	for file, want := range map[string][]byte{"notes.txt": replaced, "bundle.bin": large} {
+		if got := downloadAsset(t, client, assets[file].DownloadURL); !bytes.Equal(got, want) {
+			t.Fatalf("%s: downloaded %d bytes that differ from the upload", file, len(got))
+		}
+	}
+	invoke(fjoerr.ExitUsage, "delete-asset", "v1", "bundle.bin")
+	invoke(0, "delete-asset", "v1", "bundle.bin", "--yes")
+	invoke(fjoerr.ExitNotFound, "delete-asset", "v1", "bundle.bin", "--yes")
+	release, err = client.ReleaseByTag(ctx, me.Login, name, "v1")
+	if err != nil || len(release.Assets) != 1 || release.Assets[0].Name != "notes.txt" {
+		t.Fatalf("asset survived deletion: %+v, %v", release, err)
+	}
+}
+
+func downloadAsset(t *testing.T, client *api.Client, link string) []byte {
+	t.Helper()
+	req, err := client.NewRequest(t.Context(), http.MethodGet, link, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if err := api.CheckResponse(resp); err != nil {
+		t.Fatal(err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return body
 }

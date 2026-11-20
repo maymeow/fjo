@@ -31,16 +31,16 @@ Endpointy a modely sú v swaggeri 15.0.11 a 17.0.1 zhodné:
 
 - [x] B-51: release sa na príkazovom riadku určuje tagom. Forgejo 15.0.11
       aj 17.0.1 vracajú viditeľné drafty priamo cez `/releases/tags/{tag}`.
-- [ ] B-52: upload cez `application/octet-stream` (odporúčané) alebo multipart.
-- [ ] B-53: integrita pri sťahovaní: veľkosť vždy, SHA-256 podľa manifestu
+- [x] B-52: upload cez `application/octet-stream` (odporúčané) alebo multipart.
+- [x] B-53: integrita pri sťahovaní: veľkosť vždy, SHA-256 podľa manifestu
       kontrolných súčtov, ak ho release obsahuje. Bez obnovenia prerušeného
       sťahovania.
-- [ ] B-54: prepisovanie ako v gh (`--clobber`, `--skip-existing`).
+- [x] B-54: prepisovanie ako v gh (`--clobber`, `--skip-existing`).
 - [x] B-55: gh flagy bez ekvivalentu vo Forgejo vynechať a zdokumentovať.
       `--verify-tag` a `--cleanup-tag` implementovať.
-- [ ] B-56: binárky fjo cez GoReleaser na GitHub Releases v rámci v0.2.0.
+- [x] B-56: binárky fjo cez GoReleaser na GitHub Releases v rámci v0.2.0.
       Podpisovanie (B-17) zostáva vo fáze 8, ak sa nerozhodne skôr.
-- [ ] B-31: časť o releasoch uzavrieť podľa výsledkov B-51 a B-52.
+- [x] B-31: časť o releasoch uzavrieť podľa výsledkov B-51 a B-52.
 
 ---
 
@@ -76,7 +76,7 @@ Endpointy a modely sú v swaggeri 15.0.11 a 17.0.1 zhodné:
         (iba vo Forgejo).
   - [x] Ak tag neexistuje, Forgejo ho vytvorí z `--target` (default vetva).
         S `--verify-tag` je chýbajúci tag chyba (exit 12).
-  - [ ] Súbory uvedené za tagom sa nahrajú vo fáze 4c. Ak upload zlyhá, release
+  - [x] Súbory uvedené za tagom sa nahrajú vo fáze 4c. Ak upload zlyhá, release
         ostane ako draft a chyba povie, ako pokračovať (`release upload`).
   - [x] TTY bez tagu alebo titulku sa pýta. Bez TTY je tag povinný
         (exit 10). Poznámky môžu byť prázdne.
@@ -93,21 +93,23 @@ Endpointy a modely sú v swaggeri 15.0.11 a 17.0.1 zhodné:
 
 ## 4c — Prílohy: `release upload`, `release delete-asset`
 
-- [ ] `release upload <tag> <files>...` (`--clobber`):
-  - [ ] Telo požiadavky je priamo otvorený súbor (B-52), takže sa súbor
+- [x] `release upload <tag> <files>...` (`--clobber`):
+  - [x] Telo požiadavky je priamo otvorený súbor (B-52), takže sa súbor
         nikdy nenačíta celý do pamäte. Content-Length je známa.
-  - [ ] Pred uploadom načítať `/settings/attachment`. Ak sú prílohy vypnuté,
+  - [x] Pred uploadom načítať `/settings/attachment`. Ak sú prílohy vypnuté,
         exit 15. Prekročený `max_size` alebo `max_files` a nepovolený typ
         oznámiť ešte pred odoslaním. HTTP 413 namapovať na rovnakú správu.
-  - [ ] Upload sa nikdy neopakuje automaticky, telo sa nedá prehrať znova
+        Odchýlka: kontroluje sa iba `enabled`, limity patria k sekcii
+        [attachment], nie k releasom (B-57). 413 = exit 13.
+  - [x] Upload sa nikdy neopakuje automaticky, telo sa nedá prehrať znova
         (`isReplayable`). HTTP klient nesmie mať celkový timeout, ktorý by
         ukončil veľký prenos (iba ResponseHeaderTimeout).
-  - [ ] Existujúca príloha s rovnakým menom = exit 13. `--clobber` ju
+  - [x] Existujúca príloha s rovnakým menom = exit 13. `--clobber` ju
         nahradí podľa B-54.
-  - [ ] Priebeh na stderr iba v TTY, bez TTY nič.
-  - [ ] Viac súborov: postupne, pri chybe zastaviť a vypísať, čo sa nahralo.
-- [ ] `release delete-asset <tag> <name>`: potvrdenie, bez TTY `--yes`.
-- [ ] Testy: veľký súbor (napr. 64 MiB generovaný v teste) s meraním
+  - [x] Priebeh na stderr iba v TTY, bez TTY nič.
+  - [x] Viac súborov: postupne, pri chybe zastaviť a vypísať, čo sa nahralo.
+- [x] `release delete-asset <tag> <name>`: potvrdenie, bez TTY `--yes`.
+- [x] Testy: veľký súbor (napr. 64 MiB generovaný v teste) s meraním
       alokácií, aby sa preukázalo, že sa nebufferuje. Ďalej 413, vypnuté
       prílohy, clobber, integrácia 15 a 17.
 

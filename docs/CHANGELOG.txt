@@ -12,10 +12,11 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 
 ## Current status
 
-- Phase:            Phase 4 - Release management (4a and 4b COMPLETE)
-- Next target:      Phase 4c - Release assets (v0.2.0), plan in
-                    docs/PHASE4.txt; decisions B-52 to B-54 and B-56 open
-- Last updated:     2026-11-18
+- Phase:            Phase 4 - Release management (4a, 4b and 4c COMPLETE)
+- Next target:      Phase 4d - Release download (v0.2.0), plan in
+                    docs/PHASE4.txt; B-52 to B-54 and B-56 decided,
+                    B-57 to verify
+- Last updated:     2026-11-20
 - Repo:             https://github.com/maymeow/fjo (public), branch main
 - Phase 0 open:     self-hosted Forgejo runners; race tests (B-35);
                     GitHub Actions CI added (first run on PR)
@@ -52,6 +53,49 @@ Newest entries on top. One entry per working session / merged change set.
 
 Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
+
+---
+
+## 2026-11-20 — Release assets
+Phase: 4c / v0.2.0
+Spec:  §5.6, §7.4, §9.2; PHASE4.txt milestone 4c
+
+Added:
+- internal/api/release_assets.go: AttachmentSettings (GET
+  /settings/attachment), UploadReleaseAsset (POST .../assets as
+  application/octet-stream with ?name=, known Content-Length, body wrapped
+  in io.NopCloser so it is never replayed or closed by the client),
+  RenameReleaseAsset (PATCH) and DeleteReleaseAsset (DELETE). Endpoints are
+  registered for the swagger check.
+- `release upload <tag> <files>...` with `--clobber`, and
+  `release delete-asset <tag> <name>` with `--yes`.
+- `release create <tag> <files>...`: creates a draft, uploads, then
+  publishes with PATCH draft=false unless --draft was given. A failed
+  upload leaves the draft and a hint with the commands to continue.
+Changed:
+- `release delete` and `delete-asset` share confirmByTyping.
+Deviations from spec:
+- PHASE4.txt 4c asks to check max_size, max_files and allowed_types from
+  /settings/attachment before uploading. Those settings belong to the
+  [attachment] section; release assets are checked against
+  [repository.release] ALLOWED_TYPES, which the API does not expose, so a
+  client-side check could reject uploads the server accepts. fjo checks
+  only `enabled` and maps HTTP 413 (quota) to a clear exit 13 (B-57).
+- Local file problems (missing file, directory, duplicate names) are usage
+  errors (exit 10) and are reported before any request.
+Tests:
+- httptest: 64 MiB sparse file upload allocates < 1 MiB (limit 16 MiB),
+  progress on TTY, disabled attachments (15), existing asset (13),
+  --clobber order POST temp -> DELETE old -> PATCH rename, 413 (13), stop
+  after a failed second upload without retry, create with assets
+  (published, --draft, failed upload), delete-asset confirm/cancel/missing.
+- make fmt, make test, make race, make lint (0 issues).
+- New integration test TestReleaseAssetsAgainstForgejo (create with file,
+  upload 3 MiB, conflict, --clobber, byte comparison of the downloads,
+  delete-asset) compiled with -tags integration; not run locally (no
+  Docker on the development machine), runs in CI on Forgejo 15 and 17.
+Notes / next steps:
+- Phase 4d: `release download` can reuse progressReader and formatBytes.
 
 ---
 

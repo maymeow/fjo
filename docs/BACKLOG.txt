@@ -818,7 +818,7 @@ Decision:
 
 ### B-31 — Forgejo-specific semantics to respect (not GitHub)
 Type:     tech-debt
-Status:   verified for Phase 3; release part open (Phase 4)
+Status:   verified for Phase 3; release upload part resolved by B-52 (4c)
 Added:    2026-11-13
 Phase:    Phase 3 / Phase 4
 
@@ -827,8 +827,8 @@ Context:
 - Draft PRs are a WIP title prefix (`WIP:` / `[WIP]`), not a state:
   `pr create --draft` / `pr ready` = title edit.
 - Issue/PR `index` (number) vs internal `id` — CLI uses index.
-- Release asset upload is multipart/form-data: stream via io.Pipe +
-  multipart.Writer; size limit unknown to client -> map HTTP 413 to clear error.
+- Release asset upload: application/octet-stream with ?name= (B-52),
+  streamed from the open file; HTTP 413 mapped to a clear error.
 - Commit statuses API backs `pr checks`.
 - Verify each against pinned swagger (B-8).
 Decision:
@@ -950,7 +950,8 @@ Proposal / options:
 - In both cases check size and allowed types against /settings/attachment
   before uploading and map 413 to a clear error naming the limit.
 Decision:
--
+- A (2026-11-20, implemented in 4c). Only `enabled` is checked before
+  uploading; see B-57 for the size and type limits.
 
 ### B-53 — Download integrity and interrupted transfers
 
@@ -973,7 +974,7 @@ Proposal:
   turns it off.
 - No resume of partial downloads in Phase 4.
 Decision:
--
+- Accepted as proposed (2026-11-20); implementation in 4d.
 
 ### B-54 — Overwrite behaviour for upload and download
 
@@ -992,7 +993,9 @@ Proposal (same as gh):
   uploaded under a temporary name, then rename it; if rename is not
   possible, delete then upload and say so).
 Decision:
--
+- Accepted as proposed (2026-11-20). Upload part implemented in 4c: the
+  temporary name is `fjo-upload-<8 hex>-<name>`, keeping the extension
+  for servers that restrict file types. Download part in 4d.
 
 ### B-55 — gh release flags without a Forgejo equivalent
 
@@ -1040,5 +1043,28 @@ Proposal:
   stays with B-17 (Phase 8) unless decided earlier. Package managers later.
 - The checksum manifest name matches B-53, so `fjo release download` can
   verify fjo's own releases.
+Decision:
+- Accepted as proposed (2026-11-20); implementation in 4e.
+
+### B-57 — Release asset limits from /settings/attachment
+
+Type:     compatibility
+Status:   open (verify against Forgejo 15 and 17)
+Added:    2026-11-20
+Phase:    Phase 4 (4c)
+
+Context:
+- GET /settings/attachment returns `enabled`, `max_size` (MiB),
+  `max_files` and `allowed_types` from the [attachment] section, which
+  governs issue and comment attachments.
+- The release asset API checks types against [repository.release]
+  ALLOWED_TYPES, which no API endpoint exposes, and rejects uploads over
+  the storage quota with 413. Whether it enforces [attachment] MAX_SIZE
+  for API uploads is not documented in the swagger.
+Proposal:
+- 4c checks only `enabled` before uploading (exit 15 when disabled) and
+  maps 413 to exit 13. Confirm on a test instance with a small MAX_SIZE
+  and a restricted [repository.release] ALLOWED_TYPES; if Forgejo enforces
+  MAX_SIZE for release assets, add a pre-upload size check.
 Decision:
 -

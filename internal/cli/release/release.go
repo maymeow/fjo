@@ -14,7 +14,8 @@ import (
 // NewCmd returns the release command group.
 func NewCmd(f *app.Factory) *cobra.Command {
 	cmd := &cobra.Command{Use: "release <command>", Short: "Work with Forgejo releases"}
-	cmd.AddCommand(newListCmd(f), newViewCmd(f), newCreateCmd(f), newEditCmd(f), newDeleteCmd(f))
+	cmd.AddCommand(newListCmd(f), newViewCmd(f), newCreateCmd(f), newEditCmd(f), newDeleteCmd(f),
+		newUploadCmd(f), newDeleteAssetCmd(f))
 	return cmd
 }
 

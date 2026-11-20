@@ -133,12 +133,8 @@ func newDeleteCmd(f *app.Factory) *cobra.Command {
 			if cleanup {
 				action = "delete the release and its remote Git tag"
 			}
-			reply, err := f.Prompter.Input(fmt.Sprintf("Type %s to %s in %s:", tag, action, ref.FullName()))
-			if err != nil {
+			if err := confirmByTyping(f, tag, fmt.Sprintf("Type %s to %s in %s:", tag, action, ref.FullName())); err != nil {
 				return err
-			}
-			if reply != tag {
-				return fjoerr.New(fjoerr.KindCancelled, "deletion cancelled")
 			}
 		}
 		if err := client.DeleteRelease(ctx, ref.Owner, ref.Name, release.ID); err != nil {

@@ -134,7 +134,8 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | `gh pr review` | same | done (Phase 3e), with differences below |
 | `gh release list/view` | same | done (Phase 4a) |
 | `gh release create/edit/delete` | same | done (Phase 4b) |
-| `gh release upload/delete-asset/download` | same | planned (Phases 4c–4d) |
+| `gh release upload/delete-asset` | same | done (Phase 4c) |
+| `gh release download` | same | planned (Phase 4d) |
 | `gh run`, `gh workflow` | same | planned (Phase 5), scope depends on Forgejo Actions API (BACKLOG B-10) |
 | `gh org`, `gh ssh-key`, `gh secret`, `gh variable` | same | planned (Phase 6) |
 | `gh label` | same | idea (BACKLOG B-22) |
@@ -240,3 +241,13 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 - Forgejo has no equivalent for `--generate-notes`, `--notes-start-tag`,
   `--discussion-category`, `--latest` or `--fail-on-no-commits`.
   `--hide-archive-links` is specific to Forgejo.
+- Asset labels (`file#label`) are not supported: Forgejo assets have only
+  a name, so `#` is part of the file name.
+- `release upload --clobber` uploads the new file under a temporary name,
+  deletes the old asset and renames the new one, so a failed upload keeps
+  the old asset. gh deletes the old asset first.
+- `release create` with files creates a draft, uploads the files and then
+  publishes the release, so a failed upload leaves a draft instead of a
+  published release with missing assets.
+- `release delete-asset` asks for the asset name to be typed in a
+  terminal instead of a yes/no question; `--yes` skips the prompt.

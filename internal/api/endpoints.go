@@ -90,3 +90,10 @@ var (
 	epGetTag        = endpoint("GET", "/repos/{owner}/{repo}/tags/{tag}")
 	epDeleteTag     = endpoint("DELETE", "/repos/{owner}/{repo}/tags/{tag}")
 )
+
+var (
+	epAttachmentSettings = endpoint("GET", "/settings/attachment")
+	epUploadReleaseAsset = endpoint("POST", "/repos/{owner}/{repo}/releases/{id}/assets")
+	epEditReleaseAsset   = endpoint("PATCH", "/repos/{owner}/{repo}/releases/{id}/assets/{attachment_id}")
+	epDeleteReleaseAsset = endpoint("DELETE", "/repos/{owner}/{repo}/releases/{id}/assets/{attachment_id}")
+)
