@@ -1608,11 +1608,13 @@ Acceptance criteria:
 
 ### Phase 4 — Release management
 
-**Target: v0.2.0** — planned (2026-11-18); split into 4a (API, list/view),
+**Target: v0.2.0** — implemented (2026-11-20), released by tagging v0.2.0;
+split into 4a (API, list/view),
 4b (create/edit/delete), 4c (asset upload), 4d (download) and 4e (fjo binary
 releases, documentation, closing). Checklist: docs/PHASE4.txt. Decisions
 B-52 to B-54 and B-56 accepted 2026-11-20. Milestones 4a and 4b implemented
-2026-11-18, 4c (asset upload) and 4d (download) 2026-11-20.
+2026-11-18, 4c (asset upload), 4d (download) and 4e (GoReleaser, docs)
+2026-11-20.
 
 Tasks:
 

@@ -5,8 +5,8 @@ alternative to GitHub CLI (`gh`) for Forgejo instances: same command style, flag
 JSON output and exit codes where Forgejo supports the feature, with Forgejo-native
 semantics where it differs.
 
-> **Status:** v0.1.0, pre-1.0. Authentication, repositories, issues and pull requests
-> work against Forgejo 15 and 17; see [CHANGELOG.md](CHANGELOG.md).
+> **Status:** v0.2.0, pre-1.0. Authentication, repositories, issues, pull requests and
+> releases work against Forgejo 15 and 17; see [CHANGELOG.md](CHANGELOG.md).
 
 ## Goals
 
@@ -24,7 +24,8 @@ fjo auth login --hostname forgejo.example.com
 fjo issue list
 ```
 
-See [INSTALL.md](INSTALL.md) for installation and [docs/](docs/) for details:
+Prebuilt binaries for Linux, macOS and Windows are on
+[GitHub Releases](https://github.com/maymeow/fjo/releases). See [INSTALL.md](INSTALL.md) for installation and [docs/](docs/) for details:
 
 - [Commands](docs/commands.md)
 - [Authentication](docs/authentication.md)
