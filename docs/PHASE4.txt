@@ -143,36 +143,38 @@ Endpointy a modely sú v swaggeri 15.0.11 a 17.0.1 zhodné:
 
 ## 4e — Binárne vydania fjo, dokumentácia, uzavretie fázy
 
-- [ ] `.goreleaser.yaml` (§15): Windows amd64/arm64 (zip), Linux
+- [x] `.goreleaser.yaml` (§15): Windows amd64/arm64 (zip), Linux
       amd64/arm64/armv7 a macOS amd64/arm64 (tar.gz). Ldflags pre
       `internal/build` (Version, Commit, Date), `-trimpath`, CGO vypnuté.
-- [ ] `checksums.txt` (SHA-256) a SBOM pre každý archív (syft).
-- [ ] `.github/workflows/release.yaml`: spúšťa sa pri tagu `v*`, práva iba
+- [x] `checksums.txt` (SHA-256) a SBOM pre každý archív (syft).
+- [x] `.github/workflows/release.yaml`: spúšťa sa pri tagu `v*`, práva iba
       `contents: write` pre tento job, predtým beží `make check`.
-- [ ] `goreleaser check` a `goreleaser release --snapshot --clean` v CI na PR,
+- [x] `goreleaser check` a `goreleaser release --snapshot --clean` v CI na PR,
       aby sa konfigurácia overila pred prvým tagom.
-- [ ] Dokumentácia:
-  - [ ] `docs/commands.md`: všetky `release` príkazy, flagy, príklady.
-  - [ ] `docs/compatibility.md`: parity tabuľka `release`, odchýlky (B-55),
+- [x] Dokumentácia:
+  - [x] `docs/commands.md`: všetky `release` príkazy, flagy, príklady.
+  - [x] `docs/compatibility.md`: parity tabuľka `release`, odchýlky (B-55),
         JSON polia releasu.
-  - [ ] `INSTALL.md`: binárky z GitHub Releases a overenie checksumu.
-  - [ ] `CHANGELOG.md` `[Unreleased]` → `[0.2.0]`.
-  - [ ] IMPLEMENTATION.txt §16 Phase 4: odškrtnúť úlohy a zapísať dátum.
-  - [ ] BACKLOG: rozhodnutia B-51 až B-56, B-31.
+  - [x] `INSTALL.md`: binárky z GitHub Releases a overenie checksumu.
+  - [x] `CHANGELOG.md` `[Unreleased]` → `[0.2.0]`.
+  - [x] IMPLEMENTATION.txt §16 Phase 4: odškrtnúť úlohy a zapísať dátum.
+  - [x] BACKLOG: rozhodnutia B-51 až B-56, B-31.
 
 ---
 
 ## Kontrola pred uzavretím (acceptance criteria, Phase 4)
 
-- [ ] Releasy sa dajú spravovať bez prehliadača: list, view, create, edit,
+- [x] Releasy sa dajú spravovať bez prehliadača: list, view, create, edit,
       delete, upload, delete-asset, download (integrácia 15 a 17).
-- [ ] Veľké prílohy sa pri uploade ani downloade nenačítajú celé do pamäte
+- [x] Veľké prílohy sa pri uploade ani downloade nenačítajú celé do pamäte
       (test s meraním alokácií).
-- [ ] Prerušené operácie so súbormi zlyhajú bezpečne: žiadny čiastočný súbor
+- [x] Prerušené operácie so súbormi zlyhajú bezpečne: žiadny čiastočný súbor
       s finálnym menom, žiadna polovičná príloha bez chybovej správy.
-- [ ] Všetky `list` a `view` príkazy majú `--json/--jq/--template`.
-- [ ] Bez TTY nič nečaká na vstup. Deštruktívne príkazy vyžadujú `--yes`.
-- [ ] Token sa nikdy nedostane na iný host ani do `--debug` výstupu.
-- [ ] `make check`, lint (vrátane fmtwrite), race a integrácia prechádzajú
+- [x] Všetky `list` a `view` príkazy majú `--json/--jq/--template`.
+- [x] Bez TTY nič nečaká na vstup. Deštruktívne príkazy vyžadujú `--yes`.
+- [x] Token sa nikdy nedostane na iný host ani do `--debug` výstupu.
+- [x] `make check`, lint (vrátane fmtwrite), race a integrácia prechádzajú
       na Linuxe, Windowse a macOS.
 - [ ] Tag v0.2.0 vytvorí cez GoReleaser release s binárkami, checksumami a SBOM.
+      Overené lokálne snapshotom (bez SBOM) a v CI jobom `goreleaser`;
+      čaká na tag po merge.

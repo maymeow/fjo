@@ -28,6 +28,31 @@ can also target an existing instance through `FJO_TEST_FORGEJO_URL`,
 `FJO_TEST_FORGEJO_TOKEN` and (optionally) `FJO_TEST_FORGEJO_VERSION`; it skips
 when the URL or token is missing.
 
+## Releases
+
+Releases are built by GoReleaser (`.goreleaser.yaml`) and published to
+GitHub Releases by `.github/workflows/release.yaml` when a `v*` tag is
+pushed. The workflow first runs `make check`, then builds the archives for
+Linux (amd64, arm64, armv7), macOS (amd64, arm64) and Windows (amd64,
+arm64) with `CGO_ENABLED=0` and `-trimpath`, sets version, commit and
+commit date through `-ldflags`, and uploads `checksums.txt` and one SBOM per
+archive (syft). Tags with a pre-release suffix (`v0.3.0-rc.1`) become
+GitHub pre-releases.
+
+To cut a release:
+
+1. Move the `## [Unreleased]` entries in `CHANGELOG.md` to
+   `## [X.Y.Z] - YYYY-MM-DD`, add the compare link at the bottom and merge
+   the change through a pull request. The release notes are taken from that
+   section (`scripts/release-notes.sh vX.Y.Z`); the workflow fails without it.
+2. Tag the merge commit on `main` and push the tag:
+   `git tag -a vX.Y.Z -m "fjo X.Y.Z" && git push origin vX.Y.Z`.
+
+Every pull request runs `goreleaser check` and a snapshot build in the
+GitHub CI job `goreleaser`. Locally: `goreleaser check` and
+`goreleaser release --snapshot --clean` (add `--skip=sbom` without syft);
+the archives land in `dist/`.
+
 ## Project documents
 
 - `docs/IMPLEMENTATION.txt` — the plan and contracts.

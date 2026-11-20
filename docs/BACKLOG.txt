@@ -1045,7 +1045,10 @@ Proposal:
 - The checksum manifest name matches B-53, so `fjo release download` can
   verify fjo's own releases.
 Decision:
-- Accepted as proposed (2026-11-20); implementation in 4e.
+- Accepted as proposed (2026-11-20); implemented in 4e: .goreleaser.yaml,
+  .github/workflows/release.yaml (make check, then GoReleaser v2.20.3 with
+  syft), release notes from CHANGELOG.md via scripts/release-notes.sh,
+  snapshot build on every PR. Signing stays with B-17.
 
 ### B-57 — Release asset limits from /settings/attachment
 

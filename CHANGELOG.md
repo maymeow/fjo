@@ -8,7 +8,13 @@ Development progress is tracked in [docs/CHANGELOG.txt](docs/CHANGELOG.txt).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-20
+
+Release management. Supports Forgejo 15 and 17.
+
 ### Added
+
+- Prebuilt archives for Linux (amd64, arm64, armv7), macOS (amd64, arm64) and Windows (amd64, arm64) on GitHub Releases, with a SHA-256 `checksums.txt` and an SBOM per archive. `fjo version` in these builds shows the commit and its date.
 
 - `fjo release create`, `edit` and `delete` manage releases by tag, including draft publication and optional Git tag cleanup.
 
@@ -54,5 +60,6 @@ First release. Supports Forgejo 15 and 17.
   `FJO_CONFIG_DIR` or `XDG_CONFIG_HOME`.
 - gh-compatible exit codes, plus fjo codes 10–16 (see docs/compatibility.md).
 
-[Unreleased]: https://github.com/maymeow/fjo/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/maymeow/fjo/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/maymeow/fjo/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/maymeow/fjo/releases/tag/v0.1.0

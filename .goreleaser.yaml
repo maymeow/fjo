@@ -1,0 +1,66 @@
+# GoReleaser configuration for fjo release archives (IMPLEMENTATION §15,
+# BACKLOG B-56). Published by .github/workflows/release.yaml on a v* tag.
+#
+# Validate:      goreleaser check
+# Local build:   goreleaser release --snapshot --clean   (needs syft for SBOMs)
+version: 2
+
+project_name: fjo
+
+before:
+  hooks:
+    - go mod verify
+
+builds:
+  - id: fjo
+    main: ./cmd/fjo
+    binary: fjo
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/maymeow/fjo/internal/build.Version={{ .Version }}
+      - -X github.com/maymeow/fjo/internal/build.Commit={{ .FullCommit }}
+      - -X github.com/maymeow/fjo/internal/build.Date={{ .CommitDate }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64, arm]
+    goarm: ["7"]
+    ignore:
+      - goos: darwin
+        goarch: arm
+      - goos: windows
+        goarch: arm
+
+archives:
+  - id: fjo
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}"
+    files:
+      - LICENSE
+      - README.md
+      - INSTALL.md
+      - CHANGELOG.md
+
+# The name matches what `fjo release download` verifies (BACKLOG B-53).
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+sboms:
+  - artifacts: archive
+
+changelog:
+  disable: true
+
+release:
+  github:
+    owner: maymeow
+    name: fjo
+  prerelease: auto
+  mode: replace

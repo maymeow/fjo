@@ -12,9 +12,10 @@ New ideas, scope changes and open decisions go to docs/BACKLOG.txt, not here.
 
 ## Current status
 
-- Phase:            Phase 4 - Release management (4a to 4d COMPLETE)
-- Next target:      Phase 4e - fjo binary releases, docs, closing
-                    (v0.2.0), plan in docs/PHASE4.txt; B-57 to verify
+- Phase:            Phase 4 - Release management (COMPLETE, tag v0.2.0
+                    pending)
+- Next target:      tag v0.2.0, then Phase 5 - Actions (v0.3.0);
+                    B-57 to verify
 - Last updated:     2026-11-20
 - Repo:             https://github.com/maymeow/fjo (public), branch main
 - Phase 0 open:     self-hosted Forgejo runners; race tests (B-35);
@@ -52,6 +53,36 @@ Newest entries on top. One entry per working session / merged change set.
 
 Omit empty sections. Tick the matching task checkbox in IMPLEMENTATION.txt §16
 when a task is done and verified.
+
+---
+
+## 2026-11-20 — fjo binary releases, Phase 4 closed
+Phase: 4e / v0.2.0
+Spec:  §15, §16 Phase 4; PHASE4.txt milestone 4e
+
+Added:
+- .goreleaser.yaml: Linux amd64/arm64/armv7, macOS amd64/arm64 (tar.gz),
+  Windows amd64/arm64 (zip); CGO_ENABLED=0, -trimpath, -s -w, Version /
+  full Commit / CommitDate via ldflags, mod_timestamp = commit time;
+  checksums.txt (SHA-256), SBOM per archive (syft), GitHub changelog off.
+- .github/workflows/release.yaml: on v* tags; job `check` (release notes
+  present, make check) and job `goreleaser` (contents: write only there).
+- scripts/release-notes.sh: prints the CHANGELOG.md section of a version.
+- CI job `goreleaser` (GitHub only): release-notes script, goreleaser check,
+  snapshot build with SBOMs.
+- INSTALL.md: prebuilt archives and checksum verification (Linux, macOS,
+  Windows). docs/development.md: release procedure. README status.
+Changed:
+- CHANGELOG.md: [Unreleased] moved to [0.2.0] - 2026-11-20.
+Tests:
+- goreleaser check; goreleaser release --snapshot --clean --skip=sbom
+  (v2.20.3): 7 archives, checksums.txt, `fjo version` shows commit and
+  date, armv7 and windows/arm64 binaries have the right format.
+- make check (fmt-check, vet, lint, test, race, govulncheck): passes.
+- Integration of 4c/4d verified in CI of PR #23 and #24 (Forgejo 15 and 17).
+Notes / next steps:
+- Tag v0.2.0 on main after merging; the workflow publishes the release.
+- SBOM generation runs only in CI (no syft on the development machine).
 
 ---
 

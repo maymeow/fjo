@@ -1,5 +1,7 @@
 # CI for fjo on GitHub-hosted runners. Mirrors .forgejo/workflows/ci.yaml,
 # which runs the same jobs on the project's self-hosted Forgejo runners.
+# The goreleaser job exists only here, because releases are published to
+# GitHub (.github/workflows/release.yaml).
 
 name: ci
 
@@ -86,3 +88,35 @@ jobs:
 
       - name: govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
+  goreleaser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - uses: anchore/sbom-action/download-syft@v0
+
+      - name: Release notes script
+        run: ./scripts/release-notes.sh v0.1.0 > /dev/null
+
+      - name: goreleaser check
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: v2.20.3
+          args: check
+
+      - name: goreleaser snapshot
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: v2.20.3
+          args: release --snapshot --clean
