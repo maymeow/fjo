@@ -14,6 +14,12 @@ Development progress is tracked in [docs/CHANGELOG.txt](docs/CHANGELOG.txt).
 
 - `fjo release list` and `fjo release view` show release notes, assets and metadata, with structured output for scripts.
 
+- `fjo release upload` uploads release assets without loading them into memory, shows progress in a terminal and replaces existing assets with `--clobber` without losing the old asset when an upload fails.
+
+- `fjo release delete-asset` deletes a release asset after confirmation (`--yes` without a terminal).
+
+- `fjo release create <tag> <files>...` uploads the files as assets and publishes the release only after all uploads succeeded.
+
 ### Changed
 
 - `--web` on `issue` and `pr` commands now says which URL it opens and, when the browser fails to start, suggests opening the URL manually or setting `FJO_BROWSER`, as `repo view --web` already did.

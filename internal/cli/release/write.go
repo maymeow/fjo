@@ -74,7 +74,7 @@ type createOptions struct {
 
 func newCreateCmd(f *app.Factory) *cobra.Command {
 	var opts createOptions
-	cmd := &cobra.Command{Use: "create [<tag>]", Short: "Create a release", Args: cobra.MaximumNArgs(1)}
+	cmd := &cobra.Command{Use: "create [<tag>] [<files>...]", Short: "Create a release", Args: cobra.ArbitraryArgs}
 	cmdutil.AddRepoFlag(cmd, &opts.repo)
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.payload.Name, "title", "t", "", "Release title")
@@ -103,8 +103,12 @@ func newCreateCmd(f *app.Factory) *cobra.Command {
 func createRelease(ctx context.Context, f *app.Factory, opts createOptions, args []string) error {
 	var err error
 	payload := opts.payload
-	if len(args) == 1 {
+	var files []assetFile
+	if len(args) > 0 {
 		payload.TagName = args[0]
+		if files, err = localAssets(args[1:]); err != nil {
+			return err
+		}
 	} else {
 		if !f.IO.CanPrompt() {
 			return fjoerr.Usage("a tag is required without a terminal")
@@ -123,6 +127,11 @@ func createRelease(ctx context.Context, f *app.Factory, opts createOptions, args
 	}
 	if err := checkDuplicate(ctx, client, ref.Owner, ref.Name, payload.TagName); err != nil {
 		return err
+	}
+	if len(files) > 0 {
+		if err := requireAttachments(ctx, client); err != nil {
+			return err
+		}
 	}
 	if opts.verifyTag {
 		err := client.VerifyTag(ctx, ref.Owner, ref.Name, payload.TagName)
@@ -152,6 +161,8 @@ func createRelease(ctx context.Context, f *app.Factory, opts createOptions, args
 	if err != nil {
 		return err
 	}
+	publish := !payload.Draft && len(files) > 0
+	payload.Draft = payload.Draft || len(files) > 0
 	release, err := client.CreateRelease(ctx, ref.Owner, ref.Name, payload)
 	if err != nil {
 		if fjoerr.KindOf(err) == fjoerr.KindConflict {
@@ -161,8 +172,38 @@ func createRelease(ctx context.Context, f *app.Factory, opts createOptions, args
 		}
 		return err
 	}
+	if len(files) > 0 {
+		if release, err = uploadAndPublish(ctx, f, client, ref.Owner, ref.Name, release, files, publish); err != nil {
+			return err
+		}
+	}
 	_, err = fmt.Fprintln(f.IO.Out, cmdutil.OneLine(release.HTMLURL))
 	return err
+}
+
+// uploadAndPublish uploads the assets of a release created as a draft and
+// publishes it afterwards, so nobody sees a published release without its
+// assets. On failure the draft stays and the error says how to continue.
+func uploadAndPublish(ctx context.Context, f *app.Factory, client *api.Client, owner, repo string, release *api.Release, files []assetFile, publish bool) (*api.Release, error) {
+	tag := release.TagName
+	if release.ID <= 0 {
+		return nil, fjoerr.New(fjoerr.KindGeneral, "Forgejo did not return a valid release ID")
+	}
+	u := &uploader{f: f, client: client, owner: owner, repo: repo, release: release}
+	if err := u.uploadAll(ctx, files); err != nil {
+		return nil, fjoerr.Wrap(fjoerr.KindOf(err), err, "draft release %q was created, but uploading its assets failed", tag).
+			WithHint(fmt.Sprintf("upload the remaining files with 'fjo release upload %s', then publish with 'fjo release edit %s --draft=false'", tag, tag))
+	}
+	if !publish {
+		return release, nil
+	}
+	draft := false
+	published, err := client.EditRelease(ctx, owner, repo, release.ID, api.EditReleaseOptions{Draft: &draft})
+	if err != nil {
+		return nil, fjoerr.Wrap(fjoerr.KindOf(err), err, "assets uploaded, but publishing draft release %q failed", tag).
+			WithHint(fmt.Sprintf("publish it with 'fjo release edit %s --draft=false'", tag))
+	}
+	return published, nil
 }
 
 func checkDuplicate(ctx context.Context, c *api.Client, owner, repo, tag string) error {

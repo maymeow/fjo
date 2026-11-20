@@ -588,12 +588,13 @@ shows the latest stable published release. If Forgejo has no stable
 published release, the command exits with code 12. Supply a tag to view
 a draft or a pre-release. `-w, --web` opens the release in a browser.
 
-### `fjo release create [<tag>]`
+### `fjo release create [<tag>] [<files>...]`
 
 ```bash
 fjo release create v1.2.0 --title "Version 1.2.0" --notes-file notes.md
 fjo release create v1.2.0-rc.1 --draft --prerelease --target stable
 fjo release create v1.2.0 --verify-tag --notes-from-tag
+fjo release create v1.2.0 dist/fjo_linux_amd64.tar.gz dist/checksums.txt
 ```
 
 Forgejo uses the repository's default branch when `--target` is omitted.
@@ -605,7 +606,14 @@ and notes can be empty.
 Use `-n, --notes` for inline notes, `-F, --notes-file` for a file or `-`
 for stdin, or `--notes-from-tag` for an annotation from the local Git
 repository. Use `--hide-archive-links` to hide Forgejo's source archive
-links. Asset arguments are planned for Phase 4c.
+links.
+
+Files after the tag are uploaded as release assets. fjo then creates the
+release as a draft, uploads the files and publishes the release only after
+every upload succeeded, unless `--draft` was given. If an upload fails, the
+draft stays and the error names the files that were uploaded, so you can
+continue with `fjo release upload` and publish with
+`fjo release edit <tag> --draft=false`.
 
 ### `fjo release edit <tag>`
 
@@ -631,3 +639,33 @@ Type the release tag to confirm deletion in a terminal, or pass `--yes`.
 Without a terminal, `--yes` is required. `--cleanup-tag` deletes the remote
 Git tag after deleting the release. If the tag deletion fails, the command
 reports that the release was already deleted.
+
+### `fjo release upload <tag> <files>...`
+
+```bash
+fjo release upload v1.2.0 dist/fjo_linux_amd64.tar.gz dist/checksums.txt
+fjo release upload v1.2.0 dist/checksums.txt --clobber
+```
+
+Uploads files as release assets. The asset name is the file name. Files are
+streamed from disk, so large files are not loaded into memory, and an upload
+is never retried automatically. In a terminal, progress is shown on stderr;
+otherwise the command prints nothing on success.
+
+Before uploading, fjo checks that every file is a regular file, that no two
+files share a name, and that the instance has attachments enabled (exit 15
+if not). An existing asset with the same name causes exit 13; `--clobber`
+replaces it. The new file is uploaded under a temporary name first, then the
+old asset is deleted and the new one renamed, so a failed transfer keeps the
+old asset. Files are uploaded one after another; on a failure fjo stops and
+names the assets that were already uploaded. When Forgejo rejects a file
+as too large or over the storage quota (HTTP 413), the command exits 13.
+
+### `fjo release delete-asset <tag> <asset-name>`
+
+```bash
+fjo release delete-asset v1.2.0 fjo_linux_amd64.tar.gz --yes
+```
+
+Type the asset name to confirm deletion in a terminal, or pass `--yes`.
+Without a terminal, `--yes` is required. A missing asset causes exit 12.
