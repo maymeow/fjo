@@ -135,7 +135,7 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 | `gh release list/view` | same | done (Phase 4a) |
 | `gh release create/edit/delete` | same | done (Phase 4b) |
 | `gh release upload/delete-asset` | same | done (Phase 4c) |
-| `gh release download` | same | planned (Phase 4d) |
+| `gh release download` | same | done (Phase 4d) |
 | `gh run`, `gh workflow` | same | planned (Phase 5), scope depends on Forgejo Actions API (BACKLOG B-10) |
 | `gh org`, `gh ssh-key`, `gh secret`, `gh variable` | same | planned (Phase 6) |
 | `gh label` | same | idea (BACKLOG B-22) |
@@ -249,5 +249,13 @@ Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differ
 - `release create` with files creates a draft, uploads the files and then
   publishes the release, so a failed upload leaves a draft instead of a
   published release with missing assets.
+- `release download` verifies the SHA-256 digest of each asset listed in a
+  checksum manifest of the release (`checksums.txt`, `*_checksums.txt`,
+  `SHA256SUMS`) and checks every size; `--skip-verify` turns the checksum
+  check off. gh has `--skip-existing` and `--clobber` too, but no checksum
+  verification.
+- `release download --archive` names the file `<repo>-<tag>.<ext>`, with
+  `/` in the tag replaced by `-`. `--archive` and `--pattern` cannot be
+  combined.
 - `release delete-asset` asks for the asset name to be typed in a
   terminal instead of a yes/no question; `--yes` skips the prompt.

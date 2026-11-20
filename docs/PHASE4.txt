@@ -117,25 +117,25 @@ Endpointy a modely sú v swaggeri 15.0.11 a 17.0.1 zhodné:
 
 ## 4d — `release download`
 
-- [ ] `release download [<tag>]`: bez tagu najnovší release.
-  - [ ] Flagy `-p/--pattern` (glob, opakovateľný), `-A/--archive zip|tar.gz`,
+- [x] `release download [<tag>]`: bez tagu najnovší release.
+  - [x] Flagy `-p/--pattern` (glob, opakovateľný), `-A/--archive zip|tar.gz`,
         `-D/--dir`, `-O/--output` (`-` = stdout), `--clobber`, `--skip-existing`,
         `--skip-verify`.
-  - [ ] Bez `--pattern` a `--archive` stiahne všetky prílohy (ako gh).
-  - [ ] Streamovanie do dočasného súboru v cieľovom adresári, potom kontrola
+  - [x] Bez `--pattern` a `--archive` stiahne všetky prílohy (ako gh).
+  - [x] Streamovanie do dočasného súboru v cieľovom adresári, potom kontrola
         veľkosti, fsync a rename (B-53). Pri chybe, Ctrl-C alebo zrušení
         kontextu sa dočasný súbor zmaže. Exit 130 pri prerušení.
-  - [ ] SHA-256 podľa manifestu kontrolných súčtov, ak je v release (B-53).
+  - [x] SHA-256 podľa manifestu kontrolných súčtov, ak je v release (B-53).
         Nesúlad = exit 1 a súbor sa zmaže.
-  - [ ] Token sa posiela iba na vlastný host (§7.4). Pri presmerovaní na iný
+  - [x] Token sa posiela iba na vlastný host (§7.4). Pri presmerovaní na iný
         host (externé prílohy, CDN) sa hlavička Authorization nesmie
         preniesť. Overiť testom.
-  - [ ] Mená príloh zo servera sú nedôveryhodné: odmietnuť `..`, cesty,
+  - [x] Mená príloh zo servera sú nedôveryhodné: odmietnuť `..`, cesty,
         absolútne mená a na Windows rezervované mená. Výsledná cesta musí
         ležať v `--dir`.
-  - [ ] Existujúci súbor = chyba, pokiaľ nie je `--clobber` alebo
+  - [x] Existujúci súbor = chyba, pokiaľ nie je `--clobber` alebo
         `--skip-existing` (B-54).
-- [ ] Testy: prerušený prenos nenechá súbor, nesúlad veľkosti aj
+- [x] Testy: prerušený prenos nenechá súbor, nesúlad veľkosti aj
       kontrolného súčtu, path traversal v mene prílohy, presmerovanie bez
       tokenu, integrácia 15 a 17 (upload → download → porovnanie).
 

@@ -1612,7 +1612,7 @@ Acceptance criteria:
 4b (create/edit/delete), 4c (asset upload), 4d (download) and 4e (fjo binary
 releases, documentation, closing). Checklist: docs/PHASE4.txt. Decisions
 B-52 to B-54 and B-56 accepted 2026-11-20. Milestones 4a and 4b implemented
-2026-11-18, 4c (asset upload) 2026-11-20.
+2026-11-18, 4c (asset upload) and 4d (download) 2026-11-20.
 
 Tasks:
 
@@ -1620,10 +1620,10 @@ Tasks:
 - [x] Implement release viewing.
 - [x] Implement release creation.
 - [x] Implement release asset upload.
-- [ ] Implement release download.
+- [x] Implement release download.
 - [x] Implement release editing/deleting.
-- [ ] Add streaming transfer support.
-- [ ] Add download integrity checks where metadata allows.
+- [x] Add streaming transfer support.
+- [x] Add download integrity checks where metadata allows.
 
 Acceptance criteria:
 

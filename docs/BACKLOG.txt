@@ -974,7 +974,8 @@ Proposal:
   turns it off.
 - No resume of partial downloads in Phase 4.
 Decision:
-- Accepted as proposed (2026-11-20); implementation in 4d.
+- Accepted as proposed (2026-11-20); implemented in 4d. sha256sums.txt
+  is recognised as well.
 
 ### B-54 — Overwrite behaviour for upload and download
 
@@ -995,7 +996,7 @@ Proposal (same as gh):
 Decision:
 - Accepted as proposed (2026-11-20). Upload part implemented in 4c: the
   temporary name is `fjo-upload-<8 hex>-<name>`, keeping the extension
-  for servers that restrict file types. Download part in 4d.
+  for servers that restrict file types. Download part implemented in 4d.
 
 ### B-55 — gh release flags without a Forgejo equivalent
 

@@ -37,6 +37,8 @@ type Attachment struct {
 	DownloadURL   string    `json:"browser_download_url"`
 	DownloadCount int64     `json:"download_count"`
 	CreatedAt     time.Time `json:"created_at"`
+	// Type is "attachment" for uploaded files and "external" for links.
+	Type string `json:"type"`
 }
 
 // CreateReleaseOptions is the Forgejo release creation payload.

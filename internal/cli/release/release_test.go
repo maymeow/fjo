@@ -1,6 +1,7 @@
 package release_test
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -40,6 +41,11 @@ func run(t *testing.T, handler http.HandlerFunc, tty bool, args ...string) resul
 
 func runWith(t *testing.T, handler http.HandlerFunc, tty bool, input, gitDir string, args ...string) result {
 	t.Helper()
+	return runContext(t.Context(), t, handler, tty, input, gitDir, args...)
+}
+
+func runContext(ctx context.Context, t *testing.T, handler http.HandlerFunc, tty bool, input, gitDir string, args ...string) result {
+	t.Helper()
 	server := httptest.NewTLSServer(handler)
 	t.Cleanup(server.Close)
 	env := map[string]string{
@@ -55,7 +61,7 @@ func runWith(t *testing.T, handler http.HandlerFunc, tty bool, input, gitDir str
 	f.GitDir = gitDir
 	f.Browser = func(string) error { return browser.ErrNoBrowser }
 	command := append(append([]string{"release"}, args...), "-R", "org/project")
-	code := cli.Run(t.Context(), f, command)
+	code := cli.Run(ctx, f, command)
 	return result{code: code, stdout: stdout.String(), stderr: stderr.String()}
 }
 
