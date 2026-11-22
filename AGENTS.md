@@ -56,7 +56,7 @@ Instructions for AI coding agents working on `fjo`.
 
 ## Documentation
 
-- User documentation lives in `docs/` (`commands.md`, `authentication.md`, `compatibility.md`, `architecture.md`, `development.md`). When you change a command's behaviour, flags or output, update the relevant page in the same change.
+- User documentation lives in `docs/` (`commands.md`, `authentication.md`, `compatibility.md`, `gh-parity.md`, `architecture.md`, `development.md`). When you change a command's behaviour, flags or output, update the relevant page in the same change. When you add a command, update its status in `docs/gh-parity.md`.
 - `docs/IMPLEMENTATION.txt` is the specification; follow it.
 - **`CHANGELOG.md`** (user-facing, [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)): add every user-visible change under `## [Unreleased]` in the matching section (`### Added`, `### Changed`, `### Fixed`, `### Removed`). Write it from the user's point of view; internal refactors and lint fixes do not belong here.
 - **`docs/CHANGELOG.txt`** (internal development log): record what was actually implemented and update its "Current status" block.

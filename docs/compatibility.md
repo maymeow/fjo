@@ -115,35 +115,9 @@ value with `…`.
 
 ## Command parity
 
-Status: **done**, **planned** (phase), **n/a** (no Forgejo equivalent), **differs** (see notes).
-
-| gh | fjo | Status |
-|---|---|---|
-| `gh --version`, `gh version` | `fjo --version`, `fjo version` | done |
-| `gh help`, `gh completion` | same | done (cobra built-in) |
-| `gh auth login/logout/status/switch/token` | same | done |
-| `gh auth refresh` | — | n/a until OAuth (BACKLOG B-16) |
-| `gh api` | `fjo api` | done (incl. `{owner}`/`{repo}`/`{branch}`); differs: `--paginate`, no GraphQL/`--jq` yet (see below) |
-| `gh config get/set/list` | same | idea (BACKLOG B-26) |
-| `gh repo list/view/set-default` | same | done (Phase 2a; `--json`/`--jq`/`--template` from 3a) |
-| `gh repo create/clone/fork/edit/rename/delete/archive/unarchive/sync` | same | done (Phase 2b); differences below |
-| `gh browse` | same | idea (BACKLOG B-21) |
-| `gh issue list/view/create/edit/close/reopen/comment/delete/pin/unpin` | same | done (Phase 3b); differences below |
-| `gh pr list/view/diff/checks` | same | done (Phase 3c), with differences below |
-| `gh pr create/checkout/merge/close/reopen/ready/edit/comment` | same | done (Phase 3d), with differences below |
-| `gh pr review` | same | done (Phase 3e), with differences below |
-| `gh release list/view` | same | done (Phase 4a) |
-| `gh release create/edit/delete` | same | done (Phase 4b) |
-| `gh release upload/delete-asset` | same | done (Phase 4c) |
-| `gh release download` | same | done (Phase 4d) |
-| `gh run`, `gh workflow` | same | planned (Phase 5), scope depends on Forgejo Actions API (BACKLOG B-10) |
-| `gh org`, `gh ssh-key`, `gh secret`, `gh variable` | same | planned (Phase 6) |
-| `gh label` | same | idea (BACKLOG B-22) |
-| `gh search` | same | idea (BACKLOG B-25) |
-| `gh status` | same | idea (BACKLOG B-24) |
-| `gh alias` | same | idea (BACKLOG B-23) |
-| `gh extension` | same | planned (Phase 7) |
-| `gh gist`, `gh codespace`, `gh project`, `gh copilot` | — | n/a |
+The full list of gh commands and subcommands with their fjo status (done,
+planned, idea, not applicable), and what to change when porting a gh script,
+is in [gh-parity.md](gh-parity.md).
 
 ## Intentional differences from gh
 

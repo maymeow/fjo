@@ -56,6 +56,21 @@ when a task is done and verified.
 
 ---
 
+## 2026-11-22 — gh command coverage
+Phase: docs
+Spec:  §1.4 (rule 7: parity table), §14
+
+Added:
+- docs/gh-parity.md: every gh subcommand (103) with fjo status (51 done,
+  34 planned/idea, 18 n/a), a checklist for porting gh scripts, and Forgejo
+  15/17 Actions API availability. n/a and idea notes verified against the
+  pinned swagger files.
+Changed:
+- docs/compatibility.md: the command parity table moved to gh-parity.md.
+- AGENTS.md: new commands must update gh-parity.md.
+
+---
+
 ## 2026-11-20 — fjo binary releases, Phase 4 closed
 Phase: 4e / v0.2.0
 Spec:  §15, §16 Phase 4; PHASE4.txt milestone 4e
