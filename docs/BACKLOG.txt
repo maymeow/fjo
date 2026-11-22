@@ -1072,3 +1072,42 @@ Proposal:
   MAX_SIZE for release assets, add a pre-upload size check.
 Decision:
 -
+
+### B-58 — Documentation audit follow-up
+
+Type:     tech-debt
+Status:   open
+Added:    2026-11-22
+Phase:    post-Phase 4
+
+Context:
+- Audited docs-gh-parity at 1eae130 against the CLI and repository.
+- All relative Markdown links checked resolved to existing local paths.
+  Publication of the v0.2.0 release assets on GitHub could not be verified.
+
+Findings:
+- High — INSTALL.md: the shared Linux/macOS example always downloads
+  linux_amd64. Document how to choose the correct OS and architecture,
+  including darwin_arm64 and darwin_amd64 for macOS.
+- High — docs/commands.md (release download): SHA-256 verification applies
+  to assets with a matching manifest entry. --archive skips manifest
+  loading. With -O -, bytes reach stdout before verification finishes, so
+  tar in the example can extract data even if fjo later reports a mismatch.
+  Describe those cases and the verification before placing a file on disk.
+  See internal/cli/release/download.go.
+- Medium — docs/development.md: make lint needs golangci-lint v2.15.0 on
+  PATH to build the custom linter with fmtwrite. scripts/build.ps1 still uses
+  staticcheck, so the two check commands cover different lint rules.
+- Medium — docs/gh-parity.md (porting scripts): -R HOST/OWNER/REPO applies
+  only to commands that accept --repo. fjo api resolves its host from
+  --hostname, FJO_HOST, defaults.host or the sole configured host.
+  PowerShell uses boolean $? and numeric $LASTEXITCODE. Test
+  $LASTEXITCODE -ne 0 for a native command's numeric exit status.
+- Medium — docs/architecture.md: internal/api, credentials, git, output
+  and browser already exist. Replace the planned-packages list and revise
+  the filesystem rule to account for calls such as os.OpenRoot in
+  internal/cli/release/download.go.
+- Low — docs/CHANGELOG.txt (Current status) still lists the v0.2.0 tag as
+  pending. The local tag already points at 848914d, which also matched
+  main and origin/main during the audit. Verify publication separately
+  before marking the binary release check in docs/PHASE4.txt complete.
