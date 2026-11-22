@@ -29,7 +29,7 @@ Prebuilt binaries for Linux, macOS and Windows are on
 
 - [Commands](docs/commands.md)
 - [Authentication](docs/authentication.md)
-- [gh compatibility](docs/compatibility.md)
+- [gh compatibility](docs/compatibility.md) and [command coverage](docs/gh-parity.md)
 - [Architecture](docs/architecture.md)
 - [Development](docs/development.md)
 
